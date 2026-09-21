@@ -1,0 +1,97 @@
+# Docker Compose — NER Logistics Platform Development Infrastructure
+# Run: docker compose -f infra/compose.yaml up -d redis minio createbuckets
+#
+# ⚠️  PostgreSQL is hosted on Neon (serverless, Singapore region).
+#     Project: ner-logistics-sih2026 (bitter-morning-62573618)
+#     Set DATABASE_URL and DATABASE_URL_DIRECT in backend/.env
+#     No local Postgres container is needed or started.
+
+name: ner-logistics
+
+services:
+  # ─────────────────────────────────────────────────────
+  # Redis 7 — Celery broker + ephemeral result cache
+  # ─────────────────────────────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    container_name: ner_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ner_network
+
+  # ─────────────────────────────────────────────────────
+  # MinIO — S3-compatible private object storage
+  # Media quarantine + scanned evidence storage
+  # ─────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: ner_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ner_minio_admin       # DEV ONLY
+      MINIO_ROOT_PASSWORD: ner_minio_secret  # DEV ONLY — minimum 8 chars
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console (dev only)
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ner_network
+
+  # ─────────────────────────────────────────────────────
+  # MinIO bucket initializer — one-shot service
+  # Creates required buckets: media-quarantine, media-clean
+  # ─────────────────────────────────────────────────────
+  createbuckets:
+    image: minio/mc:RELEASE.2024-11-17T19-35-25Z
+    container_name: ner_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ner_minio_admin ner_minio_secret;
+      mc mb --ignore-existing local/ner-media-quarantine;
+      mc mb --ignore-existing local/ner-media-clean;
+      mc anonymous set none local/ner-media-quarantine;
+      mc anonymous set none local/ner-media-clean;
+      echo 'Buckets initialised.';
+      exit 0;
+      "
+    networks:
+      - ner_network
+
+
+# ─────────────────────────────────────────────────────
+# Named volumes — persistent across container restarts
+# (No postgres_data — Postgres is on Neon, not local)
+# ─────────────────────────────────────────────────────
+volumes:
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+# ─────────────────────────────────────────────────────
+# Isolated bridge network
+# ─────────────────────────────────────────────────────
+networks:
+  ner_network:
+    driver: bridge

@@ -1,0 +1,694 @@
+{
+  "type": "FeatureCollection",
+  "name": "Guwahati_Shillong_Pilot_Corridor_Synthetic",
+  "metadata": {
+    "version": "v1.0-pilot",
+    "description": "Synthetic benchmark corridor connecting Guwahati (Assam) and Shillong (Meghalaya) via NH-6 (GS Road) and Western Nongstoin Bypass.",
+    "data_source": "SYNTHETIC_DEMO_NOT_REAL_GOVERNMENT_DATA",
+    "crs": "EPSG:4326",
+    "generated_for": "SIH 2026 NER Smart Logistics Intelligence Platform"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.685, 26.185] },
+      "properties": {
+        "element": "node",
+        "node_index": 1,
+        "name": "Amingaon Logistics Junction",
+        "elevation_m": 55.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.735, 26.145] },
+      "properties": {
+        "element": "node",
+        "node_index": 2,
+        "name": "Guwahati City Center",
+        "elevation_m": 54.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.785, 26.115] },
+      "properties": {
+        "element": "node",
+        "node_index": 3,
+        "name": "Khanapara Oxygen Depot Gate",
+        "elevation_m": 62.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.865, 26.085] },
+      "properties": {
+        "element": "node",
+        "node_index": 4,
+        "name": "Jorabat Strategic Fork",
+        "elevation_m": 95.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.875, 26.045] },
+      "properties": {
+        "element": "node",
+        "node_index": 5,
+        "name": "Byrnihat Industrial Checkpoint",
+        "elevation_m": 120.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.882, 25.965] },
+      "properties": {
+        "element": "node",
+        "node_index": 6,
+        "name": "Umtrew Bridge North Abutment",
+        "elevation_m": 310.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.884, 25.955] },
+      "properties": {
+        "element": "node",
+        "node_index": 7,
+        "name": "Umtrew Bridge South Abutment",
+        "elevation_m": 315.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.881, 25.905] },
+      "properties": {
+        "element": "node",
+        "node_index": 8,
+        "name": "Nongpoh Town Hospital Junction",
+        "elevation_m": 530.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.912, 25.755] },
+      "properties": {
+        "element": "node",
+        "node_index": 9,
+        "name": "Umsning Expressway Bypass",
+        "elevation_m": 820.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.908, 25.665] },
+      "properties": {
+        "element": "node",
+        "node_index": 10,
+        "name": "Umiam Dam Bottleneck North",
+        "elevation_m": 990.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.905, 25.655] },
+      "properties": {
+        "element": "node",
+        "node_index": 11,
+        "name": "Umiam Dam Bottleneck South",
+        "elevation_m": 1005.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.895, 25.595] },
+      "properties": {
+        "element": "node",
+        "node_index": 12,
+        "name": "Mawlai Entry Gate",
+        "elevation_m": 1380.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.885, 25.575] },
+      "properties": {
+        "element": "node",
+        "node_index": 13,
+        "name": "Shillong Police Bazar Hub",
+        "elevation_m": 1496.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.942, 25.598] },
+      "properties": {
+        "element": "node",
+        "node_index": 14,
+        "name": "NEIGRIHMS Hospital Gate",
+        "elevation_m": 1420.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.515, 26.115] },
+      "properties": {
+        "element": "node",
+        "node_index": 15,
+        "name": "Mirza Junction (Bypass NH-17)",
+        "elevation_m": 48.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.245, 25.975] },
+      "properties": {
+        "element": "node",
+        "node_index": 16,
+        "name": "Boko Inter-State Fork",
+        "elevation_m": 58.0,
+        "state": "Assam"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.265, 25.525] },
+      "properties": {
+        "element": "node",
+        "node_index": 17,
+        "name": "Nongstoin Hill Division",
+        "elevation_m": 1400.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.635, 25.565] },
+      "properties": {
+        "element": "node",
+        "node_index": 18,
+        "name": "Mairang Junction (NH-106)",
+        "elevation_m": 1560.0,
+        "state": "Meghalaya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.835, 25.568] },
+      "properties": {
+        "element": "node",
+        "node_index": 19,
+        "name": "Upper Shillong West Portal",
+        "elevation_m": 1620.0,
+        "state": "Meghalaya"
+      }
+    },
+
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.685, 26.185], [91.735, 26.145]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 101,
+        "source_index": 1,
+        "target_index": 2,
+        "road_name": "NH-27 Saraighat Bridge Approach",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 60,
+        "length_meters": 7800.0,
+        "base_seconds": 468.0,
+        "reverse_base_seconds": 468.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.735, 26.145], [91.785, 26.115]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 102,
+        "source_index": 2,
+        "target_index": 3,
+        "road_name": "GS Road (Guwahati Urban Arterial)",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 50,
+        "length_meters": 6400.0,
+        "base_seconds": 460.0,
+        "reverse_base_seconds": 460.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.785, 26.115], [91.865, 26.085]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 103,
+        "source_index": 3,
+        "target_index": 4,
+        "road_name": "NH-27 Khanapara Expressway",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 70,
+        "length_meters": 8900.0,
+        "base_seconds": 457.0,
+        "reverse_base_seconds": 457.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.865, 26.085], [91.875, 26.045]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 104,
+        "source_index": 4,
+        "target_index": 5,
+        "road_name": "NH-6 Jorabat-Byrnihat Mountain Link",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 50,
+        "length_meters": 5200.0,
+        "base_seconds": 374.0,
+        "reverse_base_seconds": 374.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.875, 26.045], [91.882, 25.965]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 105,
+        "source_index": 5,
+        "target_index": 6,
+        "road_name": "NH-6 Khasi Hills Ascending Sector",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 45,
+        "length_meters": 10500.0,
+        "base_seconds": 840.0,
+        "reverse_base_seconds": 840.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.882, 25.965], [91.884, 25.955]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 106,
+        "source_index": 6,
+        "target_index": 7,
+        "road_name": "Umtrew River Heavy Bridge Crossing",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "BRIDGED",
+        "speed_limit_kmh": 30,
+        "length_meters": 1150.0,
+        "base_seconds": 138.0,
+        "reverse_base_seconds": 138.0,
+        "is_bridge": true,
+        "bridge_code": "BRG-GS-01",
+        "bridge_name": "Umtrew River Prestressed Concrete Bridge",
+        "max_weight_tonnes": 40.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.884, 25.955], [91.881, 25.905]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 107,
+        "source_index": 7,
+        "target_index": 8,
+        "road_name": "NH-6 Nongpoh Valley Approach",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 50,
+        "length_meters": 6100.0,
+        "base_seconds": 439.0,
+        "reverse_base_seconds": 439.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.881, 25.905], [91.912, 25.755]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 108,
+        "source_index": 8,
+        "target_index": 9,
+        "road_name": "NH-6 Nongpoh-Umsning Expressway",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 60,
+        "length_meters": 18200.0,
+        "base_seconds": 1092.0,
+        "reverse_base_seconds": 1092.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.912, 25.755], [91.908, 25.665]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 109,
+        "source_index": 9,
+        "target_index": 10,
+        "road_name": "NH-6 Barapani Lake Approach",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 45,
+        "length_meters": 11300.0,
+        "base_seconds": 904.0,
+        "reverse_base_seconds": 904.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.908, 25.665], [91.905, 25.655]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 110,
+        "source_index": 10,
+        "target_index": 11,
+        "road_name": "Umiam Dam Spillway Overpass (Critical Choke Point)",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "BRIDGED",
+        "speed_limit_kmh": 20,
+        "length_meters": 1100.0,
+        "base_seconds": 198.0,
+        "reverse_base_seconds": 198.0,
+        "is_bridge": true,
+        "bridge_code": "BRG-UM-02",
+        "bridge_name": "Umiam Hydro Dam Single-Lane Bridge",
+        "max_weight_tonnes": 20.0,
+        "is_single_lane": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.905, 25.655], [91.895, 25.595]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 111,
+        "source_index": 11,
+        "target_index": 12,
+        "road_name": "Mawlai Ridge Grade Ascending Road",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 40,
+        "length_meters": 7800.0,
+        "base_seconds": 702.0,
+        "reverse_base_seconds": 702.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.895, 25.595], [91.885, 25.575]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 112,
+        "source_index": 12,
+        "target_index": 13,
+        "road_name": "GS Road Shillong Town Ingress",
+        "road_class": "URBAN_ROAD",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 35,
+        "length_meters": 2900.0,
+        "base_seconds": 298.0,
+        "reverse_base_seconds": 298.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.895, 25.595], [91.942, 25.598]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 113,
+        "source_index": 12,
+        "target_index": 14,
+        "road_name": "NEIGRIHMS Super-Specialty Medical Corridor",
+        "road_class": "MAJOR_DISTRICT_ROAD",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 45,
+        "length_meters": 5400.0,
+        "base_seconds": 432.0,
+        "reverse_base_seconds": 432.0,
+        "is_bridge": false
+      }
+    },
+
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.685, 26.185], [91.515, 26.115]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 201,
+        "source_index": 1,
+        "target_index": 15,
+        "road_name": "NH-17 Lower Assam Bypass (Mirza)",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 60,
+        "length_meters": 21000.0,
+        "base_seconds": 1260.0,
+        "reverse_base_seconds": 1260.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.515, 26.115], [91.245, 25.975]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 202,
+        "source_index": 15,
+        "target_index": 16,
+        "road_name": "NH-17 Mirza to Boko Corridor",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 60,
+        "length_meters": 32000.0,
+        "base_seconds": 1920.0,
+        "reverse_base_seconds": 1920.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.245, 25.975], [91.265, 25.525]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 203,
+        "source_index": 16,
+        "target_index": 17,
+        "road_name": "NH-217 Boko to Nongstoin Mountain Highway",
+        "road_class": "STATE_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 40,
+        "length_meters": 54000.0,
+        "base_seconds": 4860.0,
+        "reverse_base_seconds": 4860.0,
+        "is_bridge": true,
+        "bridge_code": "BRG-NG-03",
+        "bridge_name": "Nonbah River Girder Bridge",
+        "max_weight_tonnes": 30.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.265, 25.525], [91.635, 25.565]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 204,
+        "source_index": 17,
+        "target_index": 18,
+        "road_name": "NH-106 Nongstoin to Mairang Plateau Road",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 50,
+        "length_meters": 41000.0,
+        "base_seconds": 2952.0,
+        "reverse_base_seconds": 2952.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.635, 25.565], [91.835, 25.568]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 205,
+        "source_index": 18,
+        "target_index": 19,
+        "road_name": "NH-106 Mairang to Upper Shillong Bypass",
+        "road_class": "NATIONAL_HIGHWAY",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 50,
+        "length_meters": 22000.0,
+        "base_seconds": 1584.0,
+        "reverse_base_seconds": 1584.0,
+        "is_bridge": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[91.835, 25.568], [91.885, 25.575]]
+      },
+      "properties": {
+        "element": "edge",
+        "edge_index": 206,
+        "source_index": 19,
+        "target_index": 13,
+        "road_name": "Upper Shillong Arterial Link to Town Center",
+        "road_class": "URBAN_ROAD",
+        "surface_type": "PAVED_ASPHALT",
+        "speed_limit_kmh": 40,
+        "length_meters": 5600.0,
+        "base_seconds": 504.0,
+        "reverse_base_seconds": 504.0,
+        "is_bridge": false
+      }
+    },
+
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.785, 26.115] },
+      "properties": {
+        "element": "facility",
+        "code": "FAC-GAU-OXY-01",
+        "name": "Guwahati Regional Medical Oxygen Plant",
+        "kind": "OXYGEN_PLANT",
+        "nearest_node_index": 3,
+        "is_critical": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.685, 26.185] },
+      "properties": {
+        "element": "facility",
+        "code": "FAC-GAU-HUB-02",
+        "name": "Guwahati Multi-Modal Logistics Hub",
+        "kind": "LOGISTICS_HUB",
+        "nearest_node_index": 1,
+        "is_critical": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.942, 25.598] },
+      "properties": {
+        "element": "facility",
+        "code": "FAC-SHL-HOSP-01",
+        "name": "NEIGRIHMS Super-Specialty Hospital",
+        "kind": "HOSPITAL",
+        "nearest_node_index": 14,
+        "is_critical": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.881, 25.905] },
+      "properties": {
+        "element": "facility",
+        "code": "FAC-RBH-HOSP-02",
+        "name": "Ri-Bhoi District Civil Hospital (Nongpoh)",
+        "kind": "HOSPITAL",
+        "nearest_node_index": 8,
+        "is_critical": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [91.885, 25.575] },
+      "properties": {
+        "element": "facility",
+        "code": "FAC-SHL-DEP-03",
+        "name": "Meghalaya State Health Supply Depot",
+        "kind": "WAREHOUSE",
+        "nearest_node_index": 13,
+        "is_critical": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+"""
+app/modules/telemetry/domain/enums.py — Domain enumerations for Telemetry & Tracking.
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class DeviceStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    REVOKED = "REVOKED"
+
+
+class DeviceType(str, Enum):
+    HARDWARE_OBD_CELLULAR = "HARDWARE_OBD_CELLULAR"
+    EXTERNAL_GPS_GATEWAY = "EXTERNAL_GPS_GATEWAY"
+    MOBILE_APP_DRIVER = "MOBILE_APP_DRIVER"
+    LABELED_SIMULATOR_REPLAY = "LABELED_SIMULATOR_REPLAY"
+
+
+class FixQuality(str, Enum):
+    GPS_FIX_3D = "GPS_FIX_3D"
+    GPS_FIX_2D = "GPS_FIX_2D"
+    CELL_TOWER_TRIANGULATED = "CELL_TOWER_TRIANGULATED"
+    MANUAL_CHECKIN = "MANUAL_CHECKIN"
+    SIMULATED_REPLAY = "SIMULATED_REPLAY"
+
+
+class StaleStatus(str, Enum):
+    FRESH = "FRESH"
+    AGING = "AGING"
+    STALE_WARNING = "STALE_WARNING"
+    FEED_OFFLINE = "FEED_OFFLINE"
+
+
+class FixOutcome(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    DUPLICATE_IGNORED = "DUPLICATE_IGNORED"
+    ACCEPTED_WITH_ANOMALY = "ACCEPTED_WITH_ANOMALY"
+    QUARANTINED = "QUARANTINED"
+    REJECTED = "REJECTED"
+
+
+class QuarantineReason(str, Enum):
+    FUTURE_CLOCK_SKEW = "FUTURE_CLOCK_SKEW"
+    CLOCK_ANOMALY = "CLOCK_ANOMALY"
+    IMPOSSIBLE_COORDINATES = "IMPOSSIBLE_COORDINATES"

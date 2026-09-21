@@ -1,0 +1,74 @@
+"""
+app/modules/logistics/domain/enums.py — Domain enumerations for Fleet Logistics & Deliveries.
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class VehicleType(str, Enum):
+    TRUCK_HEAVY = "TRUCK_HEAVY"
+    TRUCK_MEDIUM = "TRUCK_MEDIUM"
+    VAN_LIGHT = "VAN_LIGHT"
+    FOUR_WHEEL_DRIVE = "FOUR_WHEEL_DRIVE"
+    AMBULANCE_RESCUE = "AMBULANCE_RESCUE"
+    TWO_WHEEL_SPECIAL = "TWO_WHEEL_SPECIAL"
+
+
+class CargoCategory(str, Enum):
+    CRITICAL_MEDICAL = "CRITICAL_MEDICAL"
+    COLD_CHAIN_VACCINES = "COLD_CHAIN_VACCINES"
+    OXYGEN_CYLINDERS = "OXYGEN_CYLINDERS"
+    RELIEF_FOOD_WATER = "RELIEF_FOOD_WATER"
+    DISASTER_EQUIPMENT = "DISASTER_EQUIPMENT"
+    GENERAL_SUPPLIES = "GENERAL_SUPPLIES"
+
+
+class PriorityTier(str, Enum):
+    TIER_1_LIFE_SAVING = "TIER_1_LIFE_SAVING"
+    TIER_2_ESSENTIAL = "TIER_2_ESSENTIAL"
+    TIER_3_STANDARD = "TIER_3_STANDARD"
+
+
+class TripStatus(str, Enum):
+    PLANNED = "PLANNED"
+    DISPATCHED = "DISPATCHED"
+    IN_TRANSIT = "IN_TRANSIT"
+    HELD_FOR_INSPECTION = "HELD_FOR_INSPECTION"
+    DIVERTED = "DIVERTED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    ABORTED = "ABORTED"
+
+
+class DeliveryStatus(str, Enum):
+    PENDING = "PENDING"
+    DISPATCHED = "DISPATCHED"
+    IN_TRANSIT = "IN_TRANSIT"
+    DELIVERED = "DELIVERED"
+    PARTIALLY_DELIVERED = "PARTIALLY_DELIVERED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class StopType(str, Enum):
+    PICKUP = "PICKUP"
+    DELIVERY = "DELIVERY"
+    WAYPOINT = "WAYPOINT"
+    REST_CHECKPOINT = "REST_CHECKPOINT"
+    RELIEF_CAMP = "RELIEF_CAMP"
+
+
+class StopStatus(str, Enum):
+    PENDING = "PENDING"
+    ARRIVED = "ARRIVED"
+    DEPARTED = "DEPARTED"
+    SKIPPED = "SKIPPED"
+    CANCELLED = "CANCELLED"
+
+
+class SlaStatus(str, Enum):
+    ON_TIME = "ON_TIME"
+    AT_RISK = "AT_RISK"
+    BREACHED = "BREACHED"

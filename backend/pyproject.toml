@@ -1,0 +1,163 @@
+[project]
+name = "ner-logistics-backend"
+version = "0.1.0"
+description = "Smart Logistics & Accessibility Intelligence Platform for North-East India — Backend API"
+authors = [{ name = "SIH 2026 Team" }]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Web framework
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.32.1",
+
+    # Data validation
+    "pydantic==2.10.3",
+    "pydantic-settings==2.6.1",
+
+    # Database — ORM + migrations
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "alembic==1.14.0",
+    "geoalchemy2==0.15.2",
+
+    # Background tasks
+    "celery[redis]==5.4.0",
+    "redis==5.2.1",
+
+    # Object storage
+    "boto3==1.35.76",
+
+    # Structured logging
+    "structlog==24.4.0",
+
+    # HTTP client (for adapter tests + OIDC)
+    "httpx==0.28.0",
+
+    # Observability
+    "prometheus-client==0.21.1",
+
+    # Security
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-multipart==0.0.18",
+
+    # Utilities
+    "orjson==3.10.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.24.0",
+    "pytest-cov==6.0.0",
+    "pytest-mock==3.14.0",
+    "httpx==0.28.0",
+    "ruff==0.8.4",
+    "mypy==1.13.0",
+    "types-passlib==1.7.7.20240819",
+    "types-boto3==1.0.2",
+    "sqlalchemy[mypy]==2.0.36",
+    "factory-boy==3.3.1",
+    "anyio[trio]==4.7.0",
+    "aiosqlite==0.20.0",  # for in-memory unit tests only
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ──────────────────────────────────────────
+# Ruff configuration
+# ──────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+    "ANN", # flake8-annotations
+    "N",   # pep8-naming
+    "RUF", # ruff-specific
+]
+ignore = [
+    "ANN101", # Missing type annotation for `self`
+    "ANN102", # Missing type annotation for `cls`
+    "S101",   # Use of `assert` — needed for pytest
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "ANN"]  # Relax security + annotation rules in tests
+
+# ──────────────────────────────────────────
+# Mypy configuration
+# ──────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["sqlalchemy.ext.mypy.plugin", "pydantic.mypy"]
+exclude = ["alembic/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "redis.*",
+    "boto3.*",
+    "botocore.*",
+    "geoalchemy2.*",
+    "jose.*",
+    "passlib.*",
+    "prometheus_client.*",
+]
+ignore_missing_imports = true
+
+# ──────────────────────────────────────────
+# Pytest configuration
+# ──────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+markers = [
+    "unit: Pure unit tests with no IO",
+    "integration: Tests requiring a live database or Redis",
+    "contract: OpenAPI / client compatibility tests",
+    "slow: Tests that take more than 5 seconds",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:sqlalchemy",
+    "ignore::DeprecationWarning:starlette",
+    "ignore::DeprecationWarning:fastapi",
+    "ignore:.*ORJSONResponse.*",
+]
+
+# ──────────────────────────────────────────
+# Coverage
+# ──────────────────────────────────────────
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/scripts/*", "alembic/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
