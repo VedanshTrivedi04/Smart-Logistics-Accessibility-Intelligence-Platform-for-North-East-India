@@ -5,7 +5,7 @@
 BACKEND_DIR := backend
 INFRA_DIR   := infra
 
-.PHONY: help infra infra-down migrate migrate-check migrate-generate \
+.PHONY: help up down build logs infra infra-down migrate migrate-check migrate-generate \
         test test-unit test-integration lint typecheck check-boundaries \
         seed-demo run dev clean
 
@@ -14,8 +14,12 @@ help:
 	@echo ""
 	@echo "NER Logistics Platform — Available Make Targets"
 	@echo "────────────────────────────────────────────────"
-	@echo "  infra              Start Redis + MinIO via Docker Compose"
-	@echo "  infra-down         Stop and remove Docker containers"
+	@echo "  up                 Start full stack (frontend + backend + redis + minio)"
+	@echo "  down               Stop all running containers"
+	@echo "  build              Build all Docker images"
+	@echo "  logs               Follow container logs"
+	@echo "  infra              Start Redis + MinIO only (for local dev)"
+	@echo "  infra-down         Stop Redis + MinIO containers"
 	@echo "  migrate            Run Alembic migrations on Neon DB"
 	@echo "  migrate-check      Check for pending migrations (CI)"
 	@echo "  migrate-generate   Autogenerate a new migration (provide MSG=...)"
@@ -31,15 +35,33 @@ help:
 	@echo ""
 
 # ─────────────────────────────────────────────────────────────
-# Infrastructure (Redis + MinIO — Postgres is on Neon)
+# Full Stack Docker Orchestration (Neon DB is remote)
+# ─────────────────────────────────────────────────────────────
+up:
+	docker compose up -d
+	@echo "✅ Full stack started. Frontend: http://localhost:3000 | Backend: http://localhost:8000/docs"
+
+down:
+	docker compose down
+	@echo "✅ All containers stopped."
+
+build:
+	docker compose build
+	@echo "✅ All container images built."
+
+logs:
+	docker compose logs -f
+
+# ─────────────────────────────────────────────────────────────
+# Infrastructure Only (Redis + MinIO — Postgres is on Neon)
 # ─────────────────────────────────────────────────────────────
 infra:
-	docker compose -f $(INFRA_DIR)/compose.yaml up -d redis minio createbuckets
+	docker compose up -d redis minio createbuckets
 	@echo "✅ Redis + MinIO started. Neon DB is remote — no local Postgres needed."
 
 infra-down:
-	docker compose -f $(INFRA_DIR)/compose.yaml down
-	@echo "✅ Containers stopped."
+	docker compose down redis minio createbuckets
+	@echo "✅ Infrastructure containers stopped."
 
 # ─────────────────────────────────────────────────────────────
 # Database migrations (Alembic → Neon)

@@ -1,10 +1,14 @@
-# Docker Compose — NER Logistics Platform Development Infrastructure
-# Run: docker compose -f infra/compose.yaml up -d
+# Docker Compose — NER Logistics Platform (Full Application Stack)
 #
-# ⚠️  PostgreSQL is hosted on Neon (serverless, Singapore region).
-#     Project: ner-logistics-sih2026 (bitter-morning-62573618)
+# ⚠️  PostgreSQL is hosted on Neon (serverless).
 #     Set DATABASE_URL and DATABASE_URL_DIRECT in backend/.env
-#     No local Postgres container is needed or started.
+#     No local Postgres container is used.
+#
+# Usage:
+#   docker compose up -d              # Start all services
+#   docker compose down               # Stop all services
+#   docker compose logs -f            # Follow logs
+#   docker compose up --build -d      # Rebuild and start
 
 name: ner-logistics
 
@@ -84,15 +88,16 @@ services:
   # ─────────────────────────────────────────────────────
   backend:
     build:
-      context: ../backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: ner_backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
-      - ../backend/.env
+      - ./backend/.env
     environment:
+      # Internal container service routing overrides
       REDIS_URL: "redis://redis:6379/0"
       REDIS_CELERY_URL: "redis://redis:6379/1"
       OBJECT_STORAGE_ENDPOINT: "http://minio:9000"
@@ -115,7 +120,7 @@ services:
   # ─────────────────────────────────────────────────────
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: ner_frontend
     restart: unless-stopped
@@ -134,7 +139,7 @@ services:
 
 # ─────────────────────────────────────────────────────
 # Named volumes — persistent across container restarts
-# (No postgres_data — Postgres is on Neon, not local)
+# (No postgres_data — Postgres is on remote Neon)
 # ─────────────────────────────────────────────────────
 volumes:
   redis_data:

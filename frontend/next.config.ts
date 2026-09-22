@@ -5,6 +5,7 @@ import type { NextConfig } from "next";
 const backend = process.env.BACKEND_ORIGIN ?? "http://localhost:8000";
 
 const config: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   async rewrites() {

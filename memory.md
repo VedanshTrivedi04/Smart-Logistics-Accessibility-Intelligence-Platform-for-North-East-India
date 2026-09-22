@@ -115,6 +115,42 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 - Push: successful (pushed to origin/frontend)
 - Status: clean
 
-**Notes**
-- PPTX and root specification remain untouched per user confirmation.
+### 2026-09-22 10:42
+
+**User Request**
+> Setup full containerization (Dockerfiles for FastAPI backend and Next.js frontend, compose configuration), keeping PostgreSQL on Neon (no local Postgres container).
+
+**Work Done**
+- Created `backend/Dockerfile` using Python 3.12, `uv` package manager with layer caching, CA certificates for secure TLS to Neon, non-root user `appuser`, and `/health/live` probe.
+- Created `backend/.dockerignore` to exclude virtualenvs, caches, tests, and sensitive `.env` files.
+- Configured `frontend/next.config.ts` with `output: "standalone"` for minimal production images (~150MB).
+- Created `frontend/Dockerfile` multi-stage build using `node:22-alpine` and `pnpm`, producing a standalone runner executing as non-root `nextjs`.
+- Created `frontend/.dockerignore` to exclude `node_modules`, `.next`, tests, and secrets.
+- Created root `compose.yaml` and updated `infra/compose.yaml` orchestrating `backend`, `frontend`, `redis`, `minio`, and `createbuckets` on `ner_network` bridge network.
+- Configured backend service to load `backend/.env` for remote Neon connection while overriding local Redis and MinIO endpoints.
+- Updated `infra/Makefile` with convenience targets: `up`, `down`, `build`, `logs`.
+
+**Files Changed**
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `backend/README.md`
+- `backend/pyproject.toml`
+- `frontend/next.config.ts`
+- `frontend/Dockerfile`
+- `frontend/.dockerignore`
+- `compose.yaml`
+- `infra/compose.yaml`
+- `infra/Makefile`
+- `memory.md`
+
+### 2026-09-22 11:14
+
+**Docker Build Fixes**
+- Switched MinIO container images in compose from Docker Hub to `quay.io/minio/minio:latest` and `quay.io/minio/mc:latest`.
+- Created `backend/README.md` to satisfy hatchling metadata validation.
+- Configured `[tool.hatch.build.targets.wheel] packages = ["app"]` in `backend/pyproject.toml` so hatchling identifies `app/` as the project package.
+- Added `PYTHONPATH="/app:$PYTHONPATH"` to `backend/Dockerfile`.
+- Implemented missing shared frontend utility modules under `frontend/src/shared/lib/` (`geo.ts`, `format.ts`, `time.ts`, `useNow.ts`, `preferences.ts`) satisfying all unit test assertions in `domain-logic.test.ts`.
+
+
 
