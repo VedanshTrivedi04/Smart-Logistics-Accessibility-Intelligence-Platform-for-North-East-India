@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { RoutePlan } from "@/shared/api";
+import { SessionProvider } from "@/shared/auth/session";
 import { statusLabel } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
 import { ErrorNotice } from "@/shared/ui/DataState";
@@ -29,7 +30,14 @@ const noPath: RoutePlan = {
   expires_at: "2026-03-10T12:20:00Z",
 };
 
-const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+// RoutePlanView now reads useSession() (for scoped hazard-zone queries), so it needs a
+// SessionProvider ancestor even though these fixtures never resolve a real principal.
+const wrap = (ui: React.ReactElement) =>
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SessionProvider>{ui}</SessionProvider>
+    </QueryClientProvider>,
+  );
 
 describe("status is text plus icon, never color alone", () => {
   it("renders the label as text and hides the icon from assistive tech", () => {

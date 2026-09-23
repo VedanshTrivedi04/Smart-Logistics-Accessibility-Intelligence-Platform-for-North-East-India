@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Network, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Navigation, Network, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
 import type { Surface } from "@/shared/auth";
 import type { NavItem } from "@/shared/ui";
 
@@ -27,6 +27,7 @@ export const NAV: Record<Surface, NavItem[]> = {
   ],
   logistics: [
     { href: "/logistics", label: "Overview", icon: LayoutDashboard, exact: true },
+    { href: "/logistics/operator", label: "Driver cockpit", icon: Navigation, requires: ["VIEW_FLEET"] },
     { href: "/logistics/fleet", label: "Live fleet map", icon: LocateFixed, requires: ["VIEW_FLEET"] },
     { href: "/logistics/trips", label: "Trips", icon: Truck, requires: ["VIEW_FLEET"] },
     { href: "/logistics/deliveries", label: "Deliveries", icon: PackageCheck, requires: ["VIEW_FLEET"] },

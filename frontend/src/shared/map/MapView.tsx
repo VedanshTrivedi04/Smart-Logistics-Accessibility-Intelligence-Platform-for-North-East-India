@@ -1,6 +1,6 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { NER_BBOX, type BBox } from "@/shared/lib/geo";
@@ -19,6 +19,18 @@ export interface Viewport {
   zoom: number;
 }
 
+export type RiskLevel = "LOW" | "MODERATE" | "HIGH" | "SEVERE" | "UNKNOWN";
+
+export interface HazardZone {
+  id: string;
+  name?: string;
+  riskLevel: RiskLevel;
+  riskScore?: number | null;
+  rainfallMm24h?: number | null;
+  /** Closed polygon ring, [lon, lat] pairs, first === last. */
+  polygon: Array<[number, number]>;
+}
+
 export interface MapViewProps {
   ariaLabel: string;
   lines?: readonly MapLine[];
@@ -34,6 +46,12 @@ export interface MapViewProps {
   fitKey?: string;
   height?: number | string;
   onError?: (message: string) => void;
+  /** Landslide/rainfall risk zones. When provided, the hazard overlay control appears. */
+  hazardZones?: readonly HazardZone[];
+  /** Show the hazard overlay initially. Defaults to true whenever hazardZones is non-empty. */
+  hazardDefaultOn?: boolean;
+  /** Show the satellite/3D-terrain view switcher. Default true. */
+  allowViewSwitch?: boolean;
 }
 
 const LINE_PAINT: Record<LineClass, { color: string; width: number; dash?: number[]; casing?: boolean }> = {
@@ -47,17 +65,52 @@ const LINE_PAINT: Record<LineClass, { color: string; width: number; dash?: numbe
   trail: { color: "#0e7490", width: 3, dash: [1, 1] },
 };
 
+const RISK_COLOR: Record<RiskLevel, string> = {
+  LOW: "#1a7f37",
+  MODERATE: "#c98a00",
+  HIGH: "#d9601a",
+  SEVERE: "#b42318",
+  UNKNOWN: "#6b7785",
+};
+
+// Esri World Imagery: free public satellite basemap, no API key required.
+const SATELLITE_TILE_URL =
+  process.env.NEXT_PUBLIC_SATELLITE_TILE_URL ??
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const SATELLITE_ATTRIBUTION =
+  process.env.NEXT_PUBLIC_SATELLITE_ATTRIBUTION ?? "Esri, Maxar, Earthstar Geographics";
+
+// AWS Terrarium terrain-RGB tiles (public, open data, no API key required).
+const TERRAIN_TILE_URL =
+  process.env.NEXT_PUBLIC_TERRAIN_TILE_URL ?? "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+
 function baseStyle(): maplibregl.StyleSpecification {
   const tile = process.env.NEXT_PUBLIC_MAP_TILE_URL;
   const attribution = process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ?? "";
   const layers: maplibregl.LayerSpecification[] = [{ id: "bg", type: "background", paint: { "background-color": "#e9edf1" } }];
   const sources: maplibregl.StyleSpecification["sources"] = {};
   if (tile) {
-    // A licensed tile endpoint is required. The public OSM tile service is never configured here.
-    sources["base"] = { type: "raster", tiles: [tile], tileSize: 256, attribution };
-    layers.push({ id: "base", type: "raster", source: "base" });
+    // A licensed tile endpoint is required for the street basemap. The public OSM tile service is never configured here.
+    sources["base-street"] = { type: "raster", tiles: [tile], tileSize: 256, attribution };
+    layers.push({ id: "base-street", type: "raster", source: "base-street", layout: { visibility: "visible" } });
   }
-  return { version: 8, sources, layers };
+  // Satellite imagery uses a documented free public tile source (Esri World Imagery); safe to ship a default.
+  // Esri's high-resolution coverage is incomplete over rural/hilly NER at close zoom: requesting tiles
+  // past its real coverage returns a "Map data not yet available" placeholder tile instead of failing.
+  // Capping maxzoom makes MapLibre over-scale the last real tile instead of ever requesting one that doesn't exist.
+  sources["base-satellite"] = { type: "raster", tiles: [SATELLITE_TILE_URL], tileSize: 256, maxzoom: 13, attribution: SATELLITE_ATTRIBUTION };
+  layers.push({ id: "base-satellite", type: "raster", source: "base-satellite", layout: { visibility: "none" } });
+
+  sources["terrain-dem"] = { type: "raster-dem", tiles: [TERRAIN_TILE_URL], tileSize: 256, encoding: "terrarium", maxzoom: 15 };
+  layers.push({
+    id: "hillshade",
+    type: "hillshade",
+    source: "terrain-dem",
+    layout: { visibility: "none" },
+    paint: { "hillshade-exaggeration": 0.6 },
+  });
+
+  return { version: 8, sources, layers, terrain: undefined };
 }
 
 interface LineCollection {
@@ -82,8 +135,56 @@ function toCollection(lines: readonly MapLine[]): LineCollection {
   };
 }
 
+interface HazardCollection {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    id: string;
+    properties: { id: string; riskLevel: RiskLevel; name: string; riskScore: number | null; rainfallMm24h: number | null };
+    geometry: { type: "Polygon"; coordinates: Array<Array<[number, number]>> };
+  }>;
+}
+
+function toHazardCollection(zones: readonly HazardZone[]): HazardCollection {
+  return {
+    type: "FeatureCollection",
+    features: zones.map((z) => ({
+      type: "Feature",
+      id: z.id,
+      properties: {
+        id: z.id,
+        riskLevel: z.riskLevel,
+        name: z.name ?? "Risk zone",
+        riskScore: z.riskScore ?? null,
+        rainfallMm24h: z.rainfallMm24h ?? null,
+      },
+      geometry: { type: "Polygon", coordinates: [z.polygon] },
+    })),
+  };
+}
+
 const SHAPES: Record<MapPoint["kind"], string> = { vehicle: "square", incident: "diamond", facility: "circle", report: "triangle", self: "circle", stop: "circle" };
 const GLYPHS: Record<MapPoint["kind"], string> = { vehicle: "V", incident: "!", facility: "+", report: "R", self: "●", stop: "S" };
+
+interface RainDrop {
+  zoneIndex: number;
+  lon: number;
+  lat: number;
+  minLat: number;
+  maxLat: number;
+  fallDegPerTick: number;
+}
+
+function polygonBounds(ring: Array<[number, number]>): { minLon: number; maxLon: number; minLat: number; maxLat: number } {
+  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const [lon, lat] of ring) {
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+  return { minLon, maxLon, minLat, maxLat };
+}
 
 export default function MapView({
   ariaLabel,
@@ -98,12 +199,18 @@ export default function MapView({
   fitKey,
   height = 460,
   onError,
+  hazardZones = [],
+  hazardDefaultOn = true,
+  allowViewSwitch = true,
 }: MapViewProps) {
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [baseLayer, setBaseLayer] = useState<"street" | "satellite">(process.env.NEXT_PUBLIC_MAP_TILE_URL ? "street" : "satellite");
+  const [terrain3D, setTerrain3D] = useState(false);
+  const [hazardOn, setHazardOn] = useState(hazardDefaultOn);
   const cb = useRef({ onSelectLine, onSelectPoint, onViewportChange, onMapClick, onError });
   cb.current = { onSelectLine, onSelectPoint, onViewportChange, onMapClick, onError };
   const pointsRef = useRef(points);
@@ -122,6 +229,7 @@ export default function MapView({
         bounds: NER_BBOX,
         fitBoundsOptions: { padding: 20 },
         attributionControl: { compact: true },
+        maxPitch: 75,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "The map could not start (WebGL may be unavailable).";
@@ -130,7 +238,7 @@ export default function MapView({
       return;
     }
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
 
     const emit = () => {
       const b = map.getBounds();
@@ -165,6 +273,55 @@ export default function MapView({
         });
       });
       map.addLayer({ id: "line-selected", type: "line", source: "lines", filter: ["==", ["get", "id"], ""], paint: { "line-color": "#f59e0b", "line-width": 9, "line-opacity": 0.55 } });
+
+      // Hazard (landslide/rainfall risk) overlay — sits above the base map, below markers.
+      map.addSource("hazard", { type: "geojson", data: toHazardCollection([]) });
+      map.addLayer({
+        id: "hazard-fill",
+        type: "fill",
+        source: "hazard",
+        layout: { visibility: hazardDefaultOn ? "visible" : "none" },
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "riskLevel"],
+            "LOW", RISK_COLOR.LOW,
+            "MODERATE", RISK_COLOR.MODERATE,
+            "HIGH", RISK_COLOR.HIGH,
+            "SEVERE", RISK_COLOR.SEVERE,
+            RISK_COLOR.UNKNOWN,
+          ],
+          "fill-opacity": 0.28,
+        },
+      });
+      map.addLayer({
+        id: "hazard-outline",
+        type: "line",
+        source: "hazard",
+        layout: { visibility: hazardDefaultOn ? "visible" : "none" },
+        paint: {
+          "line-color": ["match", ["get", "riskLevel"], "LOW", RISK_COLOR.LOW, "MODERATE", RISK_COLOR.MODERATE, "HIGH", RISK_COLOR.HIGH, "SEVERE", RISK_COLOR.SEVERE, RISK_COLOR.UNKNOWN],
+          "line-width": 1.5,
+        },
+      });
+      // Pulsing glow, filtered to HIGH/SEVERE zones only; opacity animated in the hazard-animation effect below.
+      map.addLayer({
+        id: "hazard-pulse",
+        type: "fill",
+        source: "hazard",
+        filter: ["in", ["get", "riskLevel"], ["literal", ["HIGH", "SEVERE"]]],
+        layout: { visibility: hazardDefaultOn ? "visible" : "none" },
+        paint: { "fill-color": ["match", ["get", "riskLevel"], "SEVERE", RISK_COLOR.SEVERE, RISK_COLOR.HIGH], "fill-opacity": 0.3 },
+      });
+      map.addSource("rain-drops", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "rain-drops-layer",
+        type: "circle",
+        source: "rain-drops",
+        layout: { visibility: hazardDefaultOn ? "visible" : "none" },
+        paint: { "circle-radius": 2, "circle-color": "#2563eb", "circle-opacity": 0.75 },
+      });
+
       (Object.keys(LINE_PAINT) as LineClass[]).forEach((cls) => {
         map.on("click", `line-${cls}`, (e) => {
           const id = e.features?.[0]?.properties?.["id"];
@@ -230,6 +387,8 @@ export default function MapView({
       mapRef.current = null;
       setReady(false);
     };
+    // Map is constructed once; hazardDefaultOn only seeds initial layer visibility here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Push line data.
@@ -262,6 +421,86 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, ready]);
 
+  // Push hazard zone data.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    (map.getSource("hazard") as maplibregl.GeoJSONSource | undefined)?.setData(toHazardCollection(hazardZones));
+  }, [hazardZones, ready]);
+
+  // Toggle satellite vs street base layer.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (map.getLayer("base-street")) map.setLayoutProperty("base-street", "visibility", baseLayer === "street" ? "visible" : "none");
+    if (map.getLayer("base-satellite")) map.setLayoutProperty("base-satellite", "visibility", baseLayer === "satellite" ? "visible" : "none");
+  }, [baseLayer, ready]);
+
+  // Toggle 3D terrain (elevation exaggeration + hillshade + tilt).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    map.setTerrain(terrain3D ? { source: "terrain-dem", exaggeration: 1.6 } : null);
+    if (map.getLayer("hillshade")) map.setLayoutProperty("hillshade", "visibility", terrain3D ? "visible" : "none");
+    map.easeTo({ pitch: terrain3D ? 62 : 0, duration: 700 });
+  }, [terrain3D, ready]);
+
+  // Toggle hazard overlay visibility.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const vis = hazardOn ? "visible" : "none";
+    for (const id of ["hazard-fill", "hazard-outline", "hazard-pulse", "rain-drops-layer"]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    }
+  }, [hazardOn, ready]);
+
+  // Animate hazard: pulsing glow on HIGH/SEVERE zones + falling rain drops inside them.
+  // Skipped entirely under prefers-reduced-motion — risk is still legible from static fill color.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !hazardOn) return;
+    const severeZones = hazardZones.filter((z) => z.riskLevel === "HIGH" || z.riskLevel === "SEVERE");
+    if (severeZones.length === 0) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const drops: RainDrop[] = [];
+    severeZones.forEach((z, zoneIndex) => {
+      const b = polygonBounds(z.polygon);
+      const dropsPerZone = 8;
+      for (let i = 0; i < dropsPerZone; i++) {
+        const lon = b.minLon + Math.random() * (b.maxLon - b.minLon);
+        const lat = b.minLat + Math.random() * (b.maxLat - b.minLat);
+        drops.push({ zoneIndex, lon, lat, minLat: b.minLat, maxLat: b.maxLat, fallDegPerTick: 0.0008 + Math.random() * 0.0006 });
+      }
+    });
+
+    let tick = 0;
+    const interval = setInterval(() => {
+      tick += 1;
+      // Pulse: 0.22 <-> 0.55 opacity, ~2.4s period.
+      const pulse = 0.22 + 0.33 * (0.5 + 0.5 * Math.sin(tick / 8));
+      if (map.getLayer("hazard-pulse")) map.setPaintProperty("hazard-pulse", "fill-opacity", pulse);
+
+      for (const d of drops) {
+        d.lat -= d.fallDegPerTick;
+        if (d.lat < d.minLat) d.lat = d.maxLat;
+      }
+      const fc = {
+        type: "FeatureCollection" as const,
+        features: drops.map((d, i) => ({
+          type: "Feature" as const,
+          id: i,
+          properties: {},
+          geometry: { type: "Point" as const, coordinates: [d.lon, d.lat] },
+        })),
+      };
+      (map.getSource("rain-drops") as maplibregl.GeoJSONSource | undefined)?.setData(fc);
+    }, 140);
+
+    return () => clearInterval(interval);
+  }, [hazardZones, hazardOn, ready]);
+
   if (failure) {
     return (
       <div className="map-frame" style={{ height, display: "grid", placeItems: "center", padding: "1rem" }} role="alert">
@@ -272,9 +511,27 @@ export default function MapView({
   return (
     <div className="map-frame">
       <div ref={container} style={{ height, width: "100%" }} role="application" aria-label={`${ariaLabel}. A list with the same items is provided next to the map.`} />
-      {!process.env.NEXT_PUBLIC_MAP_TILE_URL ? (
+      {allowViewSwitch ? (
+        <div className="map-view-switch" role="group" aria-label="Map view options">
+          <button type="button" aria-pressed={baseLayer === "street"} onClick={() => setBaseLayer("street")}>
+            Street
+          </button>
+          <button type="button" aria-pressed={baseLayer === "satellite"} onClick={() => setBaseLayer("satellite")}>
+            Satellite
+          </button>
+          <button type="button" aria-pressed={terrain3D} onClick={() => setTerrain3D((v) => !v)}>
+            3D Terrain
+          </button>
+          {hazardZones.length > 0 ? (
+            <button type="button" aria-pressed={hazardOn} onClick={() => setHazardOn((v) => !v)}>
+              Landslide risk
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {!process.env.NEXT_PUBLIC_MAP_TILE_URL && baseLayer === "street" ? (
         <p className="small muted" style={{ margin: 0, padding: "0.4rem 0.6rem", background: "var(--surface)" }}>
-          No licensed basemap is configured (NEXT_PUBLIC_MAP_TILE_URL), so only network data is drawn.
+          No licensed street basemap is configured (NEXT_PUBLIC_MAP_TILE_URL); switch to Satellite, or network data still draws on the plain background.
         </p>
       ) : null}
     </div>

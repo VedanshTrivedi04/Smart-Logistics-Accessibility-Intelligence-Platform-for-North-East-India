@@ -38,7 +38,7 @@ function LocationCard({ geo }: { geo: ReturnType<typeof useGeolocation> }) {
 export function FieldHome() {
   const me = usePrincipal();
   const geo = useGeolocation(true);
-  const { snapshot, syncNow, syncing, ready } = useOffline();
+  const { snapshot, syncNow, syncing, ready, simulatedOffline, toggleSimulatedOffline } = useOffline();
   const incidents = useIncidents("ACTIVE");
   const reports = useReports();
   const pending = snapshot?.operations.filter((o) => o.state !== "SYNCED") ?? [];
@@ -52,6 +52,50 @@ export function FieldHome() {
 
   return (
     <div className="stack">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0.85rem 1.25rem",
+          borderRadius: "10px",
+          background: simulatedOffline
+            ? "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(180, 83, 9, 0.25) 100%)"
+            : "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.2) 100%)",
+          border: `1px solid ${simulatedOffline ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.35)"}`,
+          flexWrap: "wrap",
+          gap: "0.75rem",
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600 }}>
+            <span style={{ fontSize: "1.1rem" }}>{simulatedOffline ? "🟠" : "🟢"}</span>
+            <span>
+              Field Network Status: {simulatedOffline ? "SIMULATED OFFLINE (IndexedDB Local Queue Active)" : "ONLINE (Live API Sync Active)"}
+            </span>
+          </div>
+          <p className="small muted" style={{ margin: "0.25rem 0 0 1.6rem" }}>
+            {simulatedOffline
+              ? "Requests are suspended to simulate remote mountain terrain with zero cellular connectivity. Reports will queue in IndexedDB."
+              : "Connected to central PARVA servers. Auto-syncing background queue on network change."}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Button
+            size="small"
+            variant={simulatedOffline ? "primary" : "default"}
+            onClick={toggleSimulatedOffline}
+          >
+            {simulatedOffline ? "📡 Reconnect & Auto-Sync" : "📴 Simulate Offline (Cut Network)"}
+          </Button>
+          {!simulatedOffline && (
+            <Button size="small" onClick={() => void syncNow()} busy={syncing}>
+              Sync now
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="grid cols-2">
         <Link className="btn large primary" href="/field/report/new">Report an incident</Link>
         <Link className="btn large" href="/field/road-update">Update road status</Link>

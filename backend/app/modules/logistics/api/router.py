@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.core.db import DbSession, get_db_session
-from app.core.security import require_authenticated
+from app.core.security import require_capability
 from app.modules.identity.public import Capability, PrincipalContext
 from app.modules.logistics.api.schemas import (
     CommitmentCreateRequest,
@@ -77,14 +77,13 @@ def _to_trip_response(t: Trip) -> TripResponse:
 @router.post("/vehicles", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
 async def create_vehicle(
     payload: VehicleCreateRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> VehicleResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = CreateVehicleUseCase(repo)
     vehicle = await use_case.execute(
-        organization_id=principal.organization_id,
+        organization_id=principal.org_id,
         registration_number=payload.registration_number,
         vehicle_type=payload.vehicle_type,
         make_model=payload.make_model,
@@ -119,12 +118,11 @@ async def create_vehicle(
 @router.get("/vehicles", response_model=list[VehicleResponse])
 async def list_vehicles(
     is_active: bool | None = Query(None),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> list[VehicleResponse]:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
-    vehicles = await repo.list_vehicles(principal.organization_id, is_active=is_active)
+    vehicles = await repo.list_vehicles(principal.org_id, is_active=is_active)
     return [
         VehicleResponse(
             id=v.id,
@@ -154,34 +152,32 @@ async def list_vehicles(
 @router.post("/drivers", response_model=DriverResponse, status_code=status.HTTP_201_CREATED)
 async def create_driver(
     payload: DriverCreateRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> DriverResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = CreateDriverUseCase(repo)
     driver = await use_case.execute(
-        organization_id=principal.organization_id,
+        organization_id=principal.org_id,
         full_name=payload.full_name,
         phone_e164=payload.phone_e164,
         license_number=payload.license_number,
         license_classes=payload.license_classes,
         user_id=payload.user_id,
     )
-    can_view_pii = principal.has_capability(Capability.VIEW_DRIVER_PII)
+    can_view_pii = principal.can(Capability.VIEW_DRIVER_PII)
     return DriverResponse.from_entity(driver, can_view_pii=can_view_pii)
 
 
 @router.get("/drivers", response_model=list[DriverResponse])
 async def list_drivers(
     is_active: bool | None = Query(None),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> list[DriverResponse]:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
-    drivers = await repo.list_drivers(principal.organization_id, is_active=is_active)
-    can_view_pii = principal.has_capability(Capability.VIEW_DRIVER_PII)
+    drivers = await repo.list_drivers(principal.org_id, is_active=is_active)
+    can_view_pii = principal.can(Capability.VIEW_DRIVER_PII)
     return [DriverResponse.from_entity(d, can_view_pii=can_view_pii) for d in drivers]
 
 
@@ -192,14 +188,13 @@ async def list_drivers(
 @router.post("/commitments", response_model=CommitmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_commitment(
     payload: CommitmentCreateRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.DISPATCH_ROUTE)),
     session: DbSession = Depends(get_db_session),
 ) -> CommitmentResponse:
-    principal.enforce_capability(Capability.DISPATCH_ROUTE)
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = CreateCommitmentUseCase(repo)
     comm = await use_case.execute(
-        organization_id=principal.organization_id,
+        organization_id=principal.org_id,
         consignment_reference=payload.consignment_reference,
         cargo_category=payload.cargo_category,
         priority_tier=payload.priority_tier,
@@ -216,12 +211,11 @@ async def create_commitment(
 @router.get("/commitments", response_model=list[CommitmentResponse])
 async def list_commitments(
     status_filter: str | None = Query(None, alias="status"),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> list[CommitmentResponse]:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
-    comms = await repo.list_commitments(principal.organization_id, status=status_filter)
+    comms = await repo.list_commitments(principal.org_id, status=status_filter)
     return [CommitmentResponse.from_entity(c) for c in comms]
 
 
@@ -232,14 +226,13 @@ async def list_commitments(
 @router.post("/trips", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
 async def dispatch_trip(
     payload: DispatchTripRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.DISPATCH_ROUTE)),
     session: DbSession = Depends(get_db_session),
 ) -> TripResponse:
-    principal.enforce_capability(Capability.DISPATCH_ROUTE)
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = DispatchTripUseCase(repo)
     trip = await use_case.execute(
-        organization_id=principal.organization_id,
+        organization_id=principal.org_id,
         vehicle_id=payload.vehicle_id,
         driver_id=payload.driver_id,
         trip_code=payload.trip_code,
@@ -254,25 +247,23 @@ async def dispatch_trip(
 @router.get("/trips", response_model=list[TripResponse])
 async def list_trips(
     status_filter: TripStatus | None = Query(None, alias="status"),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> list[TripResponse]:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
-    trips = await repo.list_trips(principal.organization_id, status=status_filter)
+    trips = await repo.list_trips(principal.org_id, status=status_filter)
     return [_to_trip_response(t) for t in trips]
 
 
 @router.get("/trips/{trip_id}", response_model=TripResponse)
 async def get_trip(
     trip_id: UUID,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> TripResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyLogisticsRepository(session)
     trip = await repo.get_trip_by_id(trip_id)
-    if trip is None or trip.organization_id != principal.organization_id:
+    if trip is None or trip.organization_id != principal.org_id:
         raise TripNotFoundError(f"Trip '{trip_id}' not found")
     return _to_trip_response(trip)
 
@@ -281,10 +272,9 @@ async def get_trip(
 async def transition_trip(
     trip_id: UUID,
     payload: TripTransitionRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.DISPATCH_ROUTE)),
     session: DbSession = Depends(get_db_session),
 ) -> TripResponse:
-    principal.enforce_capability(Capability.DISPATCH_ROUTE)
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = UpdateTripStatusUseCase(repo)
     trip = await use_case.execute(trip_id, payload.target_status)

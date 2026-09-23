@@ -5,18 +5,22 @@ import { useMemo } from "react";
 import { useSession } from "@/shared/auth";
 import { NER_BBOX } from "@/shared/lib/geo";
 import { MapLegend, MapView } from "@/shared/map";
-import { Banner, Card, CoverageBanner, ErrorNotice, PageHeader, Stat } from "@/shared/ui";
+import { downloadText, toCsv } from "@/shared/lib/format";
+import { Banner, Button, Card, CoverageBanner, ErrorNotice, PageHeader, Stat } from "@/shared/ui";
 import { NoticeList, useGovernmentNotices } from "@/features/alerts";
 import { useCommitments, useFleetPositions, useTrips, useVehicles } from "@/features/fleet";
+import { useRiskZones } from "@/features/hazard";
 import { useImpactData } from "@/features/impact";
 import { useIncidents, useReports } from "@/features/incidents";
 import { EDGE_LIMIT, edgeLines, summarizeEdges, useEdges, useFacilities } from "@/features/network";
+import { GlobalSearch } from "./GlobalSearch";
 
 /** Command overview: every figure is computed from records the server returned for this user's scope. */
 export function GovOverview() {
   const { principal, can } = useSession();
   const edges = useEdges(NER_BBOX, 6);
   const facilities = useFacilities();
+  const hazard = useRiskZones(NER_BBOX);
   const incidents = useIncidents();
   const reports = useReports(undefined, can("VIEW_REPORT_SUMMARY"));
   const impact = useImpactData();
@@ -39,9 +43,38 @@ export function GovOverview() {
   const stale = positions.filter((p) => p.position && (p.position.stale_status === "STALE_WARNING" || p.position.stale_status === "FEED_OFFLINE")).length;
   const scopeCount = principal?.jurisdiction_ids?.length ?? 0;
 
+  const exportBriefing = () => {
+    const headers = ["Metric", "Value"];
+    const rows = [
+      ["Report Title", "PARVA North-East Operational Briefing"],
+      ["Generated At", new Date().toISOString()],
+      ["Authority Scope", principal?.org_name ?? "NER Regional Government Authority"],
+      ["Verified Open Road Ratio", roads.openLengthShare === null ? "—" : `${Math.round(roads.openLengthShare * 100)}%`],
+      ["Restricted Road Segments", String(roads.byStatus.RESTRICTED)],
+      ["Blocked Road Segments", String(roads.byStatus.BLOCKED)],
+      ["Caution or Unknown Segments", String(roads.byStatus.PROVISIONAL_CAUTION + roads.byStatus.UNKNOWN)],
+      ["Active Incidents", String(activeInc.length)],
+      ["Critical Incidents", String(activeInc.filter((i) => i.severity === "CRITICAL").length)],
+      ["Isolated Critical Facilities", String(isolated)],
+      ["Critical & High Alerts", String(noticeCounts.critical + noticeCounts.high)],
+    ];
+    downloadText("parva_operational_briefing.csv", toCsv(headers, rows), "text/csv");
+  };
+
   return (
     <div className="stack">
-      <PageHeader title="Command overview" subtitle={`Scope: ${principal?.org_name ?? ""} · ${scopeCount} assigned jurisdiction(s). The server limits everything below to this scope.`} />
+      <PageHeader
+        title="Command overview"
+        subtitle={`Scope: ${principal?.org_name ?? ""} · ${scopeCount} assigned jurisdiction(s). The server limits everything below to this scope.`}
+        actions={
+          <div className="row" style={{ gap: "0.5rem", alignItems: "center" }}>
+            <GlobalSearch />
+            <Button size="small" onClick={exportBriefing}>
+              Export Briefing (CSV)
+            </Button>
+          </div>
+        }
+      />
       {edges.isError ? <ErrorNotice error={edges.error} subject="the road network" onRetry={() => void edges.refetch()} /> : null}
       <CoverageBanner known={[{ label: "road segments", count: roads.total }, { label: "facilities", count: facilities.data?.length ?? 0 }]} truncated={features.length >= EDGE_LIMIT} note="Percentages describe only the imported network." />
 
@@ -86,8 +119,8 @@ export function GovOverview() {
 
       <div className="split">
         <Card title="Roads needing attention" actions={<Link href="/gov/map">Full map</Link>}>
-          <MapView ariaLabel="Blocked, restricted and unverified road segments" lines={lines} height={340} />
-          <MapLegend />
+          <MapView ariaLabel="Blocked, restricted and unverified road segments, with landslide risk zones" lines={lines} hazardZones={hazard.data?.zones ?? []} height={340} />
+          <MapLegend showHazard={(hazard.data?.zones.length ?? 0) > 0} />
         </Card>
         <Card title="Top notices" actions={<Link href="/gov/alerts">All notices</Link>}>
           <NoticeList notices={notices.slice(0, 6)} emptyText="No notices from visible records." />

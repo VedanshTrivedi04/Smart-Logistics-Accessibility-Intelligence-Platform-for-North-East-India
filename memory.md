@@ -151,6 +151,11 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 - Configured `[tool.hatch.build.targets.wheel] packages = ["app"]` in `backend/pyproject.toml` so hatchling identifies `app/` as the project package.
 - Added `PYTHONPATH="/app:$PYTHONPATH"` to `backend/Dockerfile`.
 - Implemented missing shared frontend utility modules under `frontend/src/shared/lib/` (`geo.ts`, `format.ts`, `time.ts`, `useNow.ts`, `preferences.ts`) satisfying all unit test assertions in `domain-logic.test.ts`.
+- Exported `clock` object with `now(): Date` in `time.ts` required by `AnalyticsView.tsx`.
+- Removed MinIO object storage services (`minio` and `createbuckets`) from compose per user request.
+- Updated Redis image to `redis:alpine` which is pulled and verified locally.
+
+
 
 
 

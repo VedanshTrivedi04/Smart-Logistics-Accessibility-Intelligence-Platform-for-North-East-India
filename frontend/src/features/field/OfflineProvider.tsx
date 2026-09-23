@@ -5,7 +5,7 @@ import { useSession } from "@/shared/auth";
 import { getOfflineDb, QUEUE_CHANGED, queueEvents, readStorageStatus, requestPersistentStorage, type OfflineDb, type StorageStatus } from "@/shared/offline";
 import { readSnapshot, type QueueSnapshot } from "./store";
 import { runSync, type SyncSummary } from "./sync/engine";
-import { httpTransport } from "./sync/transport";
+import { httpTransport, isSimulatedOffline, setSimulatedOffline } from "./sync/transport";
 
 interface OfflineValue {
   ready: boolean;
@@ -20,6 +20,8 @@ interface OfflineValue {
   lastSyncAt: Date | null;
   storage: StorageStatus | null;
   persisted: boolean | null;
+  simulatedOffline: boolean;
+  toggleSimulatedOffline: () => void;
   /** Explicit sync now: ignores backoff delays. */
   syncNow: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -134,9 +136,20 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
     setPersisted(await requestPersistentStorage());
   }, []);
 
+  const [simulatedOffline, setSimState] = useState(isSimulatedOffline());
+
+  const toggleSimulatedOffline = useCallback(() => {
+    const next = !isSimulatedOffline();
+    setSimulatedOffline(next);
+    setSimState(next);
+    if (!next) {
+      void sync(true);
+    }
+  }, [sync]);
+
   const value = useMemo<OfflineValue>(
-    () => ({ ready: db !== null && snapshot !== null, error, db, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, syncNow, refresh, askPersist }),
-    [db, error, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, syncNow, refresh, askPersist],
+    () => ({ ready: db !== null && snapshot !== null, error, db, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, syncNow, refresh, askPersist }),
+    [db, error, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, syncNow, refresh, askPersist],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

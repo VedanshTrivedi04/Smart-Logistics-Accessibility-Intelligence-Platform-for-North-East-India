@@ -849,6 +849,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hazard/risk-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get landslide risk zones within geographic bounding box */
+        get: operations["get_bounded_risk_zones_api_v1_hazard_risk_zones_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hazard/risk-zones/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh live rainfall and recompute landslide risk assessments (authorized only) */
+        post: operations["refresh_risk_assessments_api_v1_hazard_risk_zones_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hazard/risk-zones/seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Derive landslide risk zones from steep road-network edges (authorized only, idempotent) */
+        post: operations["seed_risk_zones_api_v1_hazard_risk_zones_seed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/seed-demo": {
         parameters: {
             query?: never;
@@ -2058,6 +2109,22 @@ export interface components {
          * @enum {string}
          */
         ReviewState: "SUBMITTED" | "PROVISIONAL_CAUTION" | "UNDER_REVIEW" | "MORE_INFO_NEEDED" | "VERIFIED" | "REJECTED";
+        /**
+         * RiskZoneRefreshResponse
+         * @description Response DTO for the risk-assessment refresh endpoint.
+         */
+        RiskZoneRefreshResponse: {
+            /** Zones Refreshed */
+            zones_refreshed: number;
+        };
+        /**
+         * RiskZoneSeedResponse
+         * @description Response DTO for the terrain-derived risk-zone seeding endpoint.
+         */
+        RiskZoneSeedResponse: {
+            /** Zones Created */
+            zones_created: number;
+        };
         /** RouteEdgeResponse */
         RouteEdgeResponse: {
             /**
@@ -2419,10 +2486,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
         /** VehicleCreateRequest */
         VehicleCreateRequest: {
@@ -4168,6 +4231,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvaluateImpactSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bounded_risk_zones_api_v1_hazard_risk_zones_get: {
+        parameters: {
+            query: {
+                /** @description Minimum longitude */
+                min_lon: number;
+                /** @description Minimum latitude */
+                min_lat: number;
+                /** @description Maximum longitude */
+                max_lon: number;
+                /** @description Maximum latitude */
+                max_lat: number;
+                /** @description Maximum features to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_risk_assessments_api_v1_hazard_risk_zones_refresh_post: {
+        parameters: {
+            query?: {
+                /** @description Optional bbox min longitude */
+                min_lon?: number | null;
+                /** @description Optional bbox min latitude */
+                min_lat?: number | null;
+                /** @description Optional bbox max longitude */
+                max_lon?: number | null;
+                /** @description Optional bbox max latitude */
+                max_lat?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskZoneRefreshResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seed_risk_zones_api_v1_hazard_risk_zones_seed_post: {
+        parameters: {
+            query?: {
+                /** @description Minimum road-edge gradient percent to seed a risk zone */
+                gradient_threshold_percent?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskZoneSeedResponse"];
                 };
             };
             /** @description Validation Error */

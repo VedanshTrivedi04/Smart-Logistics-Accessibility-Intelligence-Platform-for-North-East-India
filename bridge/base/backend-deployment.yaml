@@ -1,0 +1,104 @@
+#! backend-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: backend
+    namespace: ner-logistics
+    labels:
+        com.docker.compose.project: ner-logistics
+        com.docker.compose.service: backend
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: ner-logistics
+            com.docker.compose.service: backend
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: ner-logistics
+                com.docker.compose.service: backend
+                com.docker.compose.network.ner_network: "true"
+        spec:
+            restartPolicy: unless-stopped
+            containers:
+                - name: ner-backend
+                  image: ner-logistics-backend
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: ALLOWED_ORIGINS
+                      value: "http://localhost:3000,http://localhost:3001,http://frontend:3000"
+                    - name: APP_ENV
+                      value: "development"
+                    - name: APP_HOST
+                      value: "0.0.0.0"
+                    - name: APP_PORT
+                      value: "8000"
+                    - name: CSRF_SECRET
+                      value: "dev_csrf_secret_32_characters_minimum_length_ner"
+                    - name: DATABASE_URL
+                      value: "postgresql+asyncpg://ner_admin:npg_bG5P9AzsNduZ@ep-broad-wave-b334q3tk-pooler.c-4.ap-southeast-1.aws.neon.tech/ner_logistics?ssl=require"
+                    - name: DATABASE_URL_DIRECT
+                      value: "postgresql+asyncpg://ner_admin:npg_bG5P9AzsNduZ@ep-broad-wave-b334q3tk.c-4.ap-southeast-1.aws.neon.tech/ner_logistics?ssl=require"
+                    - name: DEMO_MODE
+                      value: "true"
+                    - name: DEV_JWT_MODE
+                      value: "true"
+                    - name: GPS_STALE_THRESHOLD_MINUTES
+                      value: "15"
+                    - name: LOG_LEVEL
+                      value: "DEBUG"
+                    - name: MEDIA_MAX_FILES_PER_REPORT
+                      value: "5"
+                    - name: MEDIA_MAX_FILE_SIZE_MB
+                      value: "20"
+                    - name: NEON_BRANCH_ID
+                      value: "br-summer-star-b3jizkwm"
+                    - name: NEON_PROJECT_ID
+                      value: "bitter-morning-62573618"
+                    - name: OBJECT_STORAGE_ACCESS_KEY
+                      value: "ner_minio_admin"
+                    - name: OBJECT_STORAGE_BUCKET_CLEAN
+                      value: "ner-media-clean"
+                    - name: OBJECT_STORAGE_BUCKET_QUARANTINE
+                      value: "ner-media-quarantine"
+                    - name: OBJECT_STORAGE_ENDPOINT
+                      value: "http://localhost:9000"
+                    - name: OBJECT_STORAGE_REGION
+                      value: "us-east-1"
+                    - name: OBJECT_STORAGE_SECRET_KEY
+                      value: "ner_minio_secret"
+                    - name: OIDC_CLIENT_ID
+                      value: "dev-client-id"
+                    - name: OIDC_CLIENT_SECRET
+                      value: "dev-client-secret"
+                    - name: OIDC_ISSUER
+                      value: "https://accounts.google.com"
+                    - name: OIDC_REDIRECT_URI
+                      value: "http://localhost:8000/api/v1/auth/oidc/callback"
+                    - name: OIDC_SCOPES
+                      value: "openid email profile"
+                    - name: OUTBOX_AGE_ALERT_SECONDS
+                      value: "30"
+                    - name: REDIS_CELERY_URL
+                      value: "redis://redis:6379/1"
+                    - name: REDIS_URL
+                      value: "redis://redis:6379/0"
+                    - name: ROUTE_PLAN_EXPIRY_MINUTES
+                      value: "30"
+                    - name: SESSION_ABSOLUTE_LIFETIME_HOURS
+                      value: "8"
+                    - name: SESSION_IDLE_TIMEOUT_MINUTES
+                      value: "60"
+                    - name: SESSION_SECRET
+                      value: "dev_session_secret_32_characters_minimum_len_ner"
+                    - name: STRICT_ORIGIN_CHECK
+                      value: "false"
+                    - name: TOKEN_HMAC_KEY
+                      value: "dev_token_hmac_key_32_bytes_minimum_length_ner_secret"
+                  ports:
+                    - name: backend-8000
+                      containerPort: 8000

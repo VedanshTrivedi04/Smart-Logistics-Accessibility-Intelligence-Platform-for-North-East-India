@@ -9,6 +9,7 @@ import { formatDateTime } from "@/shared/lib/time";
 import { Banner, Card, CoverageBanner, PageHeader, StatusBadge, useEmergencyMode } from "@/shared/ui";
 import { NoticeList, useGovernmentNotices } from "@/features/alerts";
 import { useCommitments, useFleetPositions, useTrips, useVehicles } from "@/features/fleet";
+import { sortByRisk, useRiskZones } from "@/features/hazard";
 import { useImpactData } from "@/features/impact";
 import { useIncidents } from "@/features/incidents";
 import { EDGE_LIMIT, edgeLabel, sortBySeverity, useEdges, useFacilities } from "@/features/network";
@@ -24,6 +25,7 @@ export function EmergencyBoard() {
   const incidents = useIncidents("ACTIVE");
   const edges = useEdges(NER_BBOX, 6);
   const facilities = useFacilities();
+  const hazard = useRiskZones(NER_BBOX);
   const impact = useImpactData();
   const fleet = can("VIEW_FLEET");
   const commitments = useCommitments(undefined, fleet);
@@ -35,6 +37,7 @@ export function EmergencyBoard() {
   const critical = (incidents.data ?? []).filter((i) => i.severity === "CRITICAL" || i.severity === "HIGH");
   const blocked = useMemo(() => sortBySeverity(edges.data?.features ?? []).filter((f) => f.props.accessibility_status === "BLOCKED" || f.props.accessibility_status === "RESTRICTED").slice(0, 12), [edges.data]);
   const isolatedCritical = impact.facilityImpacts.filter((f) => f.impact.isolated && f.facility.is_critical);
+  const severeHazard = useMemo(() => sortByRisk(hazard.data?.zones ?? []).filter((z) => z.riskLevel === "HIGH" || z.riskLevel === "SEVERE"), [hazard.data]);
   const tier1 = (commitments.data ?? []).filter((c) => c.priority_tier === "TIER_1_LIFE_SAVING" && c.sla_status !== "ON_TIME" && c.status !== "DELIVERED");
   const affectedTripIds = new Set(impact.tripImpacts.map((t) => t.trip.id));
   const staleWithTrips = positions.filter((p) => p.position && (p.position.stale_status === "STALE_WARNING" || p.position.stale_status === "FEED_OFFLINE") && (trips.data ?? []).some((t) => t.vehicle_id === p.vehicle.id && ["DISPATCHED", "IN_TRANSIT"].includes(t.status)));
@@ -64,6 +67,20 @@ export function EmergencyBoard() {
             </ul>
           )}
           <p className="small"><Link href="/gov/map">Open the accessibility map</Link></p>
+        </Card>
+        <Card title={`Landslide risk zones — high/severe (${severeHazard.length})`}>
+          {severeHazard.length === 0 ? <p className="muted">No zone is currently assessed HIGH or SEVERE.</p> : (
+            <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {severeHazard.slice(0, 8).map((z) => (
+                <li key={z.id} className="row">
+                  <StatusBadge kind="severity" value={z.riskLevel === "SEVERE" ? "CRITICAL" : "HIGH"} />
+                  {z.name ?? "Unnamed zone"}
+                  {typeof z.rainfallMm24h === "number" ? <span className="small muted right">{Math.round(z.rainfallMm24h)}mm / 24h</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="small"><Link href="/gov/map">View on the accessibility map</Link></p>
         </Card>
         <Card title={`Isolated critical facilities (${isolatedCritical.length})`}>
           {isolatedCritical.length === 0 ? <p className="muted">No critical facility is recorded as isolated.</p> : (

@@ -29,6 +29,14 @@ export interface SyncTransport {
   syncBatch(items: Array<Record<string, unknown>>, ctx: { appInstanceId?: string }): Promise<BatchSyncResponse>;
 }
 
+let simulatedOffline = false;
+export function setSimulatedOffline(val: boolean) {
+  simulatedOffline = val;
+}
+export function isSimulatedOffline() {
+  return simulatedOffline;
+}
+
 function wrap(error: unknown): TransportError {
   if (isApiError(error)) return new TransportError(error.status, error.message, error.code);
   return new TransportError(0, error instanceof Error ? error.message : "Network error");
@@ -36,6 +44,7 @@ function wrap(error: unknown): TransportError {
 
 export const httpTransport: SyncTransport = {
   async requestUploadTicket({ fileName, sizeBytes, mimeType, sha256 }) {
+    if (simulatedOffline) throw new TransportError(0, "Simulated NER hill network outage");
     try {
       const t = await unwrap(() => api.POST("/api/v1/media/upload-ticket", { body: { file_name: fileName, file_size_bytes: sizeBytes, mime_type: mimeType, checksum_sha256: sha256 } }));
       return { mediaId: t.media_id, uploadUrl: t.upload_url };
@@ -60,6 +69,7 @@ export const httpTransport: SyncTransport = {
     }
   },
   async syncBatch(items, ctx) {
+    if (simulatedOffline) throw new TransportError(0, "Simulated NER hill network outage");
     try {
       return await unwrap(() => api.POST("/api/v1/reports/sync", { // The schema declares items as an untyped object array, which the generator renders as an unsatisfiable index type.
       body: { items: items as never[], ...(ctx.appInstanceId ? { app_instance_id: ctx.appInstanceId } : {}) } }));

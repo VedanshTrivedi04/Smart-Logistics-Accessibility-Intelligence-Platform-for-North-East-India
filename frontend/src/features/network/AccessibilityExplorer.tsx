@@ -5,6 +5,7 @@ import { humanize } from "@/shared/lib/format";
 import { formatDistance, type BBox } from "@/shared/lib/geo";
 import { MapLegend, MapView, type MapPoint, type Viewport } from "@/shared/map";
 import { Banner, Card, CoverageBanner, ErrorNotice, Stat, StatusBadge } from "@/shared/ui";
+import { useRiskZones } from "@/features/hazard";
 import { edgeLabel, edgeLines, sortBySeverity, summarizeEdges } from "./edges";
 import { EdgePanel, FacilityPanel } from "./panels";
 import { EDGE_LIMIT, useEdges, useFacilities } from "./queries";
@@ -27,6 +28,7 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
 
   const edges = useEdges((viewport?.bbox as BBox | undefined) ?? null, viewport?.zoom ?? null);
   const facilities = useFacilities();
+  const hazard = useRiskZones((viewport?.bbox as BBox | undefined) ?? null);
 
   const features = useMemo(() => edges.data?.features ?? [], [edges.data]);
   const summary = useMemo(() => summarizeEdges(features), [features]);
@@ -75,6 +77,7 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
       <CoverageBanner known={[{ label: "road segments", count: summary.total }, { label: "facilities", count: facilities.data?.length ?? 0 }]} truncated={truncated} />
       {edges.isError ? <ErrorNotice error={edges.error} subject="road network" onRetry={() => void edges.refetch()} /> : null}
       {facilities.isError ? <ErrorNotice error={facilities.error} subject="facilities" onRetry={() => void facilities.refetch()} /> : null}
+      {hazard.isError ? <ErrorNotice error={hazard.error} subject="landslide risk zones" onRetry={() => void hazard.refetch()} /> : null}
       {mapError ? <Banner tone="warn" title="Map problem"><p className="small">{mapError}. The list below still shows every loaded segment.</p></Banner> : null}
 
       <div className="split">
@@ -83,6 +86,7 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
             ariaLabel="Road accessibility map"
             lines={lines}
             points={points}
+            hazardZones={hazard.data?.zones ?? []}
             selectedId={selectedEdge ?? (selectedFacility ? `facility:${selectedFacility}` : null)}
             height={height}
             onViewportChange={setViewport}
@@ -90,7 +94,7 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
             onSelectPoint={(id) => { setSelectedFacility(id.replace("facility:", "")); setSelectedEdge(null); }}
             onError={setMapError}
           />
-          <MapLegend showMarkers />
+          <MapLegend showMarkers showHazard={(hazard.data?.zones.length ?? 0) > 0} />
           <Card title="Road segments in view" actions={
             <div className="row">
               <label className="small" htmlFor="seg-filter">Show</label>

@@ -187,6 +187,11 @@ dl.kv dd { margin: 0; }
 .map-marker[data-selected="true"] { outline: 3px solid #f59e0b; outline-offset: 2px; }
 .map-marker[data-cluster="true"] { border-radius: 50%; width: 38px; height: 38px; background: #0b5cad; }
 
+.map-view-switch { position: absolute; top: 0.6rem; left: 0.6rem; display: flex; gap: 0.3rem; flex-wrap: wrap; z-index: 5; max-width: calc(100% - 1.2rem); }
+.map-view-switch button { font-size: 0.78rem; padding: 0.3rem 0.55rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+.map-view-switch button[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
+.map-view-switch button:hover { filter: brightness(1.05); }
+
 .step-list { display: flex; gap: 0.35rem; flex-wrap: wrap; padding: 0; margin: 0; list-style: none; }
 .step-list li { padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--surface-2); font-size: 0.85rem; }
 .step-list li[aria-current="step"] { background: var(--brand); color: var(--brand-contrast); font-weight: 600; }

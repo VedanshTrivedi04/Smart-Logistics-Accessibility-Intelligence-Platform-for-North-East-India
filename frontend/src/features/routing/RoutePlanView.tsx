@@ -8,6 +8,7 @@ import { formatDistance, bboxOfCoordinates } from "@/shared/lib/geo";
 import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, KeyValue, StatusBadge, useAnnounce, ValidityStatement } from "@/shared/ui";
 import { useNow } from "@/shared/lib/useNow";
+import { routeCrossesHighRisk, useRiskZones } from "@/features/hazard";
 import { exclusionSummary, lineStrings, planLines } from "./geometry";
 import { POLICY_LABEL, useDispatchDecision } from "./queries";
 
@@ -139,6 +140,9 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
   const lines = useMemo(() => planLines(plan, rank === 0 ? null : rank), [plan, rank]);
   const all = useMemo(() => [...lineStrings(plan.primary_geometry), ...plan.alternatives.flatMap((a) => lineStrings(a.geometry))].flat(), [plan]);
   const bounds = useMemo(() => bboxOfCoordinates(all), [all]);
+  const hazard = useRiskZones(bounds, plan.result_status === "FEASIBLE");
+  const activeCoords = useMemo(() => lineStrings(rank === 0 ? plan.primary_geometry : (plan.alternatives.find((a) => a.rank === rank)?.geometry ?? plan.primary_geometry)).flat(), [plan, rank]);
+  const crossedZones = useMemo(() => routeCrossesHighRisk(activeCoords, hazard.data?.zones ?? []), [activeCoords, hazard.data]);
   const primaryDuration = plan.total_duration_seconds;
 
   return (
@@ -149,10 +153,15 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
       <ValidityStatement evaluatedAt={plan.evaluated_at} expiresAt={plan.expires_at} />
       {plan.result_status === "FEASIBLE" ? (
         <>
+          {crossedZones.length > 0 ? (
+            <Banner tone="warn" title={`Selected route crosses ${crossedZones.length} landslide risk zone${crossedZones.length === 1 ? "" : "s"}`}>
+              <p className="small">{crossedZones.map((z) => z.name ?? "Unnamed zone").join(", ")} — rated {crossedZones.some((z) => z.riskLevel === "SEVERE") ? "SEVERE" : "HIGH"}. Check current rainfall before dispatch, especially during active monsoon spells.</p>
+            </Banner>
+          ) : null}
           <div className="split">
             <div className="stack">
-              <MapView ariaLabel="Route options" height={360} lines={lines} fitBounds={bounds} fitKey={plan.id} />
-              <MapLegend showRoutes />
+              <MapView ariaLabel="Route options, with landslide risk zones" height={360} lines={lines} hazardZones={hazard.data?.zones ?? []} fitBounds={bounds} fitKey={plan.id} />
+              <MapLegend showRoutes showHazard={(hazard.data?.zones.length ?? 0) > 0} />
             </div>
             <Card title="Options">
               <div className="table-wrap">

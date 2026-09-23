@@ -53,15 +53,15 @@ logs:
 	docker compose logs -f
 
 # ─────────────────────────────────────────────────────────────
-# Infrastructure Only (Redis + MinIO — Postgres is on Neon)
+# Infrastructure Only (Redis — Postgres is on Neon)
 # ─────────────────────────────────────────────────────────────
 infra:
-	docker compose up -d redis minio createbuckets
-	@echo "✅ Redis + MinIO started. Neon DB is remote — no local Postgres needed."
+	docker compose up -d redis
+	@echo "✅ Redis started. Neon DB is remote — no local Postgres needed."
 
 infra-down:
-	docker compose down redis minio createbuckets
-	@echo "✅ Infrastructure containers stopped."
+	docker compose down redis
+	@echo "✅ Redis container stopped."
 
 # ─────────────────────────────────────────────────────────────
 # Database migrations (Alembic → Neon)

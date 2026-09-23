@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { SURFACE_LABEL, useSession } from "@/shared/auth";
 import { AppShell, Banner, Button } from "@/shared/ui";
+import { PersonaSwitcher } from "@/features/session";
 import { NAV } from "./nav";
 
 /**
@@ -49,8 +50,14 @@ export function SessionGate({ children }: { children: ReactNode }) {
     );
   }
   return (
-    <AppShell surfaceLabel={SURFACE_LABEL[surface]} nav={NAV[surface]} allowEmergencyToggle={surface === "government"}>
+    <AppShell
+      surfaceLabel={SURFACE_LABEL[surface]}
+      nav={NAV[surface]}
+      allowEmergencyToggle={surface === "government"}
+      topActions={<PersonaSwitcher />}
+    >
       {children}
     </AppShell>
   );
 }
+

@@ -157,6 +157,7 @@ async def select_org(
     response.headers["X-CSRF-Token"] = raw_csrf_token
     resolver = ResolvePrincipalUseCase(repo)
     principal = await resolver.execute(raw_session_token)
+    await db.commit()
 
     return {
         "csrf_token": raw_csrf_token,
@@ -187,6 +188,7 @@ async def logout(
         repo = SqlAlchemyIdentityRepository(db)
         use_case = RevokeCurrentSessionUseCase(repo)
         await use_case.execute(principal.session_id, user_id=principal.user_id)
+        await db.commit()
 
     _clear_session_cookie(response)
     return MessageResponse(message="Logged out successfully")
@@ -202,6 +204,7 @@ async def logout_all(
     repo = SqlAlchemyIdentityRepository(db)
     use_case = RevokeAllUserSessionsUseCase(repo)
     count = await use_case.execute(principal.user_id)
+    await db.commit()
     _clear_session_cookie(response)
     return MessageResponse(message=f"All {count} active sessions have been revoked")
 
@@ -232,6 +235,7 @@ async def get_csrf_token(
         expires_at=expires_at,
     )
     await repo.create_csrf_token(token)
+    await db.commit()
     return CsrfTokenResponse(csrf_token=raw_csrf_token)
 
 
@@ -342,6 +346,7 @@ async def dev_session(
 
     resolver = ResolvePrincipalUseCase(repo)
     principal = await resolver.execute(raw_session_token)
+    await db.commit()
 
     return {
         "csrf_token": raw_csrf_token,

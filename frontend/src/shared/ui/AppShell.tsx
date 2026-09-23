@@ -46,9 +46,10 @@ interface Props {
   nav: NavItem[];
   children: ReactNode;
   allowEmergencyToggle?: boolean;
+  topActions?: ReactNode;
 }
 
-export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle }: Props) {
+export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, topActions }: Props) {
   usePreferencesEffect();
   const pathname = usePathname();
   const session = useSession();
@@ -88,7 +89,11 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle }: 
       <a className="skip-link" href="#main">Skip to main content</a>
       <div className={`shell ${emergencyOn ? "emergency" : ""}`}>
         <aside className="sidebar" data-open={menuOpen} aria-label="Primary">
-          <div className="brand">NER Logistics<br /><span className="small muted">{surfaceLabel}</span></div>
+          <div className="brand">
+            <span style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--color-primary-dark, #0284c7)" }}>⛰️ PARVA</span>
+            <br />
+            <span className="small muted" style={{ letterSpacing: "0.03em" }}>{surfaceLabel}</span>
+          </div>
           <nav aria-label={`${surfaceLabel} navigation`}>
             <ul>
               {items.map((item) => (
@@ -121,7 +126,8 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle }: 
                 </span>
               </div>
             </div>
-            <div className="row">
+            <div className="row" style={{ gap: "0.6rem", alignItems: "center" }}>
+              {topActions}
               {allowEmergencyToggle && session.can("RESPOND_EMERGENCY") ? (
                 <label className="row small" style={{ gap: "0.4rem" }}>
                   <input type="checkbox" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} />

@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 // The browser only ever talks to same-origin /api/v1. In development Next proxies
 // it to FastAPI; in deployment the reverse proxy owns this route instead.
-const backend = process.env.BACKEND_ORIGIN ?? "http://localhost:8000";
+const backend = process.env.BACKEND_ORIGIN ?? "http://backend:8000";
 
 const config: NextConfig = {
   output: "standalone",
