@@ -24,6 +24,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/src/shared/lib/
 lib64/
 parts/
 sdist/
@@ -43,6 +44,7 @@ ENV/
 out/
 dist/
 .turbo/
+.pnpm-store/
 
 # OS files
 .DS_Store

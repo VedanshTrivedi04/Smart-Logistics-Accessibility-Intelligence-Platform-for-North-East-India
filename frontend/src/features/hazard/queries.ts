@@ -6,7 +6,7 @@ import { useSession } from "@/shared/auth";
 import { snapBBox, type BBox } from "@/shared/lib/geo";
 import { parseRiskZoneCollection } from "./riskZones";
 
-export function useRiskZones(bbox: BBox | null, enabled = true) {
+export function useRiskZones(bbox: BBox | null | undefined, enabled = true) {
   const { scope } = useSession();
   const snapped = bbox ? snapBBox(bbox) : null;
   return useQuery({
