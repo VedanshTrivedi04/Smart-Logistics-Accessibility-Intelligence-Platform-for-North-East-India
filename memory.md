@@ -190,3 +190,39 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 **Notes**
 - Page files marked from code reading only; nothing was executed. Known issues are collected in `memory/portals/shared/known-issues.md`.
 
+### 2026-09-24 19:48 Field Reports & Ground Intelligence Command Center
+
+**User Request**
+> Pura backend se wired hona chahiye, no mock or dummy data, jo cheeze incident page se connect karna hai wo kar dena, no map (location in detail textually), aur memory file update kar dena.
+
+**Work Done**
+- Implemented `ReportsCommandCenter.tsx` in `frontend/src/features/incidents/ReportsCommandCenter.tsx`:
+  - 100% backend dynamic data via `useReports()`, `useReport()`, `useIncidents()`, `useMediaUrl()`, `useTriage()`, `useReview()`. Zero mock data.
+  - Live top analytical KPI metrics bar directly computed from PostgreSQL reports table: Total Reports, Awaiting Review (`SUBMITTED`), Under Review (`UNDER_REVIEW`/`PROVISIONAL_CAUTION`), Verified Truth (`VERIFIED`), More Info (`MORE_INFO_NEEDED`), Rejected (`REJECTED`).
+  - Master Left Feed with search (highway, description, report ID), status filter pills, and severity badges with relative timestamps and photo counters.
+  - Ground Intelligence Dossier (Right Pane): Officer attribution, GNSS coordinates, sensor provider (`GPS_HARDWARE`), elevation, and accuracy radius. Detailed textual corridor information (no maps per request).
+  - High-resolution photographic evidence gallery with time-bounded presigned S3 URLs (`useMediaUrl`), interactive Lightbox modal with malware scan status (`Clean ✓ (SHA-256 Verified)`), and EXIF verification.
+  - Stepped progression pipeline (`SUBMITTED` → `UNDER REVIEW` → `VERIFIED` / `REJECTED` / `MORE_INFO_NEEDED`).
+  - Strict RBAC: Regional Commander has read-only monitoring oversight (`Shield` governance badge); adjudication and claim actions (`VERIFY_REPORT`) are gated to authorized District Verifiers.
+  - Bidirectional Incident Cross-Linkage: Verified field reports link directly to their corresponding operational incident in the Incident Command Center (`/gov/incidents?selected={incident_id}`).
+- Updated `IncidentCommandCenter.tsx` (`frontend/src/features/incidents/IncidentCommandCenter.tsx`):
+  - Added direct link button from active incidents to `/gov/reports?selected={primary_report_id}` to drill down into the originating field report and forensic ground photos.
+- Exported `ReportsCommandCenter` from `frontend/src/features/incidents/index.ts`.
+- Mounted `ReportsCommandCenter` in `frontend/src/app/(protected)/gov/reports/page.tsx`.
+- Updated memory documentation:
+  - `memory/portals/gov/reports.md` (updated with full feature set, APIs, and RBAC rules).
+  - `memory/portals/gov/incidents.md` (updated with bidirectional report cross-linking).
+  - `memory/README.md` (updated gov/reports index entry).
+  - `memory.md` (appended interaction history entry).
+
+**Files Changed**
+- `frontend/src/features/incidents/ReportsCommandCenter.tsx` (new)
+- `frontend/src/features/incidents/index.ts`
+- `frontend/src/features/incidents/IncidentCommandCenter.tsx`
+- `frontend/src/app/(protected)/gov/reports/page.tsx`
+- `memory/portals/gov/reports.md`
+- `memory/portals/gov/incidents.md`
+- `memory/README.md`
+- `memory.md`
+
+

@@ -35,7 +35,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [gov/map](portals/gov/map.md) - Gov / Regional map (`/gov/map`)
 - [gov/regions](portals/gov/regions.md) - Gov / States (state-wise view) (`/gov/regions`)
 - [gov/reports-id](portals/gov/reports-id.md) - Gov / Review report (`/gov/reports/[id]`)
-- [gov/reports](portals/gov/reports.md) - Gov / Field reports queue (`/gov/reports`)
+- [gov/reports](portals/gov/reports.md) - Gov / Field Reports & Ground Intelligence Dossier (`/gov/reports`)
 - [gov/routes](portals/gov/routes.md) - Gov / Route intelligence (`/gov/routes`)
 
 ## logistics

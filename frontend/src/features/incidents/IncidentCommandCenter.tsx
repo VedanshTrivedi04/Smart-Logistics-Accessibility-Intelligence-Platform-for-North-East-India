@@ -876,6 +876,30 @@ function IncidentCommandCenterInner() {
                         {disruptionImpact.isBlocked ? "BLOCKED (No Transit Access)" : "RESTRICTED (Heavy Axle Limit)"}
                       </strong>
                     </div>
+
+                    {activeIncident.primary_report_id && (
+                      <div style={{ gridColumn: "1 / -1", paddingTop: "0.5rem", borderTop: "1px dashed #e2e8f0" }}>
+                        <Link
+                          href={`/gov/reports?selected=${activeIncident.primary_report_id}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            fontSize: "0.82rem",
+                            fontWeight: 700,
+                            color: "#2563eb",
+                            textDecoration: "none",
+                            background: "#eff6ff",
+                            padding: "0.35rem 0.75rem",
+                            borderRadius: "6px",
+                            border: "1px solid #bfdbfe",
+                          }}
+                        >
+                          <FileText size={14} />
+                          <span>View Ground Intelligence &amp; Forensic Evidence (#FR-{shortId(activeIncident.primary_report_id)}) →</span>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
 
