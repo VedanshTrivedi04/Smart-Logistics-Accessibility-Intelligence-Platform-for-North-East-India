@@ -78,6 +78,7 @@ class QueryBoundedEdgesUseCase:
                     "accessibility_status": status_val,
                     "freshness": freshness_val,
                     "status_version": status_version,
+                    "jurisdiction_id": str(edge.jurisdiction_id) if edge.jurisdiction_id else None,
                 },
             }
             features.append(feature)

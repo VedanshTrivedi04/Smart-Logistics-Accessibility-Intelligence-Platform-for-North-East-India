@@ -4,14 +4,14 @@ app/modules/reporting/api/router.py — FastAPI Router for Field Reporting & Med
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, status
-from app.core.db import DbSession as AsyncSession, get_db
+
+from app.core.db import DbSession as AsyncSession
+from app.core.db import get_db
 from app.core.security import (
     PrincipalContext,
-    require_authenticated,
     require_capability,
 )
 from app.modules.identity.domain.enums import Capability

@@ -5,7 +5,7 @@ app/modules/reporting/domain/entities.py — Domain Entities and Value Objects f
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -20,7 +20,6 @@ from app.modules.reporting.domain.enums import (
 from app.modules.reporting.domain.exceptions import (
     ClockSkewError,
     MediaValidationError,
-    StaleObservationError,
 )
 
 # North-Eastern Region bounding box (89.5 <= lon <= 97.5, 21.5 <= lat <= 29.5)
@@ -80,7 +79,7 @@ class MediaObject:
     height_px: int | None = None
     exif_lat: float | None = None
     exif_lon: float | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def validate(self) -> None:
         """Validate file size and MIME constraints."""
@@ -107,7 +106,7 @@ class ReportAmendment:
     original_report_id: UUID
     amendment_report_id: UUID
     reason: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -118,7 +117,7 @@ class SyncResult:
     client_operation_id: str
     status_code: int
     response_payload: dict[str, Any]
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -147,6 +146,13 @@ class FieldReport:
     amendment_of_report_id: UUID | None = None
     media_ids: list[UUID] = field(default_factory=list)
     version: int = 1
+    # Populated by ai.AutoTriageFieldReportUseCase via apply_cv_verification()
+    # (see public.py) — set together, always all-or-nothing.
+    cv_hazard_class: str | None = None
+    cv_severity_score: float | None = None
+    cv_confidence: float | None = None
+    cv_is_roadway_blocked: bool | None = None
+    cv_verified_at: datetime | None = None
 
     def validate_timestamps(self, max_skew_seconds: int = 900, max_stale_days: int = 7) -> None:
         """Enforce triple-timestamp consistency."""
@@ -182,3 +188,19 @@ class FieldReport:
                 if any(r in officer_roles for r in reporter_roles):
                     return True
         return False
+
+    def should_auto_provisional_caution_from_cv(self, confidence_threshold: float = 0.75) -> bool:
+        """
+        CV-Verified High-Confidence Hazard Auto-Caution (analogous to Policy 21,
+        but driven by the AI/ML hazard verification model instead of submission
+        metadata). Triggered only if:
+        - CV verification has actually run (cv_confidence/cv_is_roadway_blocked set)
+        - the model detected the roadway as blocked
+        - confidence meets or exceeds confidence_threshold
+        - not stale (> 7 days)
+        """
+        if self.is_stale_observation:
+            return False
+        if self.cv_confidence is None or self.cv_is_roadway_blocked is None:
+            return False
+        return self.cv_is_roadway_blocked and self.cv_confidence >= confidence_threshold

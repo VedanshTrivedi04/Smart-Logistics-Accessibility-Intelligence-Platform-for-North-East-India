@@ -5,7 +5,7 @@ tests/unit/reporting/test_reporting_domain.py — Pure Domain Unit Tests for Fie
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -14,7 +14,6 @@ from app.modules.reporting.domain.enums import (
     LocationProvider,
     ReportSeverity,
     ReportType,
-    ReviewState,
 )
 from app.modules.reporting.domain.exceptions import (
     ClockSkewError,
@@ -67,7 +66,7 @@ class TestLocationPointValidation:
 
 class TestReportTimestampAndCautionPolicy:
     def test_future_observation_raises_clock_skew_error(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future_obs = now + timedelta(minutes=25)  # 25 min in future (> 15 min limit)
 
         report = FieldReport(
@@ -85,7 +84,7 @@ class TestReportTimestampAndCautionPolicy:
             report.validate_timestamps()
 
     def test_stale_observation_detected(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stale_obs = now - timedelta(days=9)  # 9 days old
 
         report = FieldReport(
@@ -104,7 +103,7 @@ class TestReportTimestampAndCautionPolicy:
         assert not report.should_auto_provisional_caution(["FIELD_OFFICER"])
 
     def test_policy_21_auto_provisional_caution_triggers_for_field_officer(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         report = FieldReport(
             id=uuid.uuid4(),
             reporter_id=uuid.uuid4(),
@@ -119,7 +118,7 @@ class TestReportTimestampAndCautionPolicy:
         assert report.should_auto_provisional_caution(["FIELD_OFFICER"])
 
     def test_low_severity_does_not_trigger_auto_caution(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         report = FieldReport(
             id=uuid.uuid4(),
             reporter_id=uuid.uuid4(),
@@ -134,7 +133,7 @@ class TestReportTimestampAndCautionPolicy:
         assert not report.should_auto_provisional_caution(["FIELD_OFFICER"])
 
     def test_unauthorized_role_does_not_trigger_auto_caution(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         report = FieldReport(
             id=uuid.uuid4(),
             reporter_id=uuid.uuid4(),
@@ -147,3 +146,53 @@ class TestReportTimestampAndCautionPolicy:
             created_at=now,
         )
         assert not report.should_auto_provisional_caution(["TRANSPORT_OPERATOR"])
+
+
+def make_report_for_cv(**overrides: object) -> FieldReport:
+    now = datetime.now(UTC)
+    defaults: dict[str, object] = {
+        "id": uuid.uuid4(),
+        "reporter_id": uuid.uuid4(),
+        "report_type": ReportType.LANDSLIDE,
+        "severity": ReportSeverity.MEDIUM,
+        "description": "Report awaiting CV verification",
+        "location": LocationPoint(longitude=91.75, latitude=26.15, accuracy_m=15.0),
+        "observed_at": now - timedelta(minutes=10),
+        "received_at": now,
+        "created_at": now,
+    }
+    defaults.update(overrides)
+    return FieldReport(**defaults)  # type: ignore[arg-type]
+
+
+class TestCvAutoProvisionalCaution:
+    def test_high_confidence_blocked_triggers_caution(self) -> None:
+        report = make_report_for_cv(cv_confidence=0.9, cv_is_roadway_blocked=True)
+        assert report.should_auto_provisional_caution_from_cv()
+
+    def test_low_confidence_does_not_trigger(self) -> None:
+        report = make_report_for_cv(cv_confidence=0.5, cv_is_roadway_blocked=True)
+        assert not report.should_auto_provisional_caution_from_cv()
+
+    def test_high_confidence_but_not_blocked_does_not_trigger(self) -> None:
+        report = make_report_for_cv(cv_confidence=0.95, cv_is_roadway_blocked=False)
+        assert not report.should_auto_provisional_caution_from_cv()
+
+    def test_no_cv_result_yet_does_not_trigger(self) -> None:
+        report = make_report_for_cv()
+        assert not report.should_auto_provisional_caution_from_cv()
+
+    def test_stale_observation_does_not_trigger_even_with_high_confidence(self) -> None:
+        now = datetime.now(UTC)
+        report = make_report_for_cv(
+            observed_at=now - timedelta(days=9),
+            received_at=now,
+            cv_confidence=0.99,
+            cv_is_roadway_blocked=True,
+        )
+        assert not report.should_auto_provisional_caution_from_cv()
+
+    def test_custom_threshold_respected(self) -> None:
+        report = make_report_for_cv(cv_confidence=0.6, cv_is_roadway_blocked=True)
+        assert report.should_auto_provisional_caution_from_cv(confidence_threshold=0.5)
+        assert not report.should_auto_provisional_caution_from_cv(confidence_threshold=0.7)

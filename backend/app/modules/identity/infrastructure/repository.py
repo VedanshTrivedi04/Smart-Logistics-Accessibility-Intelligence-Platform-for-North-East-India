@@ -379,7 +379,7 @@ class SqlAlchemyIdentityRepository(IdentityRepositoryPort):
     ) -> None:
         logger.info(
             "identity_audit_event",
-            event=event.value,
+            audit_event=event.value,
             actor_id=str(actor_id) if actor_id else None,
             resource_id=str(resource_id) if resource_id else None,
             payload=payload,

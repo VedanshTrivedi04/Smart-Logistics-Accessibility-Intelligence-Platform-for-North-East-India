@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.core.db import DbSession, get_db_session
 from app.core.exceptions import ValidationError
-from app.core.security import require_authenticated
+from app.core.security import require_capability
 from app.modules.identity.public import Capability, PrincipalContext
 from app.modules.telemetry.api.schemas import (
     BatchIngestResponse,
@@ -48,17 +48,16 @@ router = APIRouter(prefix="/telemetry", tags=["Telemetry & Tracking"])
 @router.post("/devices", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
 async def register_device(
     payload: DeviceRegisterRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> DeviceResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyTelemetryRepository(session)
 
     token_hash = hashlib.sha256(payload.raw_api_key.strip().encode("utf-8")).hexdigest()
     now = datetime.now(timezone.utc)
     device = Device(
         id=uuid4(),
-        organization_id=principal.organization_id,
+        organization_id=principal.org_id,
         vehicle_id=payload.vehicle_id,
         device_code=payload.device_code.strip().upper(),
         device_type=payload.device_type,
@@ -146,10 +145,9 @@ async def ingest_telemetry(
 @router.get("/vehicles/{vehicle_id}/position", response_model=VehiclePositionResponse)
 async def get_vehicle_position(
     vehicle_id: UUID,
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> VehiclePositionResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyTelemetryRepository(session)
     pos = await repo.get_current_position(vehicle_id)
     if pos is None:
@@ -162,11 +160,9 @@ async def get_vehicle_breadcrumbs(
     vehicle_id: UUID,
     start_time: datetime = Query(...),
     end_time: datetime = Query(...),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> list[BreadcrumbResponse]:
-    principal.enforce_capability(Capability.VIEW_FLEET)
-
     # Validate maximum query window (7 days)
     if (end_time - start_time).total_seconds() > 7 * 86400:
         raise ValidationError("Query time range cannot exceed 7 days")
@@ -205,10 +201,9 @@ async def get_vehicle_breadcrumbs(
 async def replay_synthetic_corridor(
     payload: SimulatorReplayRequest,
     x_device_token: str | None = Header(None, alias="X-Device-Token"),
-    principal: PrincipalContext = Depends(require_authenticated),
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
     session: DbSession = Depends(get_db_session),
 ) -> BatchIngestResponse:
-    principal.enforce_capability(Capability.VIEW_FLEET)
     repo = SqlAlchemyTelemetryRepository(session)
 
     # If x_device_token provided, authenticate device, else lookup/create a simulator device
@@ -217,12 +212,12 @@ async def replay_synthetic_corridor(
         device = await auth_use_case.execute(x_device_token)
     else:
         # Find or create standard simulator device for org
-        sim_code = f"SIM-{principal.organization_id.hex[:6].upper()}"
+        sim_code = f"SIM-{principal.org_id.hex[:6].upper()}"
         device = await repo.get_device_by_code(sim_code)
         if not device:
             device = Device(
                 id=uuid4(),
-                organization_id=principal.organization_id,
+                organization_id=principal.org_id,
                 vehicle_id=payload.vehicle_id,
                 device_code=sim_code,
                 device_type=DeviceType.LABELED_SIMULATOR_REPLAY,

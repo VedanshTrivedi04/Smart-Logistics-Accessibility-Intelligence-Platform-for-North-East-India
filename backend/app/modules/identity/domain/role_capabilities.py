@@ -21,6 +21,8 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_IMPACT,
         Capability.VIEW_REGION,
         Capability.EXPORT_DATA,
+        Capability.COORDINATE_RESPONSE,
+        Capability.VIEW_FLEET,
     }),
 
     Role.STATE_AUTHORITY: frozenset({
@@ -32,6 +34,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_REGION,
         Capability.OVERRIDE_VERIFICATION,
         Capability.EXPORT_DATA,
+        Capability.COORDINATE_RESPONSE,
     }),
 
     Role.DISTRICT_VERIFIER: frozenset({
@@ -48,6 +51,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_REPORT_DETAIL,
         Capability.VIEW_REPORT_MEDIA,
         Capability.RESPOND_EMERGENCY,
+        Capability.COORDINATE_RESPONSE,
         Capability.VIEW_ROAD_STATUS,
         Capability.UPDATE_ROAD_STATUS,
         Capability.VIEW_FLEET,

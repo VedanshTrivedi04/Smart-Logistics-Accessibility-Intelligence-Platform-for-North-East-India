@@ -1,0 +1,8 @@
+#! 0-ner-logistics-namespace.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: ner-logistics
+    labels:
+        com.docker.compose.project: ner-logistics

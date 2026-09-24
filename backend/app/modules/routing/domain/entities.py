@@ -44,6 +44,10 @@ class RouteEdge:
     cumulative_duration_seconds: int
     is_alternative: bool = False
     alternative_rank: int = 0
+    # Populated for turn-by-turn directions (see evaluate_route.py); optional because
+    # older persisted route plans (read back via get_route_plan) predate these fields.
+    road_name: str | None = None
+    geometry: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

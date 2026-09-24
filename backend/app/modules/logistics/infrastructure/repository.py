@@ -87,8 +87,10 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
         await self.session.flush()
         return self._to_vehicle_entity(model)
 
-    async def list_vehicles(self, organization_id: UUID, is_active: bool | None = None) -> list[Vehicle]:
-        stmt = sa.select(VehicleModel).where(VehicleModel.organization_id == organization_id)
+    async def list_vehicles(self, organization_id: UUID | None = None, is_active: bool | None = None) -> list[Vehicle]:
+        stmt = sa.select(VehicleModel)
+        if organization_id is not None:
+            stmt = stmt.where(VehicleModel.organization_id == organization_id)
         if is_active is not None:
             stmt = stmt.where(VehicleModel.is_active == is_active)
         stmt = stmt.order_by(VehicleModel.registration_number)

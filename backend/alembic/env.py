@@ -60,6 +60,13 @@ from app.modules.network.infrastructure.models import (  # noqa: F401
     RoadNodeModel,
 )
 
+# Phase 7 models
+from app.modules.ai.infrastructure.models import (  # noqa: F401
+    EdgeTerrainFeaturesModel,
+    EdgeWeatherFeaturesModel,
+    LandslideEventModel,
+)
+
 # Alembic config object
 config = context.config
 

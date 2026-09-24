@@ -268,3 +268,30 @@ async def get_active_network_version(
         built_at=ver.built_at,
         metadata=ver.metadata,
     )
+
+
+# ─────────────────────────────────────────────────────────────────
+# 7. Seed Regional Network & Correct Geometries (Maintenance)
+# ─────────────────────────────────────────────────────────────────
+@router.get(
+    "/network/seed-regional-network",
+    summary="Correct road geometry glitches and expand network across all 8 NER states",
+    status_code=status.HTTP_200_OK,
+)
+@router.post(
+    "/network/seed-regional-network",
+    summary="Correct road geometry glitches and expand network across all 8 NER states",
+    status_code=status.HTTP_200_OK,
+)
+async def seed_regional_highway_network(
+    db: AsyncSession = Depends(get_db),
+    principal: PrincipalContext = Depends(require_authenticated),
+) -> dict[str, Any]:
+    import traceback
+    try:
+        from app.modules.network.application.seed_regional_network import seed_regional_network
+        result = await seed_regional_network(db)
+        return {"status": "ok", "detail": "Regional highway network expanded and geometries corrected", **result}
+    except Exception as exc:
+        return {"status": "error", "error": str(exc), "trace": traceback.format_exc()}
+

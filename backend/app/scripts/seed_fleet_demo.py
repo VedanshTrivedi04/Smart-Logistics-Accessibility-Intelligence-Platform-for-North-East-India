@@ -5,12 +5,12 @@ app/scripts/seed_fleet_demo.py — Idempotent seeding script for Phase 5 Fleet &
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 import hashlib
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from geoalchemy2.functions import ST_GeomFromText
 import sqlalchemy as sa
+from geoalchemy2.functions import ST_GeomFromText
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_engine
@@ -49,7 +49,7 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
         print("[seed_fleet] Insufficient facilities for delivery commitments. Run corridor seed first.")
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 3. Vehicles
     vehicles_data = [
@@ -280,7 +280,7 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
 
         # 8. Seed current position and replay ledger for Pharma Van
         pharma_dev = saved_devices["OBD-AS01-RF-4412"]
-        curr_pt = f"SRID=4326;POINT(91.8684 26.0821)"  # near Byrnihat
+        curr_pt = "SRID=4326;POINT(91.8684 26.0821)"  # near Byrnihat
         pos = VehicleCurrentPositionModel(
             vehicle_id=pharma_veh.id,
             device_id=pharma_dev.id,

@@ -58,6 +58,8 @@ import app.modules.logistics.infrastructure.models # noqa: F401, E402
 import app.modules.telemetry.infrastructure.models # noqa: F401, E402
 import app.modules.routing.infrastructure.models   # noqa: F401, E402
 import app.modules.impact.infrastructure.models    # noqa: F401, E402
+import app.modules.coordination.infrastructure.models  # noqa: F401, E402
+import app.modules.ai.infrastructure.models        # noqa: F401, E402
 
 
 @pytest.fixture(autouse=True)

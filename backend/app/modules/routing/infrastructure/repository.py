@@ -8,6 +8,7 @@ import json
 from typing import Any
 from uuid import UUID
 
+from geoalchemy2 import Geography
 from geoalchemy2.functions import ST_AsGeoJSON, ST_Distance, ST_DWithin, ST_GeomFromText
 import sqlalchemy as sa
 from sqlalchemy import func, select, text
@@ -64,7 +65,7 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
         self,
         lon: float,
         lat: float,
-        max_distance_m: float = 5000.0,
+        max_distance_m: float = 25000.0,
     ) -> tuple[UUID, int, float] | None:
         point_geom = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
         dist_expr = func.ST_Distance(
@@ -104,6 +105,7 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                 RoadEdgeModel.length_meters,
                 RoadEdgeModel.surface_type,
                 RoadEdgeModel.gradient_percent,
+                RoadEdgeModel.road_name,
                 EdgeStatusCurrentModel.status,
                 EdgeStatusCurrentModel.freshness,
             )
@@ -123,8 +125,9 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                 "length_meters": r[6],
                 "surface_type": r[7],
                 "grade_percent": r[8],
-                "status": r[9],
-                "freshness": r[10],
+                "road_name": r[9],
+                "status": r[10],
+                "freshness": r[11],
             })
 
         # Fetch bridges mapped to edges
@@ -182,7 +185,9 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                    d.cost,
                    d.agg_cost,
                    e.id AS edge_uuid,
-                   e.length_meters
+                   e.length_meters,
+                   e.source_index,
+                   e.target_index
             FROM pgr_dijkstra(
                 '{safe_edge_sql}',
                 CAST(:source AS BIGINT),
@@ -201,6 +206,7 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
         segments = []
         for r in rows:
             if r.edge != -1:
+                is_reverse = (r.node == r.target_index)
                 segments.append({
                     "seq": r.seq,
                     "node": r.node,
@@ -209,6 +215,9 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                     "cost": float(r.cost),
                     "agg_cost": float(r.agg_cost),
                     "length_meters": r.length_meters or 0,
+                    "source_index": r.source_index,
+                    "target_index": r.target_index,
+                    "is_reverse": is_reverse,
                 })
         return segments
 
@@ -229,7 +238,9 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                    k.cost,
                    k.agg_cost,
                    e.id AS edge_uuid,
-                   e.length_meters
+                   e.length_meters,
+                   e.source_index,
+                   e.target_index
             FROM pgr_ksp(
                 '{safe_edge_sql}',
                 CAST(:source AS BIGINT),
@@ -254,6 +265,7 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
         segments = []
         for r in rows:
             if r.edge != -1:
+                is_reverse = (r.node == r.target_index)
                 segments.append({
                     "path_id": r.path_id,
                     "path_seq": r.path_seq,
@@ -263,6 +275,9 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
                     "cost": float(r.cost),
                     "agg_cost": float(r.agg_cost),
                     "length_meters": r.length_meters or 0,
+                    "source_index": r.source_index,
+                    "target_index": r.target_index,
+                    "is_reverse": is_reverse,
                 })
         return segments
 

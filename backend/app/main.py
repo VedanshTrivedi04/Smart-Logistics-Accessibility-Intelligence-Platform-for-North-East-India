@@ -206,6 +206,22 @@ def _register_routers(app: FastAPI) -> None:
     from app.modules.impact.api import router as impact_router
     app.include_router(impact_router, prefix="/api/v1")
 
+    # Phase 7: AI/ML inference router (risk prediction, hazard verification, ETA)
+    from app.modules.ai.api import router as ai_router
+    app.include_router(ai_router, prefix="/api/v1")
+
+    # Phase 7: landslide/rainfall hazard risk router
+    from app.modules.hazard.api import router as hazard_router
+    app.include_router(hazard_router, prefix="/api/v1")
+
+    # Coordination: jurisdictions reference data and acknowledge/escalate/assign log
+    from app.modules.coordination.api import router as coordination_router
+    app.include_router(coordination_router, prefix="/api/v1")
+
+    # Anonymous public-citizen surface — no session required, rate-limited per IP.
+    from app.modules.public.api import router as public_router
+    app.include_router(public_router, prefix="/api/v1")
+
     # Demo seed endpoint (active when DEMO_MODE=true)
     if settings.DEMO_MODE:
         @app.post("/api/v1/seed-demo", tags=["Demo"])

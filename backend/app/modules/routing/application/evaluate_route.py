@@ -4,6 +4,7 @@ app/modules/routing/application/evaluate_route.py — Deterministic Constrained 
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4
@@ -72,6 +73,7 @@ class EvaluateRouteUseCase:
 
         # 4. Fetch Edge Constraints & Evaluate Hard Exclusions
         raw_edges = await self.repository.get_edge_constraints_and_metadata(network_version_id)
+        road_names: dict[UUID, str | None] = {e["id"]: e.get("road_name") for e in raw_edges}
 
         admissible_edges = []
         excluded_reasons: dict[str, list[str]] = {}
@@ -218,12 +220,15 @@ class EvaluateRouteUseCase:
         cum_dist = 0
         cum_sec = 0
         primary_edge_ids: list[UUID] = []
+        primary_edge_segments: list[tuple[UUID, bool]] = []
 
         for seq, seg in enumerate(dijkstra_segments):
             cum_dist += int(seg["length_meters"])
             cum_sec += int(seg["cost"])
             edge_uuid = seg["edge_id"]
+            is_rev = bool(seg.get("is_reverse", False))
             primary_edge_ids.append(edge_uuid)
+            primary_edge_segments.append((edge_uuid, is_rev))
             primary_edges.append(
                 RouteEdge(
                     edge_id=edge_uuid,
@@ -232,6 +237,7 @@ class EvaluateRouteUseCase:
                     cumulative_duration_seconds=cum_sec,
                     is_alternative=False,
                     alternative_rank=0,
+                    road_name=road_names.get(edge_uuid),
                 )
             )
 
@@ -251,6 +257,7 @@ class EvaluateRouteUseCase:
         # Build alternatives (excluding path identical to primary)
         alternatives: list[AlternativeRoute] = []
         all_edge_ids_to_fetch = list(primary_edge_ids)
+        alt_segments_map: dict[int, list[tuple[UUID, bool]]] = {}
 
         alt_rank = 1
         for path_id, segs in alt_paths_raw.items():
@@ -259,13 +266,16 @@ class EvaluateRouteUseCase:
                 continue  # Skip path that duplicates primary
 
             alt_edges: list[RouteEdge] = []
+            alt_segs: list[tuple[UUID, bool]] = []
             a_cum_dist = 0
             a_cum_sec = 0
             for seq, seg in enumerate(segs):
                 a_cum_dist += int(seg["length_meters"])
                 a_cum_sec += int(seg["cost"])
                 e_id = seg["edge_id"]
+                e_rev = bool(seg.get("is_reverse", False))
                 all_edge_ids_to_fetch.append(e_id)
+                alt_segs.append((e_id, e_rev))
                 alt_edges.append(
                     RouteEdge(
                         edge_id=e_id,
@@ -274,9 +284,11 @@ class EvaluateRouteUseCase:
                         cumulative_duration_seconds=a_cum_sec,
                         is_alternative=True,
                         alternative_rank=alt_rank,
+                        road_name=road_names.get(e_id),
                     )
                 )
 
+            alt_segments_map[alt_rank] = alt_segs
             alternatives.append(
                 AlternativeRoute(
                     rank=alt_rank,
@@ -292,24 +304,67 @@ class EvaluateRouteUseCase:
         # 7. Construct Geometries for Primary and Alternatives
         edge_geoms = await self.repository.get_edges_geometries(list(set(all_edge_ids_to_fetch)))
 
-        def build_linestring(edge_ids: list[UUID]) -> dict[str, Any]:
-            all_coords = []
-            for eid in edge_ids:
+        # Lookup of traversal direction for individual edge turn-by-turn geometry
+        edge_rev_map: dict[UUID, bool] = {eid: is_rev for eid, is_rev in primary_edge_segments}
+        for alt_segs in alt_segments_map.values():
+            for eid, is_rev in alt_segs:
+                if eid not in edge_rev_map:
+                    edge_rev_map[eid] = is_rev
+
+        # Attach each edge's own geometry oriented in the travel direction
+        def with_geometry(edges: list[RouteEdge]) -> list[RouteEdge]:
+            res = []
+            for re in edges:
+                g = edge_geoms.get(re.edge_id)
+                if g and g.get("type") == "LineString":
+                    coords = [list(c) for c in g.get("coordinates", [])]
+                    if edge_rev_map.get(re.edge_id, False):
+                        coords.reverse()
+                    g = {"type": "LineString", "coordinates": coords}
+                res.append(replace(re, geometry=g))
+            return res
+
+        primary_edges = with_geometry(primary_edges)
+        alternatives = [replace(alt, edges=with_geometry(alt.edges)) for alt in alternatives]
+
+        def build_linestring(segments: list[tuple[UUID, bool]]) -> dict[str, Any]:
+            all_coords: list[list[float]] = []
+            for eid, is_rev in segments:
                 geom = edge_geoms.get(eid)
-                if geom and geom.get("type") == "LineString":
-                    coords = geom.get("coordinates", [])
-                    if all_coords and coords and all_coords[-1] == coords[0]:
+                if not geom or geom.get("type") != "LineString":
+                    continue
+                coords = [list(c) for c in geom.get("coordinates", [])]
+                if not coords:
+                    continue
+                if is_rev:
+                    coords.reverse()
+
+                if all_coords:
+                    last = all_coords[-1]
+                    c_start = coords[0]
+                    c_end = coords[-1]
+                    # Proximity check fallback in case edge digitizing was flipped
+                    d_start = (last[0] - c_start[0]) ** 2 + (last[1] - c_start[1]) ** 2
+                    d_end = (last[0] - c_end[0]) ** 2 + (last[1] - c_end[1]) ** 2
+                    if d_end < d_start:
+                        coords.reverse()
+                        c_start = coords[0]
+
+                    # Skip duplicate junction point if connected within ~100m
+                    if abs(last[0] - c_start[0]) < 0.001 and abs(last[1] - c_start[1]) < 0.001:
                         all_coords.extend(coords[1:])
                     else:
                         all_coords.extend(coords)
+                else:
+                    all_coords.extend(coords)
             return {"type": "LineString", "coordinates": all_coords}
 
-        primary_geom = build_linestring(primary_edge_ids)
+        primary_geom = build_linestring(primary_edge_segments)
 
         alt_geometries = []
         populated_alts = []
         for alt in alternatives:
-            alt_geom = build_linestring([e.edge_id for e in alt.edges])
+            alt_geom = build_linestring(alt_segments_map.get(alt.rank, []))
             alt_geometries.append(alt_geom)
             populated_alts.append(
                 AlternativeRoute(

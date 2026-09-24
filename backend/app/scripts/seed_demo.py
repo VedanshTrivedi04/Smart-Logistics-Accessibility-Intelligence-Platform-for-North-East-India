@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -25,6 +25,7 @@ from app.modules.identity.domain.enums import (
     OrgKind,
     Role,
 )
+from app.modules.public.constants import PUBLIC_ORG_ID
 from app.modules.identity.infrastructure.models import (
     JurisdictionModel,
     MembershipModel,
@@ -54,6 +55,9 @@ DEMO_ORGS = [
     (ORG_GOV_ID, "ORG_NER_GOV", "NER Regional Government Authority", OrgKind.GOVERNMENT.value),
     (ORG_FIELD_ID, "ORG_ASSAM_FIELD", "Assam Field & Roads Authority", OrgKind.FIELD_AUTHORITY.value),
     (ORG_LOGISTICS_ID, "ORG_NER_LOGISTICS", "NER Integrated Logistics Consortium", OrgKind.LOGISTICS.value),
+    # Attribution target for anonymous public-citizen route evaluations (no membership,
+    # no users — see app/modules/public). Id must match PUBLIC_ORG_ID.
+    (PUBLIC_ORG_ID, "ORG_PUBLIC_CITIZEN", "Public Citizen Portal", OrgKind.PUBLIC.value),
 ]
 
 DEMO_JURISDICTIONS = [
@@ -85,7 +89,7 @@ DEMO_USERS = [
 
 
 async def seed_demo_data(db: AsyncSession) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 1. Seed Organizations
     for org_id, code, name, kind in DEMO_ORGS:
