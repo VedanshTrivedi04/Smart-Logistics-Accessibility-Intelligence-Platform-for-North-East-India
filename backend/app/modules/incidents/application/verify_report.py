@@ -154,11 +154,12 @@ class VerifyReportUseCase:
                     )
 
             # Outbox Event
-            evt_type = (
-                "HIGH_SEVERITY_INCIDENT_CREATED"
-                if report.severity in {ReportSeverity.HIGH, ReportSeverity.CRITICAL}
-                else "ROAD_STATUS_DECLARED"
-            )
+            # NOTE: event_type must match one of the strings
+            # app/workers/outbox_dispatcher.py's impact_evaluator consumer
+            # actually checks for ("incident.created" / "incident.verified"),
+            # not an arbitrary label — this payload shape (incident_id,
+            # affected_edges, severity) is exactly what that consumer expects.
+            evt_type = "incident.verified" if existing_incident_id else "incident.created"
             outbox_evt = OutboxEvent(
                 id=uuid.uuid4(),
                 event_type=evt_type,

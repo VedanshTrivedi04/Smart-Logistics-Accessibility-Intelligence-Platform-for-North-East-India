@@ -9,9 +9,9 @@ No secrets have default values.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AnyUrl, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -118,6 +118,18 @@ class Settings(BaseSettings):
     OUTBOX_MAX_RETRY_ATTEMPTS: int = 5
 
     # ────────────────────────────────────────────────────
+    # Bhashini ULCA (Module 4 — voice-to-report ASR/translation)
+    # Optional: unset in dev/hackathon environments without a registered
+    # Bhashini account — the ai module's Bhashini client factory falls back
+    # to a stub when these are empty, exactly like the Module 1/2/3 model
+    # artifacts fall back to stubs when missing.
+    # ────────────────────────────────────────────────────
+    BHASHINI_USER_ID: str = ""
+    BHASHINI_API_KEY: str = ""
+    BHASHINI_PIPELINE_ID: str = "64392f96daac500b55c543cd"
+    BHASHINI_CONFIG_URL: str = "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
+
+    # ────────────────────────────────────────────────────
     # Validators
     # ────────────────────────────────────────────────────
     @field_validator("ALLOWED_ORIGINS", "MEDIA_ALLOWED_MIME_TYPES", mode="before")
@@ -145,7 +157,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_production_safety(self) -> "Settings":
+    def validate_production_safety(self) -> Settings:
         if self.DEV_JWT_MODE and self.APP_ENV in ("staging", "production"):
             raise ValueError(
                 f"DEV_JWT_MODE=true is not allowed in {self.APP_ENV}. "

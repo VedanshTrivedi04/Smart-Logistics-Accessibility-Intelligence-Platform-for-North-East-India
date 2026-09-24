@@ -206,6 +206,10 @@ def _register_routers(app: FastAPI) -> None:
     from app.modules.impact.api import router as impact_router
     app.include_router(impact_router, prefix="/api/v1")
 
+    # Phase 7: AI/ML inference router (risk prediction, hazard verification, ETA)
+    from app.modules.ai.api import router as ai_router
+    app.include_router(ai_router, prefix="/api/v1")
+
     # Demo seed endpoint (active when DEMO_MODE=true)
     if settings.DEMO_MODE:
         @app.post("/api/v1/seed-demo", tags=["Demo"])

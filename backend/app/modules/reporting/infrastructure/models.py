@@ -5,7 +5,7 @@ app/modules/reporting/infrastructure/models.py — SQLAlchemy ORM Models for Rep
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from geoalchemy2 import Geometry
 from sqlalchemy import (
@@ -13,12 +13,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -65,7 +63,7 @@ class MediaObjectModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -87,7 +85,7 @@ class ReportAmendmentModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -106,7 +104,7 @@ class SyncResultModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     __table_args__ = (
@@ -165,14 +163,19 @@ class ReportModel(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    cv_hazard_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    cv_severity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cv_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cv_is_roadway_blocked: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    cv_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     media: Mapped[list[MediaObjectModel]] = relationship(

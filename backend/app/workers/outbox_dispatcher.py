@@ -8,10 +8,9 @@ receipt tracking in `outbox_consumer_receipts`, exponential backoff, and dead-le
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 import logging
-from typing import Any
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 
@@ -104,7 +103,7 @@ async def dispatch_outbox_batch(
     Polls and dispatches a single batch of events for the specified consumer.
     Uses SELECT ... FOR UPDATE SKIP LOCKED for high-concurrency safety.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Subquery checking whether this specific consumer has already successfully processed the event
     receipt_subquery = sa.select(1).where(

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid5
 
@@ -45,10 +45,10 @@ async def load_pilot_corridor_fixture(db: AsyncSession) -> None:
     if not fixture_path.exists():
         raise FileNotFoundError(f"Fixture not found at {fixture_path}")
 
-    with open(fixture_path, "r", encoding="utf-8") as f:
+    with open(fixture_path, encoding="utf-8") as f:
         data = json.load(f)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     version_id = uuid5(FIXTURE_NAMESPACE, "network_version_v1.0-pilot")
     version = NetworkVersion(
         id=version_id,
