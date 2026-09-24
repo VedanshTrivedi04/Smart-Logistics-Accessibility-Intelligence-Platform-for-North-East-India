@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Navigation, Network, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
+import { AlertTriangle, Landmark, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Navigation, Network, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
 import type { Surface } from "@/shared/auth";
 import type { NavItem } from "@/shared/ui";
 
@@ -6,7 +6,8 @@ import type { NavItem } from "@/shared/ui";
 export const NAV: Record<Surface, NavItem[]> = {
   government: [
     { href: "/gov", label: "Overview", icon: LayoutDashboard, exact: true },
-    { href: "/gov/map", label: "Accessibility map", icon: Map, requires: ["VIEW_ROAD_STATUS"] },
+    { href: "/gov/regions", label: "States", icon: Landmark, requires: ["VIEW_REGION", "VIEW_IMPACT"] },
+    { href: "/gov/map", label: "Regional map", icon: Map, requires: ["VIEW_ROAD_STATUS"] },
     { href: "/gov/incidents", label: "Incidents", icon: AlertTriangle },
     { href: "/gov/reports", label: "Field reports", icon: ClipboardCheck, requires: ["VIEW_REPORT_SUMMARY"] },
     { href: "/gov/impact", label: "Impact", icon: Network, requires: ["VIEW_IMPACT", "VIEW_FLEET", "VIEW_ROAD_STATUS"] },

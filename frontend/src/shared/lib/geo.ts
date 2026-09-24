@@ -80,3 +80,31 @@ export function formatDistance(meters: number | null | undefined): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
+
+export type NerStateCode = "ASSAM" | "MEGHALAYA" | "ARUNACHAL" | "NAGALAND" | "MANIPUR" | "MIZORAM" | "TRIPURA" | "SIKKIM";
+
+/** Approximate bounding boxes, for focusing the map only. They overlap at borders, so never use them to attribute records to a state. */
+export const NER_STATES: Record<NerStateCode, { name: string; bbox: BBox }> = {
+  ASSAM: { name: "Assam", bbox: [89.7, 24.1, 96.0, 28.2] },
+  MEGHALAYA: { name: "Meghalaya", bbox: [89.8, 25.0, 92.8, 26.1] },
+  ARUNACHAL: { name: "Arunachal Pradesh", bbox: [91.6, 26.6, 97.4, 29.5] },
+  NAGALAND: { name: "Nagaland", bbox: [93.3, 25.2, 95.3, 27.0] },
+  MANIPUR: { name: "Manipur", bbox: [93.0, 23.8, 94.8, 25.7] },
+  MIZORAM: { name: "Mizoram", bbox: [92.2, 21.9, 93.5, 24.5] },
+  TRIPURA: { name: "Tripura", bbox: [91.1, 22.9, 92.4, 24.6] },
+  SIKKIM: { name: "Sikkim", bbox: [88.0, 27.0, 88.95, 28.15] },
+};
+
+/**
+ * Initial compass bearing in degrees (0–360, clockwise from north) when travelling from
+ * (lon1, lat1) to (lon2, lat2).
+ */
+export function bearing(lon1: number, lat1: number, lon2: number, lat2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const p1 = toRad(lat1);
+  const p2 = toRad(lat2);
+  const dl = toRad(lon2 - lon1);
+  const y = Math.sin(dl) * Math.cos(p2);
+  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}

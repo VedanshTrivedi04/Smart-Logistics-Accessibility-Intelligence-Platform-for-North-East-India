@@ -2797,6 +2797,142 @@
         }
       }
     },
+    "/api/v1/jurisdictions": {
+      "get": {
+        "tags": [
+          "Coordination"
+        ],
+        "summary": "List the region, states and districts (public reference data)",
+        "operationId": "list_jurisdictions_api_v1_jurisdictions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JurisdictionResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Jurisdictions Api V1 Jurisdictions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/coordination/actions": {
+      "post": {
+        "tags": [
+          "Coordination"
+        ],
+        "summary": "Record an acknowledgement, escalation, assignment, inspection request or note",
+        "operationId": "record_coordination_action_api_v1_coordination_actions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoordinationActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoordinationActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/coordination/summaries": {
+      "get": {
+        "tags": [
+          "Coordination"
+        ],
+        "summary": "Current coordination state per subject, with its action history",
+        "operationId": "list_coordination_summaries_api_v1_coordination_summaries_get",
+        "parameters": [
+          {
+            "name": "subject_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SubjectType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Type"
+            }
+          },
+          {
+            "name": "subject_ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CoordinationSummaryResponse"
+                  },
+                  "title": "Response List Coordination Summaries Api V1 Coordination Summaries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/network/edges": {
       "get": {
         "tags": [
@@ -3124,6 +3260,18 @@
         ],
         "title": "AccessibilityStatus",
         "description": "Separate status axis for physical/legal road traversability.\nSystemdesign.md lines 40-49:\nOPEN, RESTRICTED, BLOCKED, PROVISIONAL_CAUTION, UNKNOWN."
+      },
+      "ActionType": {
+        "type": "string",
+        "enum": [
+          "ACKNOWLEDGE",
+          "ESCALATE",
+          "ASSIGN",
+          "REQUEST_INSPECTION",
+          "INSPECTION_COMPLETE",
+          "NOTE"
+        ],
+        "title": "ActionType"
       },
       "AlternativeRouteResponse": {
         "properties": {
@@ -3634,6 +3782,240 @@
         "type": "object",
         "title": "ConfirmUploadRequest",
         "description": "Client confirms upload completion and passes derived metadata."
+      },
+      "CoordinationActionRequest": {
+        "properties": {
+          "subject_type": {
+            "$ref": "#/components/schemas/SubjectType"
+          },
+          "subject_ref": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Subject Ref"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          },
+          "target_jurisdiction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Jurisdiction Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject_type",
+          "subject_ref",
+          "action"
+        ],
+        "title": "CoordinationActionRequest"
+      },
+      "CoordinationActionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "subject_type": {
+            "$ref": "#/components/schemas/SubjectType"
+          },
+          "subject_ref": {
+            "type": "string",
+            "title": "Subject Ref"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          },
+          "target_jurisdiction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Jurisdiction Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actor Id"
+          },
+          "actor_role": {
+            "type": "string",
+            "title": "Actor Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject_type",
+          "subject_ref",
+          "action",
+          "target_jurisdiction_id",
+          "notes",
+          "actor_id",
+          "actor_role",
+          "created_at"
+        ],
+        "title": "CoordinationActionResponse"
+      },
+      "CoordinationSummaryResponse": {
+        "properties": {
+          "subject_type": {
+            "$ref": "#/components/schemas/SubjectType"
+          },
+          "subject_ref": {
+            "type": "string",
+            "title": "Subject Ref"
+          },
+          "acknowledged": {
+            "type": "boolean",
+            "title": "Acknowledged"
+          },
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
+          "escalated_to_jurisdiction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated To Jurisdiction Id"
+          },
+          "escalated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated At"
+          },
+          "assigned_jurisdiction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Jurisdiction Id"
+          },
+          "assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned At"
+          },
+          "inspection_status": {
+            "$ref": "#/components/schemas/InspectionStatus"
+          },
+          "last_action_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Action At"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/CoordinationActionResponse"
+            },
+            "type": "array",
+            "title": "Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject_type",
+          "subject_ref",
+          "acknowledged",
+          "acknowledged_at",
+          "acknowledged_by",
+          "escalated_to_jurisdiction_id",
+          "escalated_at",
+          "assigned_jurisdiction_id",
+          "assigned_at",
+          "inspection_status",
+          "last_action_at",
+          "actions"
+        ],
+        "title": "CoordinationSummaryResponse"
       },
       "CsrfTokenResponse": {
         "properties": {
@@ -4740,6 +5122,57 @@
         ],
         "title": "IncidentResponse",
         "description": "Operational incident details."
+      },
+      "InspectionStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_REQUESTED",
+          "REQUESTED",
+          "COMPLETED"
+        ],
+        "title": "InspectionStatus"
+      },
+      "JurisdictionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "level",
+          "parent_id"
+        ],
+        "title": "JurisdictionResponse"
       },
       "LocationPointDTO": {
         "properties": {
@@ -6380,6 +6813,17 @@
           "RELIEF_CAMP"
         ],
         "title": "StopType"
+      },
+      "SubjectType": {
+        "type": "string",
+        "enum": [
+          "INCIDENT",
+          "ALERT",
+          "FACILITY",
+          "TRIP"
+        ],
+        "title": "SubjectType",
+        "description": "What a coordination action is about."
       },
       "TelemetryIngestRequest": {
         "properties": {

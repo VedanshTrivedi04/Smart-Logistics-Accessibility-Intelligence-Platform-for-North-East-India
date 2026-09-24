@@ -14,6 +14,8 @@ export interface EdgeProps {
   accessibility_status: AccessibilityStatus;
   freshness: string;
   status_version: number;
+  /** Jurisdiction (state or district) the segment belongs to; null when the import did not assign one. */
+  jurisdiction_id: string | null;
 }
 
 export interface EdgeFeature {
@@ -68,6 +70,7 @@ export function parseEdgeCollection(raw: unknown): EdgeCollection {
         accessibility_status: status,
         freshness: String(p["freshness"] ?? "UNKNOWN"),
         status_version: Number(p["status_version"] ?? 0),
+        jurisdiction_id: typeof p["jurisdiction_id"] === "string" ? p["jurisdiction_id"] : null,
       },
     });
   }

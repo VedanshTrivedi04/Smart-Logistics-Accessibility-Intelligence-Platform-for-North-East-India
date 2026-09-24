@@ -126,7 +126,9 @@ const REGISTRY: Record<StatusKind, Record<string, StatusDef>> = {
 
 export function statusDef(kind: StatusKind, value: string | null | undefined): StatusDef {
   if (!value) return { label: "Not available", tone: "unknown", icon: "help" };
-  return REGISTRY[kind][value] ?? { label: humanize(value), tone: "neutral", icon: "help" };
+  const group = REGISTRY[kind];
+  if (!group) return { label: humanize(value), tone: "neutral", icon: "help" };
+  return group[value] ?? { label: humanize(value), tone: "neutral", icon: "help" };
 }
 
 export function statusLabel(kind: StatusKind, value: string | null | undefined): string {

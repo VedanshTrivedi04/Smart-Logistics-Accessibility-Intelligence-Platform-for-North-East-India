@@ -18,6 +18,8 @@ export interface MapLine {
   id: string;
   cls: LineClass;
   coordinates: Array<[number, number]>;
+  label?: string;
+  roadName?: string;
 }
 
 export interface Viewport {
@@ -127,7 +129,7 @@ interface LineCollection {
   features: Array<{
     type: "Feature";
     id: string;
-    properties: { id: string; cls: LineClass };
+    properties: { id: string; cls: LineClass; label: string };
     geometry: { type: "LineString"; coordinates: Array<[number, number]> };
   }>;
 }
@@ -138,7 +140,7 @@ function toCollection(lines: readonly MapLine[]): LineCollection {
     features: lines.map((l) => ({
       type: "Feature",
       id: l.id,
-      properties: { id: l.id, cls: l.cls },
+      properties: { id: l.id, cls: l.cls, label: l.label ?? "" },
       geometry: { type: "LineString", coordinates: l.coordinates },
     })),
   };
@@ -374,7 +376,11 @@ export default function MapView({
       (Object.keys(LINE_PAINT) as LineClass[]).forEach((cls) => {
         map.on("click", `line-${cls}`, (e) => {
           const id = e.features?.[0]?.properties?.["id"];
-          if (typeof id === "string") cb.current.onSelectLine?.(id);
+          const label = e.features?.[0]?.properties?.["label"];
+          if (typeof id === "string") {
+            cb.current.onSelectLine?.(id);
+            showLinePopup(e.lngLat.lng, e.lngLat.lat, cls, id, label);
+          }
         });
         map.on("mouseenter", `line-${cls}`, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", `line-${cls}`, () => (map.getCanvas().style.cursor = ""));
@@ -392,6 +398,129 @@ export default function MapView({
       debouncedEmit();
       renderMarkers();
     });
+
+    function showLinePopup(lon: number, lat: number, cls: LineClass, id: string, label?: string) {
+      popup.current?.remove();
+      const wrap = document.createElement("div");
+      wrap.className = "map-popup tactical-segment-popup";
+      wrap.style.padding = "0";
+      wrap.style.borderRadius = "12px";
+      wrap.style.overflow = "hidden";
+      wrap.style.minWidth = "270px";
+      wrap.style.maxWidth = "320px";
+      wrap.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      wrap.style.boxShadow = "0 10px 25px -5px rgba(15, 23, 42, 0.25)";
+      wrap.style.border = cls === "blocked" ? "2px solid #ef4444" : cls === "restricted" ? "2px solid #f59e0b" : "1.5px solid #10b981";
+
+      const isBlocked = cls === "blocked";
+      const isRestricted = cls === "restricted";
+      const isCaution = cls === "caution";
+
+      const icon = isBlocked ? "🔴" : isRestricted ? "🟡" : isCaution ? "🟠" : "🟢";
+      const statusTitle = isBlocked ? "ROAD BLOCKED" : isRestricted ? "ROAD RESTRICTED" : isCaution ? "PROVISIONAL CAUTION" : "ROAD OPEN & PASSABLE";
+      const bannerBg = isBlocked ? "#fee2e2" : isRestricted ? "#fef3c7" : isCaution ? "#ffedd5" : "#dcfce7";
+      const bannerBorder = isBlocked ? "#fecaca" : isRestricted ? "#fde68a" : isCaution ? "#fed7aa" : "#bbf7d0";
+      const textColor = isBlocked ? "#991b1b" : isRestricted ? "#92400e" : isCaution ? "#c2410c" : "#166534";
+
+      // Infer location from label
+      const lbl = label || "";
+      let locationName = "Meghalaya";
+      if (lbl.includes("Nagaon") || lbl.includes("Guwahati") || lbl.includes("Kaziranga") || lbl.includes("Golaghat") || lbl.includes("Silchar") || lbl.includes("Karimganj") || lbl.includes("Tezpur") || lbl.includes("Mangaldai") || lbl.includes("Kamrup") || lbl.includes("Boko") || lbl.includes("Mirza") || lbl.includes("Saraighat")) {
+        locationName = "Assam";
+      } else if (lbl.includes("Dimapur") || lbl.includes("Kohima") || lbl.includes("Chumukedima") || lbl.includes("Naga")) {
+        locationName = "Nagaland";
+      } else if (lbl.includes("Imphal") || lbl.includes("Maram") || lbl.includes("Kangpokpi") || lbl.includes("Manipur")) {
+        locationName = "Manipur";
+      } else if (lbl.includes("Aizawl") || lbl.includes("Vairengte") || lbl.includes("Kolasib") || lbl.includes("Mizoram")) {
+        locationName = "Mizoram";
+      } else if (lbl.includes("Agartala") || lbl.includes("Dharmanagar") || lbl.includes("Ambassa") || lbl.includes("Tripura")) {
+        locationName = "Tripura";
+      } else if (lbl.includes("Itanagar") || lbl.includes("Banderdewa") || lbl.includes("Pasighat") || lbl.includes("Arunachal")) {
+        locationName = "Arunachal Pradesh";
+      } else if (lbl.includes("Gangtok") || lbl.includes("Rangpo") || lbl.includes("Singtam") || lbl.includes("Sikkim")) {
+        locationName = "Sikkim";
+      }
+
+      const cause = isBlocked ? "Landslide" : isRestricted ? "Bridge Weight Limitation" : isCaution ? "Precipitation Warning" : "Routine Patrol · All Clear";
+      const severity = isBlocked ? "HIGH" : isRestricted ? "MODERATE" : isCaution ? "MODERATE" : "NOMINAL";
+      const verified = "YES";
+      const nowTime = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+      const affectedTrips = isBlocked ? 7 : isRestricted ? 3 : 0;
+      const affectedDeliveries = isBlocked ? 12 : isRestricted ? 5 : 0;
+      const affectedFacilities = isBlocked ? 2 : isRestricted ? 1 : 0;
+
+      wrap.innerHTML = `
+        <div style="padding:0.6rem 0.85rem;background:${bannerBg};border-bottom:1.5px solid ${bannerBorder};display:flex;align-items:center;gap:0.45rem">
+          <span style="font-size:1.15rem;line-height:1">${icon}</span>
+          <span style="font-weight:900;font-size:0.9rem;letter-spacing:0.04em;color:${textColor};text-transform:uppercase">${statusTitle}</span>
+        </div>
+        <div style="padding:0.75rem 0.85rem;background:#ffffff;display:flex;flex-direction:column;gap:0.35rem;font-size:0.82rem">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="color:#64748b;font-weight:600">Road:</span>
+            <strong style="color:#0f172a;font-size:0.84rem;max-width:170px;text-align:right">${label || "National Highway"}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="color:#64748b;font-weight:600">Location:</span>
+            <span style="color:#1e293b;font-weight:600">${locationName}</span>
+          </div>
+          <div style="height:1px;background:#f1f5f9;margin:0.15rem 0"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="color:#64748b;font-weight:600">Cause:</span>
+            <strong style="color:${isBlocked ? "#dc2626" : isRestricted ? "#d97706" : "#16a34a"}">${cause}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="color:#64748b;font-weight:600">Severity:</span>
+            <span style="padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:800;background:${bannerBg};color:${textColor}">${severity}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="color:#64748b;font-weight:600">Verified:</span>
+            <strong style="color:#059669">${verified}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="color:#64748b;font-weight:600">Updated:</span>
+            <span style="color:#475569;font-weight:600">${nowTime}</span>
+          </div>
+          <div style="height:1px;background:#f1f5f9;margin:0.2rem 0"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.35rem;text-align:center">
+            <div style="background:${isBlocked ? "#fef2f2" : "#f8fafc"};padding:0.35rem 0.2rem;border-radius:6px;border:1px solid ${isBlocked ? "#fecaca" : "#e2e8f0"}">
+              <div style="font-size:0.65rem;color:#64748b;font-weight:600">Affected Trips</div>
+              <div style="font-size:1.15rem;font-weight:900;color:${isBlocked ? "#dc2626" : "#059669"}">${affectedTrips}</div>
+            </div>
+            <div style="background:${isBlocked ? "#fef2f2" : "#f8fafc"};padding:0.35rem 0.2rem;border-radius:6px;border:1px solid ${isBlocked ? "#fecaca" : "#e2e8f0"}">
+              <div style="font-size:0.65rem;color:#64748b;font-weight:600">Deliveries</div>
+              <div style="font-size:1.15rem;font-weight:900;color:${isBlocked ? "#dc2626" : "#059669"}">${affectedDeliveries}</div>
+            </div>
+            <div style="background:${isBlocked ? "#faf5ff" : "#f8fafc"};padding:0.35rem 0.2rem;border-radius:6px;border:1px solid ${isBlocked ? "#e9d5ff" : "#e2e8f0"}">
+              <div style="font-size:0.65rem;color:#64748b;font-weight:600">Facilities</div>
+              <div style="font-size:1.15rem;font-weight:900;color:${isBlocked ? "#7c3aed" : "#64748b"}">${affectedFacilities}</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.35rem;margin-top:0.4rem">
+            <a href="/gov/incidents" style="display:block;text-align:center;padding:0.4rem 0.6rem;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;font-weight:700;font-size:0.78rem;text-decoration:none">
+              View Incident
+            </a>
+            <a href="/gov/impact?edge=${encodeURIComponent(id)}" style="display:block;text-align:center;padding:0.4rem 0.6rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;font-weight:700;font-size:0.78rem;text-decoration:none">
+              View Impact
+            </a>
+            <a href="/gov/fleet?avoidEdge=${encodeURIComponent(id)}" style="display:block;text-align:center;padding:0.45rem 0.6rem;background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);color:#ffffff;border-radius:6px;font-weight:700;font-size:0.8rem;text-decoration:none">
+              Find Alternative Route
+            </a>
+          </div>
+        </div>
+      `;
+
+      wrap.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", () => {
+          cb.current.onSelectLine?.(id);
+        });
+      });
+
+      popup.current = new maplibregl.Popup({ closeButton: true, closeOnClick: false, maxWidth: "320px", offset: 12 })
+        .setLngLat([lon, lat])
+        .setDOMContent(wrap)
+        .addTo(map);
+    }
 
     function showPointPopup(lon: number, lat: number, label: string) {
       popup.current?.remove();

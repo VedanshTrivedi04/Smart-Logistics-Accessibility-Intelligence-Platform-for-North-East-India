@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { AccessibilityExplorer } from "@/features/network";
+import { CommandMap } from "@/features/overview";
 import { PageHeader } from "@/shared/ui";
 import { Guard } from "../../../Guard";
 
-export const metadata: Metadata = { title: "Accessibility map" };
+export const metadata: Metadata = { title: "Regional map" };
 
 export default function GovMapPage() {
   return (
     <Guard requires={["VIEW_ROAD_STATUS"]}>
-      <PageHeader title="Accessibility map" subtitle="Verified road status with coverage and freshness. Pan and zoom to load the area in view." />
-      <AccessibilityExplorer routeBase="/gov/routes" />
+      <PageHeader title="Regional map" subtitle="Road status, facilities and risk zones, with vehicles, active incidents and field reports as layers. Pan and zoom to load the area in view." />
+      <CommandMap routeBase="/gov/routes" />
     </Guard>
   );
 }

@@ -28,7 +28,7 @@ class LogisticsRepositoryPort(Protocol):
     async def save_vehicle(self, vehicle: Vehicle) -> Vehicle:
         ...
 
-    async def list_vehicles(self, organization_id: UUID, is_active: bool | None = None) -> list[Vehicle]:
+    async def list_vehicles(self, organization_id: UUID | None = None, is_active: bool | None = None) -> list[Vehicle]:
         ...
 
     async def get_driver_by_id(self, driver_id: UUID, for_update: bool = False) -> Driver | None:

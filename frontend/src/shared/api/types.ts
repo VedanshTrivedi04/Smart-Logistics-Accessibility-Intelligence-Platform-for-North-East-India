@@ -27,6 +27,12 @@ export type AlternativeRoute = S["AlternativeRouteResponse"];
 export type DispatchDecision = S["DispatchDecisionResponse"];
 export type TripImpact = S["TripImpactResponse"];
 export type FacilityImpact = S["FacilityImpactResponse"];
+export type Jurisdiction = S["JurisdictionResponse"];
+export type CoordinationAction = S["CoordinationActionResponse"];
+export type CoordinationActionRequest = S["CoordinationActionRequest"];
+export type CoordinationSummary = S["CoordinationSummaryResponse"];
+export type CoordinationSubjectType = S["SubjectType"];
+export type CoordinationActionType = S["ActionType"];
 export type Media = S["MediaResponse"];
 export type UploadTicket = S["UploadTicketResponse"];
 export type BatchSyncResponse = S["BatchSyncResponse"];
@@ -78,6 +84,7 @@ export const CAPABILITIES = [
   "VIEW_IMPACT",
   "EXPORT_DATA",
   "RESPOND_EMERGENCY",
+  "COORDINATE_RESPONSE",
   "MANAGE_IDENTITY",
   "MANAGE_GRANTS",
 ] as const;

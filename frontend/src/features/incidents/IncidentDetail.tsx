@@ -11,6 +11,8 @@ import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, KeyValue, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { ReportEvidence } from "./evidence";
+import { CoordinationPanel } from "@/features/coordination";
+import { IncidentImpact } from "./IncidentImpact";
 import { useIncident, useIncidents, useMergeIncident, useReport, useResolveIncident } from "./queries";
 
 function ResolveForm({ incidentId, lat, lon }: { incidentId: string; lat: number | null; lon: number | null }) {
@@ -110,6 +112,7 @@ export function IncidentDetail({ incidentId, reportsBase = "/gov/reports" }: { i
                   items={[
                     ["Created", formatDateTime(i.created_at)],
                     ["Version", String(i.version)],
+                    ["Verification", report.data ? humanize(report.data.review_state) : canDetail ? "…" : "Verified (incident exists)"],
                     ["Primary report", <Link key="p" href={`${reportsBase}/${i.primary_report_id}`}>Open report</Link>],
                     ["Resolved", i.resolved_at ? `${formatDateTime(i.resolved_at)} — ${humanize(i.resolution_reason)}` : "Not resolved"],
                     ["Resolution notes", i.resolution_notes ?? "—"],
@@ -123,9 +126,8 @@ export function IncidentDetail({ incidentId, reportsBase = "/gov/reports" }: { i
             ) : (
               <Banner tone="neutral" title="Report detail not available"><p className="small">Your role can see this incident summary but not the underlying report evidence.</p></Banner>
             )}
-            <Banner tone="neutral" title="Affected vehicles and deliveries">
-              <p className="small">Impacts reach you through the <Link href="/gov/impact">impact board</Link>. The incident endpoint does not list linked trips or deliveries directly.</p>
-            </Banner>
+            <IncidentImpact incidentId={i.id} />
+            <CoordinationPanel subjectType="INCIDENT" subjectRef={i.id} inspectable />
           </div>
           <div className="stack">
             {report.data ? (

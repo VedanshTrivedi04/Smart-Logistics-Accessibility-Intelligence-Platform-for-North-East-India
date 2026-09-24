@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { IncidentList } from "@/features/incidents";
-import { PageHeader } from "@/shared/ui";
+import { IncidentCommandCenter } from "@/features/incidents";
 
-export const metadata: Metadata = { title: "Incidents" };
+export const metadata: Metadata = { title: "Incident Management & Triage Center" };
 
 export default function GovIncidentsPage() {
-  return (
-    <>
-      <PageHeader title="Incidents" subtitle="Verified operational incidents in your scope." />
-      <IncidentList basePath="/gov/incidents" />
-    </>
-  );
+  return <IncidentCommandCenter />;
 }

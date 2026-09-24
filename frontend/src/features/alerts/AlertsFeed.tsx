@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useSession } from "@/shared/auth";
 import { pilotLocale, renderNotice } from "@/shared/i18n";
 import { usePreferences } from "@/shared/lib/preferences";
@@ -11,11 +11,12 @@ import { Banner, Card, ErrorNotice, StatusBadge } from "@/shared/ui";
 import { useFleetPositions, useVehicles, useCommitments } from "@/features/fleet";
 import { useImpactData } from "@/features/impact";
 import { useIncidents, useReports } from "@/features/incidents";
+import { AlertCoordination } from "@/features/coordination";
 import { buildNotices, type Notice, type NoticeInput, type NoticeSeverity } from "./build";
 
 const SEVERITY_KIND: Record<NoticeSeverity, string> = { CRITICAL: "CRITICAL", HIGH: "HIGH", MEDIUM: "MEDIUM", INFO: "LOW" };
 
-export function NoticeList({ notices, emptyText }: { notices: readonly Notice[]; emptyText: string }) {
+export function NoticeList({ notices, emptyText, renderActions }: { notices: readonly Notice[]; emptyText: string; renderActions?: (notice: Notice) => ReactNode }) {
   const [prefs] = usePreferences();
   const now = useNow(60_000);
   if (notices.length === 0) return <p className="muted">{emptyText}</p>;
@@ -32,6 +33,7 @@ export function NoticeList({ notices, emptyText }: { notices: readonly Notice[];
             </div>
             <p style={{ margin: "0.35rem 0 0" }}>{n.href ? <Link href={n.href}>{r.text}</Link> : r.text}</p>
             {r.fellBack ? <p className="small muted" style={{ margin: 0 }}>Shown in English: no reviewed {prefs.locale} template exists for this notice.</p> : null}
+            {renderActions ? renderActions(n) : null}
           </li>
         );
       })}
@@ -44,7 +46,7 @@ export function NoticeDisclaimer() {
   return (
     <Banner tone="neutral" title="How these notices work">
       <p className="small">
-        These are computed from current records, not pushed messages: delivery, read receipts and acknowledgement are not connected yet. Wording comes from reviewed templates keyed by event code.{" "}
+        These are computed from current records, not pushed messages: delivery and read receipts are not connected. Where your role allows, acknowledging or escalating records who has seen a notice and which authority it went to; it notifies no one. Wording comes from reviewed templates keyed by event code.{" "}
         {pilot ? `The pilot language (${pilot}) is used only where a reviewed template exists.` : "No pilot language is configured, so notices are in English."}
       </p>
     </Banner>
@@ -102,7 +104,7 @@ export function GovernmentAlerts() {
       {error ? <ErrorNotice error={error} subject="some alert sources" /> : null}
       <Card title={`Notices (${notices.length})`}>
         {loading ? <p role="status" className="muted">Checking sources…</p> : null}
-        <NoticeList notices={notices} emptyText="No notices from the records visible to you. This is not a guarantee that nothing is wrong: sources that failed to load are listed above." />
+        <NoticeList notices={notices} renderActions={(n) => <AlertCoordination alertId={n.id} />} emptyText="No notices from the records visible to you. This is not a guarantee that nothing is wrong: sources that failed to load are listed above." />
       </Card>
     </div>
   );

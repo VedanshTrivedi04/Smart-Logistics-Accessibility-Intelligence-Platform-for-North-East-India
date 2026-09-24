@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.core.db import DbSession, get_db_session
 from app.core.security import require_capability
-from app.modules.identity.public import Capability, PrincipalContext
+from app.modules.identity.public import Capability, PrincipalContext, Role
 from app.modules.logistics.api.schemas import (
     CommitmentCreateRequest,
     CommitmentResponse,
@@ -122,7 +122,8 @@ async def list_vehicles(
     session: DbSession = Depends(get_db_session),
 ) -> list[VehicleResponse]:
     repo = SqlAlchemyLogisticsRepository(session)
-    vehicles = await repo.list_vehicles(principal.org_id, is_active=is_active)
+    org_filter = None if principal.role in (Role.REGIONAL_AUTHORITY, Role.EMERGENCY_COORDINATOR) else principal.org_id
+    vehicles = await repo.list_vehicles(org_filter, is_active=is_active)
     return [
         VehicleResponse(
             id=v.id,

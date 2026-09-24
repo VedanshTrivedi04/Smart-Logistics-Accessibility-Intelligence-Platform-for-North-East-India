@@ -900,6 +900,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jurisdictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the region, states and districts (public reference data) */
+        get: operations["list_jurisdictions_api_v1_jurisdictions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coordination/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record an acknowledgement, escalation, assignment, inspection request or note */
+        post: operations["record_coordination_action_api_v1_coordination_actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coordination/summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current coordination state per subject, with its action history */
+        get: operations["list_coordination_summaries_api_v1_coordination_summaries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/network/edges": {
         parameters: {
             query?: never;
@@ -997,6 +1048,11 @@ export interface components {
          * @enum {string}
          */
         AccessibilityStatus: "OPEN" | "RESTRICTED" | "BLOCKED" | "PROVISIONAL_CAUTION" | "UNKNOWN";
+        /**
+         * ActionType
+         * @enum {string}
+         */
+        ActionType: "ACKNOWLEDGE" | "ESCALATE" | "ASSIGN" | "REQUEST_INSPECTION" | "INSPECTION_COMPLETE" | "NOTE";
         /** AlternativeRouteResponse */
         AlternativeRouteResponse: {
             /** Rank */
@@ -1199,6 +1255,73 @@ export interface components {
             exif_lat?: number | null;
             /** Exif Lon */
             exif_lon?: number | null;
+        };
+        /** CoordinationActionRequest */
+        CoordinationActionRequest: {
+            subject_type: components["schemas"]["SubjectType"];
+            /** Subject Ref */
+            subject_ref: string;
+            action: components["schemas"]["ActionType"];
+            /** Target Jurisdiction Id */
+            target_jurisdiction_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** CoordinationActionResponse */
+        CoordinationActionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            subject_type: components["schemas"]["SubjectType"];
+            /** Subject Ref */
+            subject_ref: string;
+            action: components["schemas"]["ActionType"];
+            /** Target Jurisdiction Id */
+            target_jurisdiction_id: string | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /** Actor Role */
+            actor_role: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CoordinationSummaryResponse */
+        CoordinationSummaryResponse: {
+            subject_type: components["schemas"]["SubjectType"];
+            /** Subject Ref */
+            subject_ref: string;
+            /** Acknowledged */
+            acknowledged: boolean;
+            /** Acknowledged At */
+            acknowledged_at: string | null;
+            /** Acknowledged By */
+            acknowledged_by: string | null;
+            /** Escalated To Jurisdiction Id */
+            escalated_to_jurisdiction_id: string | null;
+            /** Escalated At */
+            escalated_at: string | null;
+            /** Assigned Jurisdiction Id */
+            assigned_jurisdiction_id: string | null;
+            /** Assigned At */
+            assigned_at: string | null;
+            inspection_status: components["schemas"]["InspectionStatus"];
+            /**
+             * Last Action At
+             * Format: date-time
+             */
+            last_action_at: string;
+            /** Actions */
+            actions: components["schemas"]["CoordinationActionResponse"][];
         };
         /** CsrfTokenResponse */
         CsrfTokenResponse: {
@@ -1694,6 +1817,27 @@ export interface components {
             created_at: string;
             /** Version */
             version: number;
+        };
+        /**
+         * InspectionStatus
+         * @enum {string}
+         */
+        InspectionStatus: "NOT_REQUESTED" | "REQUESTED" | "COMPLETED";
+        /** JurisdictionResponse */
+        JurisdictionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: string;
+            /** Parent Id */
+            parent_id: string | null;
         };
         /**
          * LocationPointDTO
@@ -2390,6 +2534,12 @@ export interface components {
          * @enum {string}
          */
         StopType: "PICKUP" | "DELIVERY" | "WAYPOINT" | "REST_CHECKPOINT" | "RELIEF_CAMP";
+        /**
+         * SubjectType
+         * @description What a coordination action is about.
+         * @enum {string}
+         */
+        SubjectType: "INCIDENT" | "ALERT" | "FACILITY" | "TRIP";
         /** TelemetryIngestRequest */
         TelemetryIngestRequest: {
             /**
@@ -4451,6 +4601,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RiskZoneSeedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jurisdictions_api_v1_jurisdictions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JurisdictionResponse"][];
+                };
+            };
+        };
+    };
+    record_coordination_action_api_v1_coordination_actions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordinationActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordinationActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_coordination_summaries_api_v1_coordination_summaries_get: {
+        parameters: {
+            query?: {
+                subject_type?: components["schemas"]["SubjectType"] | null;
+                subject_ref?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordinationSummaryResponse"][];
                 };
             };
             /** @description Validation Error */

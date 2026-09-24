@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatCoords, humanize } from "@/shared/lib/format";
-import { bboxOfCoordinates, formatDistance, type BBox } from "@/shared/lib/geo";
+import { bboxOfCoordinates, formatDistance, NER_BBOX, type BBox } from "@/shared/lib/geo";
 import { formatDuration } from "@/shared/lib/time";
 import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
@@ -88,7 +88,7 @@ export function PublicRouteCheck() {
   const routeBounds = useMemo(() => {
     const routeCoords = routeLines.flatMap((l) => l.coordinates);
     if (routeCoords.length) return bboxOfCoordinates(routeCoords);
-    return bboxOfCoordinates([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
+    return bboxOfCoordinates([[origin.lon, origin.lat], [dest.lon, dest.lat]]) ?? NER_BBOX;
   }, [routeLines, origin, dest]);
 
   const edges = usePublicEdges(routeBounds, 12, Boolean(routeBounds));
@@ -101,7 +101,7 @@ export function PublicRouteCheck() {
   const directions = useMemo<DirectionStep[]>(() => (evaluate.data ? buildDirections(evaluate.data) : []), [evaluate.data]);
 
   const focusedPoint = focusedStep !== null ? directions[focusedStep]?.at ?? null : null;
-  const mapBounds: BBox = focusedPoint ? [focusedPoint[0] - 0.01, focusedPoint[1] - 0.01, focusedPoint[0] + 0.01, focusedPoint[1] + 0.01] : routeBounds;
+  const mapBounds: BBox | null = focusedPoint ? [focusedPoint[0] - 0.01, focusedPoint[1] - 0.01, focusedPoint[0] + 0.01, focusedPoint[1] + 0.01] : routeBounds;
   const mapFitKey = focusedPoint ? `step-${focusedStep}` : `${origin.lat},${origin.lon}-${dest.lat},${dest.lon}-${evaluate.data?.id ?? "pending"}`;
 
   const mapPoints = useMemo<MapPoint[]>(

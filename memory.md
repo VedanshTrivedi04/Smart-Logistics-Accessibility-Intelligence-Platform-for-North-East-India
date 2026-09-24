@@ -159,3 +159,34 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 
 
+
+### 2026-09-24 Regional Commander gaps
+
+**Work Done**
+- Incident detail now shows affected trips, deliveries, facilities and a regional impact level (`IncidentImpact.tsx`), plus a coordination panel.
+- New backend module `coordination` (migration 008, `COORDINATE_RESPONSE` capability for Regional/State/Emergency roles): `GET /jurisdictions`, `POST /coordination/actions`, `GET /coordination/summaries`. Append-only log of acknowledge, escalate, assign, inspection request and complete, and notes. It notifies no one.
+- Alerts can be acknowledged or escalated; edge GeoJSON now carries `jurisdiction_id`.
+- `/gov/regions` state-wise comparison and drill-down (`features/regions`); `/gov/map` uses `CommandMap` (vehicles, incidents, field reports layers).
+- Added missing `bearing` and `NER_STATES` to `shared/lib/geo.ts` (repo did not typecheck without them).
+
+**Known Issues**
+- `AccessibilityExplorer.tsx` was rewritten outside this session (1048 lines) and has ~25 type errors (Incident lat/lon, vehicle plate_number/speed_kmh do not exist in the API). Left untouched at the user's request.
+- Pre-existing lint errors in `app/page.tsx`, `ElevationProfile.tsx`, `PublicRouteCheck.tsx`.
+- Backend integration tests need Postgres and were not run; unit tests pass (201).
+
+### 2026-09-24 Memory folder created
+
+**User Request**
+> Add Antigravity workspace rules so memory is updated portal-wise and page-wise, then feed all memory so far.
+
+**Work Done**
+- Added `.agent/rules/memory-update.md` (always-on rule: when/what/how to update `memory/`).
+- Created `memory/` with `README.md` index, 41 page files under `memory/portals/{public,field,gov,logistics}` (one per `page.tsx` route) and 27 files under `memory/portals/shared` (3 protected pages: account/status/forbidden, plus topics: nav-and-auth, offline-sync, api-client, map, ui-kit, features-*, backend-* modules, testing, infra-deploy, known-issues).
+- Content derived from the current working tree (including uncommitted coordination, regions, command-center work), openapi.json and role_capabilities.py.
+
+**Files Changed**
+- `.agent/rules/memory-update.md`, `memory/**`, `memory.md`
+
+**Notes**
+- Page files marked from code reading only; nothing was executed. Known issues are collected in `memory/portals/shared/known-issues.md`.
+
