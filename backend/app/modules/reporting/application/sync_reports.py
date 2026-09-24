@@ -5,12 +5,11 @@ app/modules/reporting/application/sync_reports.py — Sub-transaction Isolated B
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from app.core.db import DbSession as AsyncSession
-
 from app.core.exceptions import AppError
 from app.core.logging import get_logger
 from app.core.security import PrincipalContext
@@ -81,7 +80,7 @@ class SyncReportsBatchUseCase:
 
                     observed_at = datetime.fromisoformat(item["observed_at"])
                     if observed_at.tzinfo is None:
-                        observed_at = observed_at.replace(tzinfo=timezone.utc)
+                        observed_at = observed_at.replace(tzinfo=UTC)
 
                     media_ids = [UUID(m) for m in item.get("media_ids", [])]
                     candidate_edge = UUID(item["candidate_edge_id"]) if item.get("candidate_edge_id") else None

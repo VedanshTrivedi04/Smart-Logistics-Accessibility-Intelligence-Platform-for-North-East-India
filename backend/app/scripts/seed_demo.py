@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -89,7 +89,7 @@ DEMO_USERS = [
 
 
 async def seed_demo_data(db: AsyncSession) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 1. Seed Organizations
     for org_id, code, name, kind in DEMO_ORGS:

@@ -9,11 +9,10 @@ from uuid import UUID
 
 from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import Point
-from sqlalchemy import func, select, text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.network.infrastructure.models import BridgeModel, RoadEdgeModel
 from app.modules.reporting.application.ports import ReportingRepositoryPort
 from app.modules.reporting.domain.entities import (
     FieldReport,
@@ -77,6 +76,11 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             created_at=m.created_at,
             media_ids=media_ids,
             version=m.version,
+            cv_hazard_class=m.cv_hazard_class,
+            cv_severity_score=m.cv_severity_score,
+            cv_confidence=m.cv_confidence,
+            cv_is_roadway_blocked=m.cv_is_roadway_blocked,
+            cv_verified_at=m.cv_verified_at,
         )
 
     def _media_to_domain(self, m: MediaObjectModel) -> MediaObject:
@@ -151,6 +155,11 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
         m.candidate_bridge_id = report.candidate_bridge_id
         m.rejection_reason = report.rejection_reason.value if report.rejection_reason else None
         m.rejection_notes = report.rejection_notes
+        m.cv_hazard_class = report.cv_hazard_class
+        m.cv_severity_score = report.cv_severity_score
+        m.cv_confidence = report.cv_confidence
+        m.cv_is_roadway_blocked = report.cv_is_roadway_blocked
+        m.cv_verified_at = report.cv_verified_at
         m.version = report.version + 1
         await self.session.flush()
 
