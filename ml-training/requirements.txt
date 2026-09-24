@@ -1,0 +1,18 @@
+# ml-training/requirements.txt
+# Standalone environment for offline model training (Phase 2).
+# Deliberately NOT part of backend/pyproject.toml — this workspace is not
+# deployed; only exported .onnx/.pkl artifacts cross into backend/app/modules/ai/infrastructure/models/.
+
+numpy>=1.26,<3
+pandas==2.2.3
+scikit-learn==1.9.1
+xgboost==3.4.1
+lightgbm==4.7.0
+catboost==1.2.10
+shap==0.52.0
+matplotlib==3.10.0
+joblib==1.6.0
+
+# Module 1 (CV) — install only in Colab/Kaggle where a GPU is available.
+# ultralytics==8.3.0
+# torch, torchvision  (installed via Colab's pre-baked CUDA wheels, not pip here)

@@ -206,6 +206,10 @@ def _register_routers(app: FastAPI) -> None:
     from app.modules.impact.api import router as impact_router
     app.include_router(impact_router, prefix="/api/v1")
 
+    # Phase 7: AI/ML inference router (risk prediction, hazard verification, ETA)
+    from app.modules.ai.api import router as ai_router
+    app.include_router(ai_router, prefix="/api/v1")
+
     # Phase 7: landslide/rainfall hazard risk router
     from app.modules.hazard.api import router as hazard_router
     app.include_router(hazard_router, prefix="/api/v1")

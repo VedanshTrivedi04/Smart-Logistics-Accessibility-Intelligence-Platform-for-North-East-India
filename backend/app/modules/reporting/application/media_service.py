@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.config import get_settings
-from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
+from app.core.exceptions import ForbiddenError
 from app.core.security import PrincipalContext
 from app.core.storage import ObjectStoragePort, get_storage_service
 from app.modules.identity.domain.enums import Capability
@@ -60,7 +60,7 @@ class MediaUploadService:
 
         # 4. Generate object key in quarantine
         media_id = uuid.uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sanitized_ext = mime_type.split("/")[-1]
         if sanitized_ext == "jpeg":
             sanitized_ext = "jpg"
@@ -118,7 +118,7 @@ class MediaUploadService:
             raise MediaValidationError(f"Height {height_px}px exceeds max 4096px")
 
         # In production/test environment: auto-scan marks CLEAN unless virus simulation
-        findings = {"malware_detected": False, "verified_at": datetime.now(timezone.utc).isoformat()}
+        findings = {"malware_detected": False, "verified_at": datetime.now(UTC).isoformat()}
         await self.reporting_repo.update_media_scan(
             media_id=media_id,
             status=ScanStatus.CLEAN,

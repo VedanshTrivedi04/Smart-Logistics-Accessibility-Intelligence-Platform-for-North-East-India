@@ -5,11 +5,10 @@ app/modules/reporting/application/submit_report.py — Field Report Submission U
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from app.core.exceptions import ValidationError
 from app.core.security import PrincipalContext
 from app.modules.reporting.application.ports import ReportingRepositoryPort
 
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
     from app.modules.incidents.application.ports import IncidentRepositoryPort
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint
 from app.modules.reporting.domain.enums import (
-    LocationProvider,
     ReportSeverity,
     ReportType,
     ReviewState,
@@ -58,7 +56,7 @@ class SubmitFieldReportUseCase:
     ) -> FieldReport:
         # 1. Location and timestamp validation
         location.validate()
-        received_at = datetime.now(timezone.utc)
+        received_at = datetime.now(UTC)
 
         # 2. Idempotency check across actor scope
         if client_operation_id:

@@ -57,3 +57,25 @@ desktop.ini
 *.swp
 *.swo
 .gemini/
+
+# ml-training — generated datasets, trained artifacts, and Ultralytics run logs
+# (never commit large binary model/data files; DVC or an artifact store should
+# track real trained models once real data replaces the synthetic smoke tests)
+ml-training/data/
+ml-training/models/
+ml-training/runs/
+
+# AI/ML model artifacts consumed by the backend at runtime — same reasoning:
+# never commit binaries to git; copy them from ml-training/models/ (see
+# backend/app/modules/ai/infrastructure/models/README.md) or a real artifact
+# store once trained on real data.
+backend/app/modules/ai/infrastructure/models/*.pkl
+backend/app/modules/ai/infrastructure/models/*.cbm
+backend/app/modules/ai/infrastructure/models/*.onnx
+backend/app/modules/ai/infrastructure/models/*.json
+
+# Local env files and data
+backendenv
+env
+env.download
+data/

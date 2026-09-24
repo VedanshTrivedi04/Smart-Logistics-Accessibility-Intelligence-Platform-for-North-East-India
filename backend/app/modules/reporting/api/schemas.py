@@ -14,8 +14,6 @@ from app.modules.reporting.domain.enums import (
     LocationProvider,
     ReportSeverity,
     ReportType,
-    ReviewState,
-    ScanStatus,
 )
 
 

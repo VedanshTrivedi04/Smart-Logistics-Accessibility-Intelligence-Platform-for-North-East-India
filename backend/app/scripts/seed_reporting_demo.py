@@ -12,12 +12,11 @@ Seeds:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import AsyncSessionLocal
@@ -26,7 +25,6 @@ from app.modules.incidents.domain.enums import (
     ReviewDecisionKind,
 )
 from app.modules.incidents.infrastructure.models import (
-    IncidentEdgeModel,
     IncidentModel,
     IncidentReportModel,
     OutboxEventModel,
@@ -66,7 +64,7 @@ INCIDENT_1_ID = UUID("c0000001-0000-4000-8000-000000000001")
 
 
 async def seed_reporting_demo_data(db: AsyncSession) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 1. Seed Media Object
     existing_media = await db.get(MediaObjectModel, MEDIA_1_ID)

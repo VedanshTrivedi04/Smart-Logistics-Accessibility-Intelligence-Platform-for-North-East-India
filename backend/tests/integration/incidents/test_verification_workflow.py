@@ -136,6 +136,19 @@ class TestVerificationWorkflow:
             assert current_status is not None
             assert current_status.status.value in {"BLOCKED", "RESTRICTED"}
 
+            # - Outbox event uses an event_type the impact-evaluator consumer
+            #   (app/workers/outbox_dispatcher.py) actually recognizes, so
+            #   disruption impact assessment fires downstream. A regression
+            #   here (e.g. reverting to an arbitrary label like
+            #   "HIGH_SEVERITY_INCIDENT_CREATED") would silently break impact
+            #   evaluation for every newly-confirmed incident.
+            outbox_events = await incident_repo.get_pending_outbox_events(limit=50)
+            matching = [
+                e for e in outbox_events if e.payload.get("incident_id") == res["incident_id"]
+            ]
+            assert matching, "Expected an outbox event for the newly confirmed incident"
+            assert matching[-1].event_type == "incident.created"
+
     async def test_anti_self_verification_rejected(
         self,
         field_officer_principal: PrincipalContext,

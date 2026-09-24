@@ -5,7 +5,7 @@ app/modules/reporting/application/amend_report.py — Field Report Amendment Use
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.exceptions import ForbiddenError, ValidationError
@@ -91,7 +91,7 @@ class AmendReportUseCase:
             original_report_id=original_report_id,
             amendment_report_id=new_report.id,
             reason=reason.strip(),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         await self.reporting_repo.create_amendment(amendment)
 
