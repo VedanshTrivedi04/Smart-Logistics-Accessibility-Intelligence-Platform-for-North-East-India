@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { DispatchAction, RoutePlan } from "@/shared/api";
 import { humanize } from "@/shared/lib/format";
 import { formatDateTime, formatDuration, secondsUntil } from "@/shared/lib/time";
-import { formatDistance, bboxOfCoordinates } from "@/shared/lib/geo";
+import { formatDistance, bboxOfCoordinates, type BBox } from "@/shared/lib/geo";
 import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, KeyValue, StatusBadge, useAnnounce, ValidityStatement } from "@/shared/ui";
 import { useNow } from "@/shared/lib/useNow";
 import { routeCrossesHighRisk, useRiskZones } from "@/features/hazard";
+import { buildDirections, type DirectionStep } from "./directions";
+import { DirectionsList } from "./DirectionsList";
 import { exclusionSummary, lineStrings, planLines } from "./geometry";
 import { POLICY_LABEL, useDispatchDecision } from "./queries";
 
@@ -137,6 +139,8 @@ interface ViewProps {
 
 export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
   const [rank, setRank] = useState<number>(0);
+  const [focusedStep, setFocusedStep] = useState<number | null>(null);
+  useEffect(() => setFocusedStep(null), [rank]);
   const lines = useMemo(() => planLines(plan, rank === 0 ? null : rank), [plan, rank]);
   const all = useMemo(() => [...lineStrings(plan.primary_geometry), ...plan.alternatives.flatMap((a) => lineStrings(a.geometry))].flat(), [plan]);
   const bounds = useMemo(() => bboxOfCoordinates(all), [all]);
@@ -144,6 +148,10 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
   const activeCoords = useMemo(() => lineStrings(rank === 0 ? plan.primary_geometry : (plan.alternatives.find((a) => a.rank === rank)?.geometry ?? plan.primary_geometry)).flat(), [plan, rank]);
   const crossedZones = useMemo(() => routeCrossesHighRisk(activeCoords, hazard.data?.zones ?? []), [activeCoords, hazard.data]);
   const primaryDuration = plan.total_duration_seconds;
+  const directions = useMemo<DirectionStep[]>(() => buildDirections(plan, rank === 0 ? null : rank), [plan, rank]);
+  const focusedPoint = focusedStep !== null ? directions[focusedStep]?.at ?? null : null;
+  const mapFitBounds: BBox | null = focusedPoint ? [focusedPoint[0] - 0.01, focusedPoint[1] - 0.01, focusedPoint[0] + 0.01, focusedPoint[1] + 0.01] : bounds;
+  const mapFitKey = focusedPoint ? `${plan.id}-step-${focusedStep}` : plan.id;
 
   return (
     <div className="stack">
@@ -160,8 +168,8 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
           ) : null}
           <div className="split">
             <div className="stack">
-              <MapView ariaLabel="Route options, with landslide risk zones" height={360} lines={lines} hazardZones={hazard.data?.zones ?? []} fitBounds={bounds} fitKey={plan.id} />
-              <MapLegend showRoutes showHazard={(hazard.data?.zones.length ?? 0) > 0} />
+              <MapView ariaLabel="Route options, with landslide risk zones" height={360} lines={lines} hazardZones={hazard.data?.zones ?? []} fitBounds={mapFitBounds} fitKey={mapFitKey} />
+              <MapLegend lines={lines} hazardZones={hazard.data?.zones ?? []} />
             </div>
             <Card title="Options">
               <div className="table-wrap">
@@ -190,6 +198,7 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
               <p className="small muted">Times are estimates from the network snapshot, not live traffic.</p>
             </Card>
           </div>
+          <DirectionsList steps={directions} activeIndex={focusedStep} onStepClick={(i) => setFocusedStep((cur) => (cur === i ? null : i))} />
         </>
       ) : null}
       <RouteExplanation plan={plan} />

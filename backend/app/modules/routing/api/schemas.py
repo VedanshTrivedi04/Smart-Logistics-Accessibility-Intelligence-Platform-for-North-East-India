@@ -35,6 +35,10 @@ class RouteEdgeResponse(BaseModel):
     sequence_order: int
     cumulative_distance_meters: int
     cumulative_duration_seconds: int
+    # For turn-by-turn directions: this edge's own road name and geometry, distinct
+    # from the merged route-level `geometry`/`primary_geometry` on the parent plan.
+    road_name: str | None = None
+    geometry: dict[str, Any] | None = None
 
 
 class AlternativeRouteResponse(BaseModel):

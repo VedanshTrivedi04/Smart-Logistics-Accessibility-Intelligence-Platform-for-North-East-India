@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { humanize } from "@/shared/lib/format";
+import { bboxOfCoordinates } from "@/shared/lib/geo";
 import { formatDateTime, formatDuration } from "@/shared/lib/time";
+import { MapLegend, MapView, type MapPoint } from "@/shared/map";
 import { Banner, Card, ErrorNotice, Stat, StatusBadge } from "@/shared/ui";
 import { useImpactData } from "./useImpactData";
 
@@ -34,6 +36,20 @@ export function ImpactBoard({ tripBase = "/gov/fleet/trips" }: { tripBase?: stri
     return { isolated, affectedFacilities, trips: trips.size, consignments: commitments.size, tier1: [...commitments.values()].filter(Boolean).length };
   }, [data]);
 
+  const mapPoints = useMemo<MapPoint[]>(
+    () =>
+      data.facilityImpacts.map(({ impact, facility }) => ({
+        id: facility.id,
+        kind: "facility",
+        lon: facility.lon,
+        lat: facility.lat,
+        label: `${facility.name}: ${humanize(impact.reachability_state)}${impact.isolated ? " · isolated" : ""}`,
+        tone: impact.isolated ? "danger" : impact.reachability_state !== "REACHABLE" ? "warn" : "ok",
+      })),
+    [data.facilityImpacts],
+  );
+  const mapBounds = useMemo(() => (mapPoints.length ? bboxOfCoordinates(mapPoints.map((p) => [p.lon, p.lat])) : null), [mapPoints]);
+
   return (
     <div className="stack">
       {data.errors.length ? <ErrorNotice error={data.errors[0]} subject="some impact records" /> : null}
@@ -52,6 +68,13 @@ export function ImpactBoard({ tripBase = "/gov/fleet/trips" }: { tripBase?: stri
         <Card><Stat label="Active trips impacted" value={summary.trips} /></Card>
         <Card><Stat label="Tier 1 consignments impacted" value={summary.tier1} /></Card>
       </div>
+
+      {mapPoints.length ? (
+        <Card title="Facility impact map">
+          <MapView ariaLabel="Facilities colored by reachability impact" height={380} points={mapPoints} fitBounds={mapBounds} fitKey={String(mapPoints.length)} />
+          <MapLegend points={mapPoints} />
+        </Card>
+      ) : null}
 
       <Card title="Facility impacts">
         {data.facilityImpacts.length === 0 && !data.loading ? <p className="muted">No facility impacts recorded in your scope.</p> : (

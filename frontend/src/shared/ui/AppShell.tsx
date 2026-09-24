@@ -89,10 +89,47 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, to
       <a className="skip-link" href="#main">Skip to main content</a>
       <div className={`shell ${emergencyOn ? "emergency" : ""}`}>
         <aside className="sidebar" data-open={menuOpen} aria-label="Primary">
-          <div className="brand">
-            <span style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--color-primary-dark, #0284c7)" }}>⛰️ PARVA</span>
-            <br />
-            <span className="small muted" style={{ letterSpacing: "0.03em" }}>{surfaceLabel}</span>
+          <div className="brand" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.25rem 0.25rem 1.25rem" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: "1.15rem",
+                color: "#ffffff",
+                boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
+                flex: "none",
+              }}
+            >
+              P
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span style={{ fontSize: "1.15rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.01em" }}>
+                  PARVA
+                </span>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+              </div>
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  color: "#0369a1",
+                  background: "#e0f2fe",
+                  padding: "0.1rem 0.45rem",
+                  borderRadius: "9999px",
+                  display: "inline-block",
+                  marginTop: "0.15rem",
+                }}
+              >
+                {surfaceLabel}
+              </span>
+            </div>
           </div>
           <nav aria-label={`${surfaceLabel} navigation`}>
             <ul>
@@ -115,23 +152,75 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, to
         </aside>
         <div className="main">
           <header className="topbar">
-            <div className="row">
+            <div className="row" style={{ gap: "0.75rem", alignItems: "center" }}>
               <Button className="menu-toggle" size="small" aria-expanded={menuOpen} aria-label="Toggle navigation" onClick={() => setMenuOpen((o) => !o)}>
                 <Menu size={18} aria-hidden="true" />
               </Button>
-              <div className="identity">
-                <strong>{principal?.display_name ?? "Not signed in"}</strong>
-                <span className="muted">
-                  {principal ? `${ROLE_LABEL[principal.role] ?? principal.role} · ${principal.org_name}` : ""}
-                </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div
+                  style={{
+                    width: "34px",
+                    height: "34px",
+                    borderRadius: "50%",
+                    background: "#e0f2fe",
+                    color: "#0284c7",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: "0.82rem",
+                    border: "1.5px solid #bae6fd",
+                    flex: "none",
+                  }}
+                >
+                  {principal?.display_name ? principal.display_name.slice(0, 2).toUpperCase() : "U"}
+                </div>
+                <div className="identity">
+                  <strong style={{ color: "#0f172a", fontSize: "0.9rem" }}>{principal?.display_name ?? "Not signed in"}</strong>
+                  <span className="muted" style={{ fontSize: "0.78rem" }}>
+                    {principal ? `${ROLE_LABEL[principal.role] ?? principal.role} · ${principal.org_name}` : ""}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="row" style={{ gap: "0.6rem", alignItems: "center" }}>
+            <div className="row" style={{ gap: "0.75rem", alignItems: "center" }}>
+              <Link
+                href="/public"
+                target="_blank"
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  color: "#0369a1",
+                  background: "#f0f9ff",
+                  padding: "0.3rem 0.65rem",
+                  borderRadius: "6px",
+                  border: "1px solid #bae6fd",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  textDecoration: "none",
+                }}
+                title="Open Public Citizen Route Checker in new tab"
+              >
+                🗺️ Public Portal ↗
+              </Link>
               {topActions}
               {allowEmergencyToggle && session.can("RESPOND_EMERGENCY") ? (
-                <label className="row small" style={{ gap: "0.4rem" }}>
+                <label
+                  className="row small"
+                  style={{
+                    gap: "0.4rem",
+                    padding: "0.25rem 0.6rem",
+                    borderRadius: "6px",
+                    background: emergency ? "#fef2f2" : "#f1f5f9",
+                    border: emergency ? "1px solid #fecaca" : "1px solid #e2e8f0",
+                    color: emergency ? "#b91c1c" : "#475569",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
                   <input type="checkbox" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} />
-                  <ShieldAlert size={16} aria-hidden="true" /> Emergency mode
+                  <ShieldAlert size={15} aria-hidden="true" /> Emergency mode
                 </label>
               ) : null}
               <Button size="small" onClick={() => void session.logout()}>Sign out</Button>

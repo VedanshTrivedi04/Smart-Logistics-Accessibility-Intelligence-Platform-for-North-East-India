@@ -9,7 +9,7 @@ export default function GovMapPage() {
   return (
     <Guard requires={["VIEW_ROAD_STATUS"]}>
       <PageHeader title="Accessibility map" subtitle="Verified road status with coverage and freshness. Pan and zoom to load the area in view." />
-      <AccessibilityExplorer />
+      <AccessibilityExplorer routeBase="/gov/routes" />
     </Guard>
   );
 }

@@ -253,6 +253,12 @@ export function NearbyView() {
     () => buildNotices({ incidents: incidents.data ?? [], reports: reports.data ?? [], ownUserId: me.user_id, edges: nearEdges.map(({ f }) => ({ id: f.id, name: edgeLabel(f), status: f.props.accessibility_status, at: new Date().toISOString() })), hrefs: { report: (id) => `/field/reports/${id}` } }),
     [incidents.data, reports.data, me.user_id, nearEdges],
   );
+  const selectedReport = selected ? nearReports.find(({ r }) => r.id === selected)?.r ?? null : null;
+  const nearbyLines = edgeLines(edges.data?.features ?? []);
+  const nearbyPoints = [
+    ...(fix ? [{ id: "self", kind: "self" as const, lon: fix.longitude, lat: fix.latitude, label: "You are here", tone: "info" as const }] : []),
+    ...nearReports.map(({ r }) => ({ id: r.id, kind: "report" as const, lon: r.location.longitude, lat: r.location.latitude, label: `${humanize(r.report_type)} report, ${humanize(r.review_state)}`, tone: r.severity === "CRITICAL" || r.severity === "HIGH" ? ("danger" as const) : ("warn" as const) })),
+  ];
 
   return (
     <div className="stack">
@@ -263,17 +269,14 @@ export function NearbyView() {
           <MapView
             ariaLabel="Nearby reports and road status"
             height={380}
-            lines={edgeLines(edges.data?.features ?? [])}
-            points={[
-              ...(fix ? [{ id: "self", kind: "self" as const, lon: fix.longitude, lat: fix.latitude, label: "You are here", tone: "info" as const }] : []),
-              ...nearReports.map(({ r }) => ({ id: r.id, kind: "report" as const, lon: r.location.longitude, lat: r.location.latitude, label: `${humanize(r.report_type)} report, ${humanize(r.review_state)}`, tone: r.severity === "CRITICAL" || r.severity === "HIGH" ? ("danger" as const) : ("warn" as const) })),
-            ]}
+            lines={nearbyLines}
+            points={nearbyPoints}
             selectedId={selected}
             onSelectPoint={setSelected}
             fitBounds={bbox}
             fitKey={fix ? `${fix.latitude.toFixed(3)}${fix.longitude.toFixed(3)}` : "none"}
           />
-          <MapLegend showMarkers />
+          <MapLegend lines={nearbyLines} points={nearbyPoints} />
           <Card title={`Reports near you (${nearReports.length})`}>
             {reports.isError ? <ErrorNotice error={reports.error} subject="reports" /> : null}
             {nearReports.length === 0 ? <p className="muted">{fix ? "No reports within range in your scope." : "Update your location to list nearby reports."}</p> : (
@@ -281,16 +284,22 @@ export function NearbyView() {
                 {nearReports.map(({ r, d }) => (
                   <li key={r.id} className="row" aria-current={selected === r.id ? "true" : undefined}>
                     <StatusBadge kind="severity" value={r.severity} />
-                    <Link href={`/field/reports/${r.id}`}>{humanize(r.report_type)}</Link>
+                    <button type="button" className="linkish" onClick={() => setSelected(r.id)}>{humanize(r.report_type)}</button>
                     <StatusBadge kind="review" value={r.review_state} />
                     <span className="small muted right">{formatDistance(d)} · {formatAge(r.observed_at, new Date())}</span>
+                    <Link href={`/field/reports/${r.id}`} className="small right">Open</Link>
                   </li>
                 ))}
               </ul>
             )}
           </Card>
         </div>
-        <div className="stack">
+        <div className="stack" id="map-detail-panel">
+          {selectedReport ? (
+            <Card title="Selected report" actions={<Button size="small" onClick={() => setSelected(null)}>Close</Button>}>
+              <ReportEvidence report={selectedReport} />
+            </Card>
+          ) : null}
           <Card title="Roads needing attention nearby">
             {nearEdges.length === 0 ? <p className="muted">{fix ? "No blocked, restricted or unverified segments within range. Segments not in the imported network are not covered." : "Needs your location."}</p> : (
               <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -342,7 +351,9 @@ export function RoadUpdate() {
             </ul>
           )}
         </Card>
-        {selected ? <EdgePanel edgeId={selected} onClose={() => setSelected(null)} /> : <Card title="Details"><p className="muted">Choose a segment to see its status and, if permitted, update it.</p></Card>}
+        <div id="map-detail-panel">
+          {selected ? <EdgePanel edgeId={selected} onClose={() => setSelected(null)} /> : <Card title="Details"><p className="muted">Choose a segment to see its status and, if permitted, update it.</p></Card>}
+        </div>
       </div>
     </div>
   );

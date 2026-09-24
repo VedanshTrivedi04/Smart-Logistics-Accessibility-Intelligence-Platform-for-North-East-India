@@ -7,7 +7,7 @@ import { useSession } from "@/shared/auth";
 import { humanize } from "@/shared/lib/format";
 import { bboxAround } from "@/shared/lib/geo";
 import { formatDateTime } from "@/shared/lib/time";
-import { MapView } from "@/shared/map";
+import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, KeyValue, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { ReportEvidence } from "./evidence";
@@ -96,7 +96,10 @@ export function IncidentDetail({ incidentId, reportsBase = "/gov/reports" }: { i
 
   return (
     <QueryState query={incident} subject="incident">
-      {(i) => (
+      {(i) => {
+        const incidentLines = edgeLines(nearby.data?.features ?? []);
+        const incidentPoints = report.data ? [{ id: i.id, kind: "incident" as const, lon: report.data.location.longitude, lat: report.data.location.latitude, label: `Incident: ${i.title}`, tone: "danger" as const }] : [];
+        return (
         <div className="split">
           <div className="stack">
             <Card title={i.title || "Incident"}>
@@ -130,11 +133,12 @@ export function IncidentDetail({ incidentId, reportsBase = "/gov/reports" }: { i
                 <MapView
                   ariaLabel="Incident location"
                   height={300}
-                  lines={edgeLines(nearby.data?.features ?? [])}
-                  points={[{ id: i.id, kind: "incident", lon: report.data.location.longitude, lat: report.data.location.latitude, label: `Incident: ${i.title}`, tone: "danger" }]}
+                  lines={incidentLines}
+                  points={incidentPoints}
                   fitBounds={bbox}
                   fitKey={i.id}
                 />
+                <MapLegend lines={incidentLines} points={incidentPoints} />
               </Card>
             ) : null}
             {can("VERIFY_REPORT") && i.lifecycle !== "RESOLVED" ? (
@@ -145,7 +149,8 @@ export function IncidentDetail({ incidentId, reportsBase = "/gov/reports" }: { i
             ) : null}
           </div>
         </div>
-      )}
+        );
+      }}
     </QueryState>
   );
 }

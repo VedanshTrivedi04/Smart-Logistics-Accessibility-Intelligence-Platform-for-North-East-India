@@ -8,7 +8,7 @@ import { usePrincipal } from "@/shared/auth";
 import { formatCoords, humanize } from "@/shared/lib/format";
 import { bboxAround, formatDistance, haversineMeters, isValidLatLon } from "@/shared/lib/geo";
 import { formatDateTime } from "@/shared/lib/time";
-import { MapView } from "@/shared/map";
+import { MapLegend, MapView } from "@/shared/map";
 import { StorageStatusPanel } from "./SyncQueue";
 import { Banner, Button, Card, Field, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, useEdges } from "@/features/network";
@@ -74,6 +74,8 @@ function LocationStep({ payload, set, draftId }: { payload: ReportPayload; set: 
     set({ location: { latitude: la, longitude: lo, accuracy_m: ac, location_provider: "MANUAL_MAP_PICK" } });
   };
 
+  const locationPoints = loc ? [{ id: draftId, kind: "report" as const, lon: loc.longitude, lat: loc.latitude, label: "Report location", tone: "warn" as const }] : [];
+
   return (
     <div className="stack">
       <div className="stack">
@@ -97,11 +99,12 @@ function LocationStep({ payload, set, draftId }: { payload: ReportPayload; set: 
         <MapView
           ariaLabel="Pick the report location"
           height={260}
-          points={loc ? [{ id: draftId, kind: "report", lon: loc.longitude, lat: loc.latitude, label: "Report location", tone: "warn" }] : []}
+          points={locationPoints}
           onMapClick={(lo, la) => set({ location: { latitude: la, longitude: lo, accuracy_m: Math.max(loc?.accuracy_m ?? 50, 50), location_provider: "MANUAL_MAP_PICK" } })}
           fitBounds={bbox}
           fitKey={loc ? `${loc.latitude.toFixed(4)}${loc.longitude.toFixed(4)}` : "none"}
         />
+        <MapLegend points={locationPoints} />
       </div>
       {loc ? (
         <Banner tone="ok" title="Location set">

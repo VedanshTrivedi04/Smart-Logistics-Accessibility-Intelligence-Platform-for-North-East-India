@@ -120,7 +120,7 @@ export function GovOverview() {
       <div className="split">
         <Card title="Roads needing attention" actions={<Link href="/gov/map">Full map</Link>}>
           <MapView ariaLabel="Blocked, restricted and unverified road segments, with landslide risk zones" lines={lines} hazardZones={hazard.data?.zones ?? []} height={340} />
-          <MapLegend showHazard={(hazard.data?.zones.length ?? 0) > 0} />
+          <MapLegend lines={lines} hazardZones={hazard.data?.zones ?? []} />
         </Card>
         <Card title="Top notices" actions={<Link href="/gov/alerts">All notices</Link>}>
           <NoticeList notices={notices.slice(0, 6)} emptyText="No notices from visible records." />

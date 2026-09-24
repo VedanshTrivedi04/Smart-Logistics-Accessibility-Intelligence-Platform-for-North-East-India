@@ -25,6 +25,7 @@ from app.modules.identity.domain.enums import (
     OrgKind,
     Role,
 )
+from app.modules.public.constants import PUBLIC_ORG_ID
 from app.modules.identity.infrastructure.models import (
     JurisdictionModel,
     MembershipModel,
@@ -54,6 +55,9 @@ DEMO_ORGS = [
     (ORG_GOV_ID, "ORG_NER_GOV", "NER Regional Government Authority", OrgKind.GOVERNMENT.value),
     (ORG_FIELD_ID, "ORG_ASSAM_FIELD", "Assam Field & Roads Authority", OrgKind.FIELD_AUTHORITY.value),
     (ORG_LOGISTICS_ID, "ORG_NER_LOGISTICS", "NER Integrated Logistics Consortium", OrgKind.LOGISTICS.value),
+    # Attribution target for anonymous public-citizen route evaluations (no membership,
+    # no users — see app/modules/public). Id must match PUBLIC_ORG_ID.
+    (PUBLIC_ORG_ID, "ORG_PUBLIC_CITIZEN", "Public Citizen Portal", OrgKind.PUBLIC.value),
 ]
 
 DEMO_JURISDICTIONS = [

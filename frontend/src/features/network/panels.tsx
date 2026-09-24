@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { ACCESSIBILITY_STATUSES, type AccessibilityStatus, type Facility } from "@/shared/api";
 import { useSession } from "@/shared/auth";
@@ -131,7 +132,8 @@ export function facilityLabel(f: Pick<Facility, "name" | "kind" | "code">): stri
   return `${f.name} (${humanize(f.kind)})`;
 }
 
-export function FacilityPanel({ facility, onClose }: { facility: Facility; onClose?: () => void }) {
+export function FacilityPanel({ facility, onClose, routeBase }: { facility: Facility; onClose?: () => void; routeBase?: string }) {
+  const { can } = useSession();
   const [weight, setWeight] = useState("");
   const tonnes = weight ? Number(weight) : undefined;
   const reach = useReachability(facility.id, tonnes && tonnes > 0 ? tonnes : undefined);
@@ -148,6 +150,7 @@ export function FacilityPanel({ facility, onClose }: { facility: Facility; onClo
             ["Network link", facility.nearest_road_node_id ? `Snapped ${facility.snap_distance_m?.toFixed(0) ?? "?"} m to network` : "Not linked to the road network"],
           ]}
         />
+        {routeBase && can("COMPUTE_ROUTE") ? <p className="small"><Link href={`${routeBase}?destFacilityId=${facility.id}`}>Plan a route to here →</Link></p> : null}
         <Field label="Vehicle weight to check (tonnes, optional)" htmlFor="fw">
           <input id="fw" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
         </Field>

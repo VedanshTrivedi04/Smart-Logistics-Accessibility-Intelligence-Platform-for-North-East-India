@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatKg, humanize } from "@/shared/lib/format";
 import { useNow } from "@/shared/lib/useNow";
-import { MapLegend, MapView } from "@/shared/map";
+import { MapLegend, MapView, type MapPoint } from "@/shared/map";
 import { Banner, Card, KeyValue, QueryState, SourceAge, StatusBadge } from "@/shared/ui";
 import { describeGps } from "./gps";
 import { useBreadcrumbs, useTrips, useVehiclePosition, useVehicles } from "./queries";
@@ -60,10 +60,12 @@ export function VehicleDetail({ vehicleId, tripBase }: { vehicleId: string; trip
               <Card title="GPS">
                 <div className="stack">
                   <QueryState query={position} subject="GPS position">
-                    {(p) =>
-                      p === null ? (
-                        <Banner tone="caution" title="No GPS position received"><p className="small">The platform has never received a fix for this vehicle. That is not the same as the vehicle being stationary.</p></Banner>
-                      ) : (
+                    {(p) => {
+                      if (p === null) {
+                        return <Banner tone="caution" title="No GPS position received"><p className="small">The platform has never received a fix for this vehicle. That is not the same as the vehicle being stationary.</p></Banner>;
+                      }
+                      const vehiclePoints: MapPoint[] = [{ id: vehicleId, kind: "vehicle", lon: p.lon, lat: p.lat, stale: gps.stale, tone: gps.stale ? "neutral" : "ok", label: `${vehicle.registration_number}: ${gps.statement}` }];
+                      return (
                         <div className="stack">
                           <div className="row"><StatusBadge kind="gps" value={p.stale_status} />{p.is_simulated ? <span className="badge tone-caution">Simulated replay</span> : null}</div>
                           <p>{gps.statement}</p>
@@ -77,11 +79,11 @@ export function VehicleDetail({ vehicleId, tripBase }: { vehicleId: string; trip
                               ["Battery", p.battery_pct === null ? "Not reported" : `${p.battery_pct}%`],
                             ]}
                           />
-                          <MapView ariaLabel="Vehicle position and recent trail" height={280} lines={trail} points={[{ id: vehicleId, kind: "vehicle", lon: p.lon, lat: p.lat, stale: gps.stale, tone: gps.stale ? "neutral" : "ok", label: `${vehicle.registration_number}: ${gps.statement}` }]} fitBounds={[p.lon - 0.05, p.lat - 0.05, p.lon + 0.05, p.lat + 0.05]} fitKey={`${vehicleId}-${crumbs.data?.length ?? 0}`} />
-                          <MapLegend showMarkers />
+                          <MapView ariaLabel="Vehicle position and recent trail" height={280} lines={trail} points={vehiclePoints} fitBounds={[p.lon - 0.05, p.lat - 0.05, p.lon + 0.05, p.lat + 0.05]} fitKey={`${vehicleId}-${crumbs.data?.length ?? 0}`} />
+                          <MapLegend lines={trail} points={vehiclePoints} />
                         </div>
-                      )
-                    }
+                      );
+                    }}
                   </QueryState>
                   <div className="field">
                     <label htmlFor="trail-hours">Recent trail</label>

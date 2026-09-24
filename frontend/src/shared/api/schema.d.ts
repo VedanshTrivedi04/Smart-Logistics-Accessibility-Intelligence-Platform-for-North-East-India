@@ -900,6 +900,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/network/edges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public: road edges within a bounding box, with live status */
+        get: operations["get_public_bounded_edges_api_v1_public_network_edges_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/hazard/risk-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public: landslide risk zones within a bounding box */
+        get: operations["get_public_bounded_risk_zones_api_v1_public_hazard_risk_zones_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public: active incidents, redacted to type, severity and an approximate location */
+        get: operations["list_public_incidents_api_v1_public_incidents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/routes/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Public: evaluate a road route for a standard private vehicle */
+        post: operations["evaluate_public_route_api_v1_public_routes_evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/seed-demo": {
         parameters: {
             query?: never;
@@ -1798,6 +1866,44 @@ export interface components {
          * @enum {string}
          */
         PriorityTier: "TIER_1_LIFE_SAVING" | "TIER_2_ESSENTIAL" | "TIER_3_STANDARD";
+        /** PublicIncidentResponse */
+        PublicIncidentResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Severity */
+            severity: string;
+            /** Lifecycle */
+            lifecycle: string;
+            /** Approx Lat */
+            approx_lat: number;
+            /** Approx Lon */
+            approx_lon: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * PublicRouteEvaluationRequest
+         * @description No vehicle, org or priority fields: the public endpoint evaluates a fixed
+         *     generic "standard car" profile — a citizen is not picking a logistics vehicle.
+         */
+        PublicRouteEvaluationRequest: {
+            /** Origin Lat */
+            origin_lat: number;
+            /** Origin Lon */
+            origin_lon: number;
+            /** Destination Lat */
+            destination_lat: number;
+            /** Destination Lon */
+            destination_lon: number;
+        };
         /** RawTelemetryFixInput */
         RawTelemetryFixInput: {
             /** Sequence Number */
@@ -2138,6 +2244,10 @@ export interface components {
             cumulative_distance_meters: number;
             /** Cumulative Duration Seconds */
             cumulative_duration_seconds: number;
+            /** Road Name */
+            road_name?: string | null;
+            /** Geometry */
+            geometry?: Record<string, never> | null;
         };
         /** RouteEvaluationRequest */
         RouteEvaluationRequest: {
@@ -4341,6 +4451,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RiskZoneSeedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_bounded_edges_api_v1_public_network_edges_get: {
+        parameters: {
+            query: {
+                min_lon: number;
+                min_lat: number;
+                max_lon: number;
+                max_lat: number;
+                zoom?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_bounded_risk_zones_api_v1_public_hazard_risk_zones_get: {
+        parameters: {
+            query: {
+                min_lon: number;
+                min_lat: number;
+                max_lon: number;
+                max_lat: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_public_incidents_api_v1_public_incidents_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicIncidentResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_public_route_api_v1_public_routes_evaluate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicRouteEvaluationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutePlanResponse"];
                 };
             };
             /** @description Validation Error */

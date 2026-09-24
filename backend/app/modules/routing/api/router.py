@@ -29,7 +29,7 @@ from app.modules.routing.infrastructure.repository import SqlAlchemyRoutingRepos
 router = APIRouter(prefix="", tags=["Routing & Dispatch"])
 
 
-def _to_plan_response(plan: RoutePlan) -> RoutePlanResponse:
+def to_route_plan_response(plan: RoutePlan) -> RoutePlanResponse:
     return RoutePlanResponse(
         id=plan.id,
         organization_id=plan.organization_id,
@@ -49,6 +49,8 @@ def _to_plan_response(plan: RoutePlan) -> RoutePlanResponse:
                 sequence_order=e.sequence_order,
                 cumulative_distance_meters=e.cumulative_distance_meters,
                 cumulative_duration_seconds=e.cumulative_duration_seconds,
+                road_name=e.road_name,
+                geometry=e.geometry,
             )
             for e in plan.edges
         ],
@@ -64,6 +66,8 @@ def _to_plan_response(plan: RoutePlan) -> RoutePlanResponse:
                         sequence_order=ae.sequence_order,
                         cumulative_distance_meters=ae.cumulative_distance_meters,
                         cumulative_duration_seconds=ae.cumulative_duration_seconds,
+                        road_name=ae.road_name,
+                        geometry=ae.geometry,
                     )
                     for ae in alt.edges
                 ],
@@ -114,7 +118,7 @@ async def evaluate_route(
         policy_version=req.policy_version,
     )
     await session.commit()
-    return _to_plan_response(plan)
+    return to_route_plan_response(plan)
 
 
 @router.get(
@@ -131,7 +135,7 @@ async def get_route_plan(
     plan = await repo.get_route_plan_by_id(route_plan_id)
     if not plan:
         raise RoutePlanNotFoundError(f"Route plan '{route_plan_id}' not found")
-    return _to_plan_response(plan)
+    return to_route_plan_response(plan)
 
 
 @router.post(

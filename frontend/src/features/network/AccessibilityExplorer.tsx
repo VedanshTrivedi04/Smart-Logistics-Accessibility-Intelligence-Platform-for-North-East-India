@@ -16,9 +16,11 @@ interface Props {
   /** Optional map height; the same items are always listed beside the map. */
   height?: number;
   showSummary?: boolean;
+  /** When set, a "Plan a route to here" link appears on the facility detail panel. */
+  routeBase?: string;
 }
 
-export function AccessibilityExplorer({ height = 520, showSummary = true }: Props) {
+export function AccessibilityExplorer({ height = 520, showSummary = true, routeBase }: Props) {
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
             onSelectPoint={(id) => { setSelectedFacility(id.replace("facility:", "")); setSelectedEdge(null); }}
             onError={setMapError}
           />
-          <MapLegend showMarkers showHazard={(hazard.data?.zones.length ?? 0) > 0} />
+          <MapLegend lines={lines} points={points} hazardZones={hazard.data?.zones ?? []} />
           <Card title="Road segments in view" actions={
             <div className="row">
               <label className="small" htmlFor="seg-filter">Show</label>
@@ -130,9 +132,9 @@ export function AccessibilityExplorer({ height = 520, showSummary = true }: Prop
             ) : null}
           </Card>
         </div>
-        <div className="stack">
+        <div className="stack" id="map-detail-panel">
           {selectedEdge ? <EdgePanel edgeId={selectedEdge} onClose={() => setSelectedEdge(null)} /> : null}
-          {facility ? <FacilityPanel facility={facility} onClose={() => setSelectedFacility(null)} /> : null}
+          {facility ? <FacilityPanel facility={facility} onClose={() => setSelectedFacility(null)} routeBase={routeBase} /> : null}
           {!selectedEdge && !facility ? (
             <Card title="Details">
               <p className="muted">Select a road segment or facility on the map or in the list to see its status, restrictions and impacts.</p>

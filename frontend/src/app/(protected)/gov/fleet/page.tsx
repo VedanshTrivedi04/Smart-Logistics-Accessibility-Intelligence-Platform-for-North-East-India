@@ -8,7 +8,7 @@ export default function GovFleetPage() {
   return (
     <>
       <PageHeader title="Vehicles" subtitle="Last reported GPS positions for vehicles visible to your organization." />
-      <FleetMap vehicleBase="/gov/fleet/vehicles" />
+      <FleetMap vehicleBase="/gov/fleet/vehicles" tripBase="/gov/fleet/trips" routeBase="/gov/routes" />
     </>
   );
 }

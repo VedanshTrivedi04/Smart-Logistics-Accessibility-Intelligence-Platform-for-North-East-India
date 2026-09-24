@@ -6,7 +6,7 @@ import { REJECTION_REASONS, type RejectionReason } from "@/shared/api";
 import { usePrincipal, useSession } from "@/shared/auth";
 import { humanize } from "@/shared/lib/format";
 import { bboxAround } from "@/shared/lib/geo";
-import { MapView } from "@/shared/map";
+import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { ReportEvidence } from "./evidence";
@@ -149,7 +149,10 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
 
   return (
     <QueryState query={query} subject="report">
-      {(r) => (
+      {(r) => {
+        const reportLines = edgeLines(nearby.data?.features ?? []);
+        const reportPoints = [{ id: r.id, kind: "report" as const, lon: r.location.longitude, lat: r.location.latitude, label: `${humanize(r.report_type)} report location`, tone: "warn" as const }];
+        return (
         <div className="split">
           <div className="stack">
             <ReportEvidence report={r} />
@@ -157,11 +160,12 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
               <MapView
                 ariaLabel="Report location"
                 height={300}
-                lines={edgeLines(nearby.data?.features ?? [])}
-                points={[{ id: r.id, kind: "report", lon: r.location.longitude, lat: r.location.latitude, label: `${humanize(r.report_type)} report location`, tone: "warn" }]}
+                lines={reportLines}
+                points={reportPoints}
                 fitBounds={bbox}
                 fitKey={r.id}
               />
+              <MapLegend lines={reportLines} points={reportPoints} />
               <p className="small muted">Accuracy ±{Math.round(r.location.accuracy_m)} m. {r.candidate_edge_id ? "Reporter suggested a road segment." : "Reporter did not link a road segment."}</p>
             </Card>
           </div>
@@ -187,7 +191,8 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
             <p className="small"><Link href={incidentsBase}>Back to incidents</Link></p>
           </div>
         </div>
-      )}
+        );
+      }}
     </QueryState>
   );
 }

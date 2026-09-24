@@ -42,7 +42,7 @@ export function useFacilities(filters: { kind?: FacilityKind; is_critical?: bool
   return useQuery<Facility[]>({
     queryKey: [...scope, "facilities", filters],
     enabled,
-    queryFn: () => unwrap(() => api.GET("/api/v1/facilities", { params: { query: { ...filters, limit: 500 } } })),
+    queryFn: () => unwrap(() => api.GET("/api/v1/facilities", { params: { query: { ...filters, limit: 200 } } })),
   });
 }
 

@@ -2,8 +2,14 @@
 
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+if (typeof window !== "undefined") {
+  maplibregl.config.WORKER_URL =
+    process.env.NEXT_PUBLIC_MAPLIBRE_WORKER_URL ??
+    "https://unpkg.com/maplibre-gl@6.11.0/dist/maplibre-gl-worker.mjs";
+}
 import { useEffect, useRef, useState } from "react";
-import { NER_BBOX, type BBox } from "@/shared/lib/geo";
+import { NER_BBOX, NER_STATES, type BBox } from "@/shared/lib/geo";
 import { clusterPoints, isCluster, type MapPoint } from "./cluster";
 
 export type LineClass = "open" | "restricted" | "blocked" | "caution" | "unknown" | "route_primary" | "route_alt" | "trail";
@@ -73,12 +79,8 @@ const RISK_COLOR: Record<RiskLevel, string> = {
   UNKNOWN: "#6b7785",
 };
 
-// Esri World Imagery: free public satellite basemap, no API key required.
-const SATELLITE_TILE_URL =
-  process.env.NEXT_PUBLIC_SATELLITE_TILE_URL ??
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const SATELLITE_ATTRIBUTION =
-  process.env.NEXT_PUBLIC_SATELLITE_ATTRIBUTION ?? "Esri, Maxar, Earthstar Geographics";
+  process.env.NEXT_PUBLIC_SATELLITE_ATTRIBUTION ?? "Google Imagery & Roads";
 
 // AWS Terrarium terrain-RGB tiles (public, open data, no API key required).
 const TERRAIN_TILE_URL =
@@ -87,19 +89,26 @@ const TERRAIN_TILE_URL =
 function baseStyle(): maplibregl.StyleSpecification {
   const tile = process.env.NEXT_PUBLIC_MAP_TILE_URL;
   const attribution = process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ?? "";
-  const layers: maplibregl.LayerSpecification[] = [{ id: "bg", type: "background", paint: { "background-color": "#e9edf1" } }];
+  const defaultLayer = (process.env.NEXT_PUBLIC_DEFAULT_MAP_VIEW as "street" | "satellite" | undefined) ?? "satellite";
+  const layers: maplibregl.LayerSpecification[] = [{ id: "bg", type: "background", paint: { "background-color": "#0a1017" } }];
   const sources: maplibregl.StyleSpecification["sources"] = {};
   if (tile) {
-    // A licensed tile endpoint is required for the street basemap. The public OSM tile service is never configured here.
+    // Street basemap layer
     sources["base-street"] = { type: "raster", tiles: [tile], tileSize: 256, attribution };
-    layers.push({ id: "base-street", type: "raster", source: "base-street", layout: { visibility: "visible" } });
+    layers.push({ id: "base-street", type: "raster", source: "base-street", layout: { visibility: defaultLayer === "street" ? "visible" : "none" } });
   }
-  // Satellite imagery uses a documented free public tile source (Esri World Imagery); safe to ship a default.
-  // Esri's high-resolution coverage is incomplete over rural/hilly NER at close zoom: requesting tiles
-  // past its real coverage returns a "Map data not yet available" placeholder tile instead of failing.
-  // Capping maxzoom makes MapLibre over-scale the last real tile instead of ever requesting one that doesn't exist.
-  sources["base-satellite"] = { type: "raster", tiles: [SATELLITE_TILE_URL], tileSize: 256, maxzoom: 13, attribution: SATELLITE_ATTRIBUTION };
-  layers.push({ id: "base-satellite", type: "raster", source: "base-satellite", layout: { visibility: "none" } });
+  
+  // High-resolution Satellite Hybrid tiles (includes mountain roads, passes, highways and district labels up to zoom 20)
+  const satelliteTiles = process.env.NEXT_PUBLIC_SATELLITE_TILE_URL
+    ? [process.env.NEXT_PUBLIC_SATELLITE_TILE_URL]
+    : [
+        "https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        "https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        "https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+      ];
+  sources["base-satellite"] = { type: "raster", tiles: satelliteTiles, tileSize: 256, maxzoom: 20, attribution: SATELLITE_ATTRIBUTION };
+  layers.push({ id: "base-satellite", type: "raster", source: "base-satellite", layout: { visibility: defaultLayer === "satellite" ? "visible" : "none" } });
 
   sources["terrain-dem"] = { type: "raster-dem", tiles: [TERRAIN_TILE_URL], tileSize: 256, encoding: "terrarium", maxzoom: 15 };
   layers.push({
@@ -206,9 +215,11 @@ export default function MapView({
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
+  const popup = useRef<maplibregl.Popup | null>(null);
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const [baseLayer, setBaseLayer] = useState<"street" | "satellite">(process.env.NEXT_PUBLIC_MAP_TILE_URL ? "street" : "satellite");
+  const defaultLayer = (process.env.NEXT_PUBLIC_DEFAULT_MAP_VIEW as "street" | "satellite" | undefined) ?? "satellite";
+  const [baseLayer, setBaseLayer] = useState<"street" | "satellite">(defaultLayer);
   const [terrain3D, setTerrain3D] = useState(false);
   const [hazardOn, setHazardOn] = useState(hazardDefaultOn);
   const cb = useRef({ onSelectLine, onSelectPoint, onViewportChange, onMapClick, onError });
@@ -226,8 +237,16 @@ export default function MapView({
       map = new maplibregl.Map({
         container: container.current,
         style: baseStyle(),
+        center: [92.9, 25.8],
+        zoom: 6.8,
         bounds: NER_BBOX,
-        fitBoundsOptions: { padding: 20 },
+        fitBoundsOptions: { padding: 24 },
+        maxBounds: [
+          [86.5, 20.5], // Southwest boundary (locks camera to North-East India)
+          [98.5, 30.5], // Northeast boundary
+        ],
+        minZoom: 6.0, // Prevents zooming out to whole world
+        maxZoom: 20,
         attributionControl: { compact: true },
         maxPitch: 75,
       });
@@ -252,11 +271,17 @@ export default function MapView({
 
     map.on("error", (e) => {
       const message = e.error?.message ?? "Map error";
-      // Tile failures must not look like "no roads": surface them.
+      if (message.includes("Worker failed to load")) {
+        console.warn("MapLibre worker note:", message);
+        return;
+      }
       cb.current.onError?.(message);
     });
 
     map.on("load", () => {
+      if (!fitBounds) {
+        map.fitBounds(NER_BBOX, { padding: 24, duration: 0 });
+      }
       map.addSource("lines", { type: "geojson", data: toCollection([]) });
       (Object.keys(LINE_PAINT) as LineClass[]).forEach((cls) => {
         const p = LINE_PAINT[cls];
@@ -273,6 +298,30 @@ export default function MapView({
         });
       });
       map.addLayer({ id: "line-selected", type: "line", source: "lines", filter: ["==", ["get", "id"], ""], paint: { "line-color": "#f59e0b", "line-width": 9, "line-opacity": 0.55 } });
+
+      // Direction-of-travel arrows repeated along computed routes, Google-Maps style.
+      map.addLayer({
+        id: "route-arrows",
+        type: "symbol",
+        source: "lines",
+        filter: ["in", ["get", "cls"], ["literal", ["route_primary", "route_alt"]]],
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 70,
+          "text-field": "▶",
+          "text-size": 13,
+          "text-rotation-alignment": "map",
+          "text-keep-upright": false,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": ["match", ["get", "cls"], "route_alt", "#f3edff", "#ffffff"],
+          "text-halo-color": ["match", ["get", "cls"], "route_alt", "#6a3fb5", "#0b5cad"],
+          "text-halo-width": 1.4,
+          "text-opacity": ["match", ["get", "cls"], "route_alt", 0.75, 1],
+        },
+      });
 
       // Hazard (landslide/rainfall risk) overlay — sits above the base map, below markers.
       map.addSource("hazard", { type: "geojson", data: toHazardCollection([]) });
@@ -344,6 +393,28 @@ export default function MapView({
       renderMarkers();
     });
 
+    function showPointPopup(lon: number, lat: number, label: string) {
+      popup.current?.remove();
+      const wrap = document.createElement("div");
+      wrap.className = "map-popup";
+      const text = document.createElement("p");
+      text.className = "small";
+      text.textContent = label;
+      wrap.appendChild(text);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "linkish small";
+      btn.textContent = "View details ↓";
+      btn.addEventListener("click", () => {
+        document.getElementById("map-detail-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      wrap.appendChild(btn);
+      popup.current = new maplibregl.Popup({ closeButton: true, closeOnClick: false, maxWidth: "240px", offset: 18 })
+        .setLngLat([lon, lat])
+        .setDOMContent(wrap)
+        .addTo(map);
+    }
+
     function renderMarkers() {
       markers.current.forEach((m) => m.remove());
       markers.current = [];
@@ -372,6 +443,7 @@ export default function MapView({
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
             cb.current.onSelectPoint?.(item.id);
+            showPointPopup(item.lon, item.lat, item.label);
           });
         }
         markers.current.push(new maplibregl.Marker({ element: el }).setLngLat([item.lon, item.lat]).addTo(map));
@@ -383,6 +455,8 @@ export default function MapView({
       clearTimeout(timer);
       markers.current.forEach((m) => m.remove());
       markers.current = [];
+      popup.current?.remove();
+      popup.current = null;
       map.remove();
       mapRef.current = null;
       setReady(false);
@@ -416,7 +490,7 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !fitBounds) return;
-    map.fitBounds(fitBounds, { padding: 40, maxZoom: 14, duration: 0 });
+    map.fitBounds(fitBounds, { padding: 40, maxZoom: 18, duration: 0 });
     // fitKey intentionally gates refits; fitBounds identity changes every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, ready]);
@@ -513,6 +587,39 @@ export default function MapView({
       <div ref={container} style={{ height, width: "100%" }} role="application" aria-label={`${ariaLabel}. A list with the same items is provided next to the map.`} />
       {allowViewSwitch ? (
         <div className="map-view-switch" role="group" aria-label="Map view options">
+          <select
+            className="small"
+            style={{
+              padding: "0.26rem 0.55rem",
+              borderRadius: "999px",
+              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              color: "var(--text)",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.25)",
+            }}
+            aria-label="Focus on specific state"
+            defaultValue="ALL"
+            onChange={(e) => {
+              const code = e.target.value as keyof typeof NER_STATES;
+              const target = NER_STATES[code];
+              if (target && mapRef.current) {
+                mapRef.current.fitBounds(target.bbox, { padding: 35, duration: 900 });
+              }
+            }}
+          >
+            <option value="ALL">📍 Focus: All North-East</option>
+            <option value="ASSAM">Assam</option>
+            <option value="MEGHALAYA">Meghalaya</option>
+            <option value="ARUNACHAL">Arunachal Pradesh</option>
+            <option value="NAGALAND">Nagaland</option>
+            <option value="MANIPUR">Manipur</option>
+            <option value="MIZORAM">Mizoram</option>
+            <option value="TRIPURA">Tripura</option>
+            <option value="SIKKIM">Sikkim</option>
+          </select>
           <button type="button" aria-pressed={baseLayer === "street"} onClick={() => setBaseLayer("street")}>
             Street
           </button>

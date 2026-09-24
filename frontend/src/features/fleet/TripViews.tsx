@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { TRIP_TRANSITIONS, type Commitment, type DeliveryStatus, type TripStatus } from "@/shared/api";
+import { TRIP_TRANSITIONS, type Commitment, type DeliveryStatus, type TripStatus, type TripStop } from "@/shared/api";
 import { useSession } from "@/shared/auth";
 import { downloadText, humanize, shortId, toCsv } from "@/shared/lib/format";
+import { bboxOfCoordinates } from "@/shared/lib/geo";
 import { formatDateTime, formatDuration } from "@/shared/lib/time";
+import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
 import { Bars, Banner, Button, Card, ErrorNotice, KeyValue, QueryState, Stat, StatusBadge, Tabs, useAnnounce } from "@/shared/ui";
 import { useFacilities } from "@/features/network";
 import { RouteEvaluator, type VehicleOption } from "@/features/routing";
@@ -22,6 +24,7 @@ const TRANSITIONS: Record<TripStatus, readonly TripStatus[]> = {
   ABORTED: [],
 };
 const CLOSING: readonly TripStatus[] = ["COMPLETED", "CANCELLED", "ABORTED"];
+const STOP_TONE: Record<TripStop["status"], MapPoint["tone"]> = { PENDING: "warn", ARRIVED: "info", DEPARTED: "ok", SKIPPED: "neutral", CANCELLED: "neutral" };
 
 type TripTab = "all" | TripStatus;
 const TRIP_TABS: ReadonlyArray<{ id: TripTab; label: string }> = [
@@ -88,8 +91,17 @@ export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBas
         const first = t.stops[0];
         const last = t.stops[t.stops.length - 1];
         const priorityTier = linked.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING") ? "TIER_1_LIFE_SAVING" : linked.some((c) => c.priority_tier === "TIER_2_ESSENTIAL") ? "TIER_2_ESSENTIAL" : "TIER_3_STANDARD";
+        const stopPoints: MapPoint[] = t.stops.map((s, i) => ({ id: s.id, kind: "stop", lon: s.lon, lat: s.lat, label: `Stop ${i + 1}: ${humanize(s.stop_type)} · ${humanize(s.status)}`, tone: STOP_TONE[s.status], glyph: String(i + 1) }));
+        const stopLine: MapLine[] = t.stops.length > 1 ? [{ id: "planned", cls: "route_primary", coordinates: t.stops.map((s) => [s.lon, s.lat]) }] : [];
+        const stopBounds = t.stops.length ? bboxOfCoordinates(t.stops.map((s) => [s.lon, s.lat])) : null;
         return (
           <div className="stack">
+            {t.stops.length ? (
+              <Card title="Trip route">
+                <MapView ariaLabel="Trip stops in planned order" height={300} points={stopPoints} lines={stopLine} fitBounds={stopBounds} fitKey={t.id} />
+                <MapLegend points={stopPoints} lines={stopLine} />
+              </Card>
+            ) : null}
             <div className="split">
               <Card title={t.trip_code}>
                 <div className="stack">

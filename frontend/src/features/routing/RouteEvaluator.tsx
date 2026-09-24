@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { POLICY_VERSIONS, PRIORITY_TIERS, type Facility, type PolicyVersion, type PriorityTier, type RoutePlan } from "@/shared/api";
 import { humanize } from "@/shared/lib/format";
-import { isValidLatLon } from "@/shared/lib/geo";
+import { bboxOfCoordinates, isValidLatLon } from "@/shared/lib/geo";
+import { MapLegend, MapView, type MapPoint } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
+import { AddressSearch, type GeocodeResult } from "./AddressSearch";
 import { useEvaluateRoute, POLICY_LABEL, type EvaluateBase } from "./queries";
 import { RoutePlanView } from "./RoutePlanView";
 
@@ -24,8 +26,8 @@ interface Props {
   canDecide?: boolean;
   /** Evaluate under both policies and show them side by side. */
   compare?: boolean;
-  /** Fixed endpoints (used from a trip page). */
-  initial?: { originFacilityId?: string; destinationFacilityId?: string; vehicleId?: string; maxWeightKg?: number; priority?: PriorityTier };
+  /** Fixed endpoints (used from a trip page, or handed in from a map "plan a route" link). */
+  initial?: { originFacilityId?: string; destinationFacilityId?: string; originLat?: number; originLon?: number; vehicleId?: string; maxWeightKg?: number; priority?: PriorityTier };
   onPlan?: (plan: RoutePlan) => void;
 }
 
@@ -42,6 +44,17 @@ function resolveEnd(prefix: "origin" | "destination", end: End, facilities: read
   const lon = Number(end.lon);
   if (!isValidLatLon(lat, lon)) return `Enter valid ${prefix} latitude and longitude.`;
   return { [`${prefix}_lat`]: lat, [`${prefix}_lon`]: lon };
+}
+
+/** The endpoint's lon/lat for map display, or null while it cannot be resolved yet. */
+function endLonLat(end: End, facilities: readonly Facility[]): [number, number] | null {
+  if (end.kind === "facility") {
+    const f = facilities.find((x) => x.id === end.facilityId);
+    return f ? [f.lon, f.lat] : null;
+  }
+  const lat = Number(end.lat);
+  const lon = Number(end.lon);
+  return isValidLatLon(lat, lon) ? [lon, lat] : null;
 }
 
 function EndpointFields({ id, label, end, onChange, facilities }: { id: string; label: string; end: End; onChange: (e: End) => void; facilities: readonly Facility[] }) {
@@ -74,7 +87,11 @@ function EndpointFields({ id, label, end, onChange, facilities }: { id: string; 
 export function RouteEvaluator({ facilities, vehicles = [], tripId = null, canDecide = false, compare = false, initial, onPlan }: Props) {
   const evalA = useEvaluateRoute();
   const evalB = useEvaluateRoute();
-  const [origin, setOrigin] = useState<End>({ kind: "facility", facilityId: initial?.originFacilityId ?? "", lat: "", lon: "" });
+  const [origin, setOrigin] = useState<End>(
+    initial?.originLat !== undefined && initial?.originLon !== undefined
+      ? { kind: "coords", facilityId: "", lat: String(initial.originLat), lon: String(initial.originLon) }
+      : { kind: "facility", facilityId: initial?.originFacilityId ?? "", lat: "", lon: "" },
+  );
   const [dest, setDest] = useState<End>({ kind: "facility", facilityId: initial?.destinationFacilityId ?? "", lat: "", lon: "" });
   const [vehicleId, setVehicleId] = useState(initial?.vehicleId ?? "");
   const [weight, setWeight] = useState(initial?.maxWeightKg ? String(initial.maxWeightKg) : "");
@@ -83,6 +100,7 @@ export function RouteEvaluator({ facilities, vehicles = [], tripId = null, canDe
   const [priority, setPriority] = useState<PriorityTier>(initial?.priority ?? "TIER_3_STANDARD");
   const [policy, setPolicy] = useState<PolicyVersion>("CONSERVATIVE_CRITICAL_V1");
   const [error, setError] = useState<string | null>(null);
+  const [pickMode, setPickMode] = useState<"origin" | "destination" | null>(null);
 
   const pickVehicle = (id: string) => {
     setVehicleId(id);
@@ -92,6 +110,43 @@ export function RouteEvaluator({ facilities, vehicles = [], tripId = null, canDe
       setHeight(String(v.heightM));
       setHazmat(v.hazmatCapable ? hazmat : false);
     }
+  };
+
+  const originLonLat = endLonLat(origin, facilities);
+  const destLonLat = endLonLat(dest, facilities);
+  const mapPoints = useMemo<MapPoint[]>(
+    () => [
+      ...facilities.map((f) => ({ id: `facility:${f.id}`, kind: "facility" as const, lon: f.lon, lat: f.lat, label: `${f.name} (${humanize(f.kind)})`, tone: "neutral" as const })),
+      ...(originLonLat ? [{ id: "origin", kind: "stop" as const, lon: originLonLat[0], lat: originLonLat[1], label: "Origin", tone: "ok" as const, glyph: "A" }] : []),
+      ...(destLonLat ? [{ id: "destination", kind: "stop" as const, lon: destLonLat[0], lat: destLonLat[1], label: "Destination", tone: "danger" as const, glyph: "B" }] : []),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [facilities, originLonLat?.[0], originLonLat?.[1], destLonLat?.[0], destLonLat?.[1]],
+  );
+  const bothSet = originLonLat && destLonLat;
+  const mapFitBounds = bothSet ? bboxOfCoordinates([originLonLat, destLonLat]) : null;
+  const mapFitKey = bothSet ? `${originLonLat.join(",")}-${destLonLat.join(",")}` : "none";
+
+  const handlePickClick = (lon: number, lat: number) => {
+    if (!pickMode) return;
+    const value = { facilityId: "", lat: lat.toFixed(5), lon: lon.toFixed(5) };
+    if (pickMode === "origin") setOrigin({ kind: "coords", ...value });
+    else setDest({ kind: "coords", ...value });
+    setPickMode(null);
+  };
+
+  const handlePickFacility = (id: string) => {
+    if (!pickMode || !id.startsWith("facility:")) return;
+    const value: End = { kind: "facility", facilityId: id.replace("facility:", ""), lat: "", lon: "" };
+    if (pickMode === "origin") setOrigin(value);
+    else setDest(value);
+    setPickMode(null);
+  };
+
+  const handleSearchSelect = (target: "origin" | "destination", result: GeocodeResult) => {
+    const value: End = { kind: "coords", facilityId: "", lat: result.lat.toFixed(5), lon: result.lon.toFixed(5) };
+    if (target === "origin") setOrigin(value);
+    else setDest(value);
   };
 
   const submit = (e: FormEvent) => {
@@ -126,6 +181,31 @@ export function RouteEvaluator({ facilities, vehicles = [], tripId = null, canDe
 
   return (
     <div className="stack">
+      <Card title="Pick origin and destination on the map (optional)">
+        <div className="grid cols-2" style={{ marginBottom: "0.5rem" }}>
+          <AddressSearch id="rv-search-origin" label="Search for an origin place" onSelect={(r) => handleSearchSelect("origin", r)} />
+          <AddressSearch id="rv-search-dest" label="Search for a destination place" onSelect={(r) => handleSearchSelect("destination", r)} />
+        </div>
+        <div className="row" style={{ marginBottom: "0.5rem" }}>
+          <Button size="small" variant={pickMode === "origin" ? "primary" : "default"} onClick={() => setPickMode((m) => (m === "origin" ? null : "origin"))}>
+            {pickMode === "origin" ? "Click the map to set origin…" : "Pick origin on map"}
+          </Button>
+          <Button size="small" variant={pickMode === "destination" ? "primary" : "default"} onClick={() => setPickMode((m) => (m === "destination" ? null : "destination"))}>
+            {pickMode === "destination" ? "Click the map to set destination…" : "Pick destination on map"}
+          </Button>
+        </div>
+        <MapView
+          ariaLabel="Pick a route origin and destination"
+          height={320}
+          points={mapPoints}
+          onMapClick={handlePickClick}
+          onSelectPoint={handlePickFacility}
+          fitBounds={mapFitBounds}
+          fitKey={mapFitKey}
+        />
+        <MapLegend points={mapPoints} />
+        <p className="small muted">With a pick mode active, click a facility marker or an empty spot on the map. The fields below update to match, and still work on their own.</p>
+      </Card>
       <Card title="Evaluate a route">
         <form className="stack" onSubmit={submit} aria-label="Route evaluation">
           <div className="grid cols-2">

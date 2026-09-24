@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/login", "/auth/", "/offline", "/_next/", "/api/", "/health"];
-const PUBLIC_FILES = new Set(["/sw.js", "/manifest.webmanifest", "/icon.svg", "/favicon.ico", "/robots.txt"]);
+const PUBLIC_PREFIXES = ["/login", "/auth/", "/offline", "/_next/", "/api/", "/health", "/public"];
+// Exact-match public paths: "/" cannot go in PUBLIC_PREFIXES (prefix-matching "/" would make
+// every route public), and the citizen-facing pages must load with no session cookie at all.
+const PUBLIC_FILES = new Set(["/", "/sw.js", "/manifest.webmanifest", "/icon.svg", "/favicon.ico", "/robots.txt"]);
 
 /**
  * Early redirect for visitors with no session cookie. This only improves the first paint:
