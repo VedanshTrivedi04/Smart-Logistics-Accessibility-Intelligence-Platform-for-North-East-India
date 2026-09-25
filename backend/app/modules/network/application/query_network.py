@@ -33,13 +33,14 @@ class QueryBoundedEdgesUseCase:
         # Capped feature count per Policy 10 (max 5,000 features)
         capped_limit = min(limit, 5000)
 
-        # Dynamic simplification tolerance based on zoom level
+        # Preserve road geometry fidelity across terrain: keep tolerance minimal so highway curves don't clip across rivers
         simplify_tolerance: float | None = None
         if zoom is not None:
-            if zoom < 9:
-                simplify_tolerance = 0.01  # ~1km simplification
-            elif zoom < 12:
-                simplify_tolerance = 0.002  # ~200m simplification
+            if zoom < 7:
+                simplify_tolerance = 0.002  # ~200m at regional macro view
+            elif zoom < 10:
+                simplify_tolerance = 0.0005  # ~50m
+            # Zoom >= 10: Full resolution, exact highway curvature preserved
 
         # Query repository
         edge_results = await self.network_repo.get_bounded_edges(

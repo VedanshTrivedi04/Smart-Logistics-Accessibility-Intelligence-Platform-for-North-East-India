@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { NER_BBOX, NER_STATES, type BBox } from "@/shared/lib/geo";
 import { clusterPoints, isCluster, type MapPoint } from "./cluster";
 
-export type LineClass = "open" | "restricted" | "blocked" | "caution" | "unknown" | "route_primary" | "route_alt" | "trail";
+export type LineClass = "open" | "restricted" | "blocked" | "caution" | "unknown" | "route_primary" | "route_alt" | "trail" | "route_feasible_a" | "route_feasible_b";
 
 export interface MapLine {
   id: string;
@@ -71,6 +71,8 @@ const LINE_PAINT: Record<LineClass, { color: string; width: number; dash?: numbe
   route_primary: { color: "#0b5cad", width: 6, casing: true },
   route_alt: { color: "#6a3fb5", width: 4, dash: [4, 2] },
   trail: { color: "#0e7490", width: 3, dash: [1, 1] },
+  route_feasible_a: { color: "#16a34a", width: 6, casing: true },
+  route_feasible_b: { color: "#eab308", width: 5, dash: [4, 2], casing: true },
 };
 
 const RISK_COLOR: Record<RiskLevel, string> = {
@@ -234,6 +236,7 @@ export default function MapView({
   // Create the map once.
   useEffect(() => {
     if (!container.current) return;
+    let isDisposed = false;
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
@@ -262,6 +265,7 @@ export default function MapView({
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
 
     const emit = () => {
+      if (isDisposed) return;
       const b = map.getBounds();
       cb.current.onViewportChange?.({ bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], zoom: map.getZoom() });
     };
@@ -272,6 +276,7 @@ export default function MapView({
     };
 
     map.on("error", (e) => {
+      if (isDisposed) return;
       const message = e.error?.message ?? "Map error";
       if (message.includes("Worker failed to load")) {
         console.warn("MapLibre worker note:", message);
@@ -281,6 +286,7 @@ export default function MapView({
     });
 
     map.on("load", () => {
+      if (isDisposed) return;
       if (!fitBounds) {
         map.fitBounds(NER_BBOX, { padding: 24, duration: 0 });
       }
@@ -306,7 +312,7 @@ export default function MapView({
         id: "route-arrows",
         type: "symbol",
         source: "lines",
-        filter: ["in", ["get", "cls"], ["literal", ["route_primary", "route_alt"]]],
+        filter: ["in", ["get", "cls"], ["literal", ["route_primary", "route_alt", "route_feasible_a", "route_feasible_b"]]],
         layout: {
           "symbol-placement": "line",
           "symbol-spacing": 70,
@@ -318,10 +324,23 @@ export default function MapView({
           "text-ignore-placement": true,
         },
         paint: {
-          "text-color": ["match", ["get", "cls"], "route_alt", "#f3edff", "#ffffff"],
-          "text-halo-color": ["match", ["get", "cls"], "route_alt", "#6a3fb5", "#0b5cad"],
+          "text-color": [
+            "match",
+            ["get", "cls"],
+            "route_alt", "#f3edff",
+            "route_feasible_b", "#713f12",
+            "#ffffff"
+          ],
+          "text-halo-color": [
+            "match",
+            ["get", "cls"],
+            "route_alt", "#6a3fb5",
+            "route_feasible_a", "#15803d",
+            "route_feasible_b", "#ca8a04",
+            "#0b5cad"
+          ],
           "text-halo-width": 1.4,
-          "text-opacity": ["match", ["get", "cls"], "route_alt", 0.75, 1],
+          "text-opacity": 1,
         },
       });
 
@@ -581,12 +600,27 @@ export default function MapView({
     (map as unknown as { __renderMarkers: () => void }).__renderMarkers = renderMarkers;
 
     return () => {
+      isDisposed = true;
       clearTimeout(timer);
-      markers.current.forEach((m) => m.remove());
+      markers.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          // ignore
+        }
+      });
       markers.current = [];
-      popup.current?.remove();
+      try {
+        popup.current?.remove();
+      } catch {
+        // ignore
+      }
       popup.current = null;
-      map.remove();
+      try {
+        map.remove();
+      } catch (err) {
+        console.warn("Map teardown notice:", err);
+      }
       mapRef.current = null;
       setReady(false);
     };

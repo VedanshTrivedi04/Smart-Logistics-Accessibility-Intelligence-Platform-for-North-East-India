@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useSession } from "@/shared/auth";
+import { useSession, useScopeFilter } from "@/shared/auth";
 import { NER_BBOX } from "@/shared/lib/geo";
 import { MapLegend, MapView } from "@/shared/map";
 import { downloadText, toCsv } from "@/shared/lib/format";
@@ -18,9 +18,12 @@ import { GlobalSearch } from "./GlobalSearch";
 /** Command overview: every figure is computed from records the server returned for this user's scope. */
 export function GovOverview() {
   const { principal, can } = useSession();
-  const edges = useEdges(NER_BBOX, 6);
+  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, stateBBox, districtBBox, activeBBox } = useScopeFilter();
+  const effectiveBBox = activeBBox || NER_BBOX;
+
+  const edges = useEdges(effectiveBBox, 6);
   const facilities = useFacilities();
-  const hazard = useRiskZones(NER_BBOX);
+  const hazard = useRiskZones(effectiveBBox);
   const incidents = useIncidents();
   const reports = useReports(undefined, can("VIEW_REPORT_SUMMARY"));
   const impact = useImpactData();
@@ -48,7 +51,7 @@ export function GovOverview() {
     const rows = [
       ["Report Title", "PARVA North-East Operational Briefing"],
       ["Generated At", new Date().toISOString()],
-      ["Authority Scope", principal?.org_name ?? "NER Regional Government Authority"],
+      ["Authority Scope", isDistrictOfficer ? `${assignedDistrict} District Administration` : isStateAuthority ? `${assignedState} Department of Transport` : (principal?.org_name ?? "NER Regional Government Authority")],
       ["Verified Open Road Ratio", roads.openLengthShare === null ? "—" : `${Math.round(roads.openLengthShare * 100)}%`],
       ["Restricted Road Segments", String(roads.byStatus.RESTRICTED)],
       ["Blocked Road Segments", String(roads.byStatus.BLOCKED)],
@@ -64,8 +67,20 @@ export function GovOverview() {
   return (
     <div className="stack">
       <PageHeader
-        title="Command overview"
-        subtitle={`Scope: ${principal?.org_name ?? ""} · ${scopeCount} assigned jurisdiction(s). The server limits everything below to this scope.`}
+        title={
+          isDistrictOfficer
+            ? `District Command Overview — ${assignedDistrict}`
+            : isStateAuthority
+            ? `State Command Overview — ${assignedState}`
+            : "Command overview"
+        }
+        subtitle={
+          isDistrictOfficer
+            ? `Kamrup Metropolitan Administration · District Incident Verifier Scope. Scoped to ${assignedDistrict} (${assignedState}) road network, circles, and field reports.`
+            : isStateAuthority
+            ? `Assam State Department of Transport · State Authority Scope. Scoped to ${assignedState} road network, district connectivity, and state incidents.`
+            : `Scope: ${principal?.org_name ?? ""} · ${scopeCount} assigned jurisdiction(s). The server limits everything below to this scope.`
+        }
         actions={
           <div className="row" style={{ gap: "0.5rem", alignItems: "center" }}>
             <GlobalSearch />
@@ -75,6 +90,78 @@ export function GovOverview() {
           </div>
         }
       />
+      {isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #064e3b 0%, #065f46 100%)",
+            color: "#ffffff",
+            padding: "0.9rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #10b981",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(16, 185, 129, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📋</span> District Incident Verifier: {principal?.display_name || "Chitralekha Devi"}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: "0.2rem" }}>
+              Active Jurisdiction: <strong>{assignedDistrict} District ({assignedState})</strong> — Circles: Guwahati Urban, Dispur, Azara, Sonapur, North Guwahati, Chandrapur.
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              background: "#10b981",
+              color: "#ffffff",
+              padding: "0.25rem 0.65rem",
+              borderRadius: "6px",
+            }}
+          >
+            ● {assignedDistrict} Scope Active
+          </span>
+        </div>
+      )}
+      {!isDistrictOfficer && isStateAuthority && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #091e3a 0%, #1e3a5f 100%)",
+            color: "#ffffff",
+            padding: "0.9rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #0284c7",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(2, 132, 199, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🏛️</span> State Authority Command: {principal?.display_name || "Bhaskar Singh"}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+              Active Jurisdiction: <strong>{assignedState} State</strong> (Highways NH-27, NH-6 Assam section, Kamrup, Guwahati, Nagaon, Jorhat).
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              background: "#0284c7",
+              color: "#ffffff",
+              padding: "0.25rem 0.65rem",
+              borderRadius: "6px",
+            }}
+          >
+            ● {assignedState} Scope Active
+          </span>
+        </div>
+      )}
       {edges.isError ? <ErrorNotice error={edges.error} subject="the road network" onRetry={() => void edges.refetch()} /> : null}
       <CoverageBanner known={[{ label: "road segments", count: roads.total }, { label: "facilities", count: facilities.data?.length ?? 0 }]} truncated={features.length >= EDGE_LIMIT} note="Percentages describe only the imported network." />
 
@@ -119,7 +206,14 @@ export function GovOverview() {
 
       <div className="split">
         <Card title="Roads needing attention" actions={<Link href="/gov/map">Full map</Link>}>
-          <MapView ariaLabel="Blocked, restricted and unverified road segments, with landslide risk zones" lines={lines} hazardZones={hazard.data?.zones ?? []} height={340} />
+          <MapView
+            ariaLabel="Blocked, restricted and unverified road segments, with landslide risk zones"
+            lines={lines}
+            hazardZones={hazard.data?.zones ?? []}
+            height={340}
+            fitBounds={activeBBox}
+            fitKey={isDistrictOfficer ? assignedDistrict : isStateAuthority ? assignedState : "NER"}
+          />
           <MapLegend lines={lines} hazardZones={hazard.data?.zones ?? []} />
         </Card>
         <Card title="Top notices" actions={<Link href="/gov/alerts">All notices</Link>}>

@@ -95,7 +95,14 @@ export function PublicRouteCheck() {
   const hazard = usePublicHazardZones(routeBounds, Boolean(routeBounds));
   const incidents = usePublicIncidents();
 
-  const roadLines = useMemo(() => edgeLines(edges.data?.features ?? []), [edges.data]);
+  // Only display disrupted or caution segments as road overlays on the route preview,
+  // so open roads are cleanly displayed by the map tiles without drawing coarse synthetic lines across rivers.
+  const roadLines = useMemo(() => {
+    const disrupted = (edges.data?.features ?? []).filter(
+      (f) => f.props.accessibility_status !== "OPEN"
+    );
+    return edgeLines(disrupted);
+  }, [edges.data]);
   const mapLines = useMemo(() => [...roadLines, ...routeLines], [roadLines, routeLines]);
   const crossedZones = useMemo(() => routeCrossesHighRisk(primaryCoords, hazard.data?.zones ?? []), [primaryCoords, hazard.data]);
   const directions = useMemo<DirectionStep[]>(() => (evaluate.data ? buildDirections(evaluate.data) : []), [evaluate.data]);

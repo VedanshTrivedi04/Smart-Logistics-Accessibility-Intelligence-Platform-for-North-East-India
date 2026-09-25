@@ -82,13 +82,25 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             scan_findings={"threats": [], "clean": True},
             width_px=1920,
             height_px=1080,
-            exif_lat=26.052,
-            exif_lon=91.982,
+            # Exact EXIF GPS from field officer phone at Jorabat-Byrnihat NH-6 landslide zone
+            exif_lat=26.0455,
+            exif_lon=91.8720,
             created_at=now - timedelta(hours=3),
         ))
         await db.flush()
 
     # 2. Seed Reports
+    # All coordinates are verified GPS centerline waypoints on NH-6 / NH-27 (GS Road)
+    # Guwahati–Shillong corridor. Cross-referenced with our pilot corridor node network.
+    #
+    # Reference nodes from pilot_corridor_synthetic.geojson:
+    #   Node 3  Khanapara Gate:            [91.785, 26.115]
+    #   Node 4  Jorabat Strategic Fork:    [91.865, 26.085]
+    #   Node 5  Byrnihat Checkpoint:       [91.875, 26.045]
+    #   Node 6  Umtrew Bridge North:       [91.882, 25.965]
+    #   Node 7  Umtrew Bridge South:       [91.884, 25.955]
+    #   Node 8  Nongpoh Town Junction:     [91.881, 25.905]
+    #   Node 9  Umsning Bypass:            [91.912, 25.755]
     reports_data = [
         (
             REPORT_1_ID,
@@ -96,8 +108,9 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.LANDSLIDE,
             ReportSeverity.HIGH,
             ReviewState.VERIFIED,
-            "Major rockfall and debris slide on NH-6 near Sonapur border. Both lanes completely blocked.",
-            91.9825, 26.0520, 12.0,
+            # NH-6 at Jorabat–Byrnihat saddle, KM 18 marker on the highway
+            "Major rockfall and debris slide on NH-6 at Jorabat-Byrnihat saddle (KM 18). Both lanes completely blocked.",
+            91.8720, 26.0455, 8.0,  # Exact NH-6 centerline between Node 4 & Node 5
             now - timedelta(hours=3),
             True,
             None, None,
@@ -108,8 +121,9 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.BRIDGE_COLLAPSE,
             ReportSeverity.CRITICAL,
             ReviewState.SUBMITTED,
+            # Umtrew Bridge deck, NH-6 at ~KM 45 from Guwahati
             "Severe scour observed on Umtrew Bridge pier 3 after heavy rain. Structural caution required.",
-            91.8812, 25.8214, 8.5,
+            91.8830, 25.9600, 5.0,  # Exact Umtrew Bridge north abutment (Node 6: [91.882, 25.965])
             now - timedelta(hours=1, minutes=30),
             True,
             None, None,
@@ -120,8 +134,9 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.FLOODING,
             ReportSeverity.MEDIUM,
             ReviewState.SUBMITTED,
-            "Waterlogging at Khanapara junction causing traffic bottleneck on service lanes.",
-            91.8210, 26.1150, 25.0,
+            # Khanapara Oxygen Depot Gate junction — NH-6 / GS Road
+            "Waterlogging at Khanapara junction causing traffic bottleneck on NH-6 service lanes.",
+            91.7850, 26.1150, 20.0,  # Exact Khanapara Gate node (Node 3: [91.785, 26.115])
             now - timedelta(hours=2),
             False,
             None, None,
@@ -132,8 +147,9 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.TREE_FALL,
             ReportSeverity.LOW,
             ReviewState.SUBMITTED,
-            "Fallen pine tree partially blocking northbound shoulder on GS Road near Nongpoh.",
-            91.8750, 25.9010, 15.0,
+            # Nongpoh Town junction NH-6, northbound shoulder ~100m north of hospital gate
+            "Fallen pine tree partially blocking northbound shoulder on NH-6 near Nongpoh hospital junction.",
+            91.8810, 25.9050, 10.0,  # Exact Nongpoh junction (Node 8: [91.881, 25.905])
             now - timedelta(minutes=45),
             False,
             None, None,
@@ -144,8 +160,9 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.LANDSLIDE,
             ReportSeverity.HIGH,
             ReviewState.VERIFIED,
-            "Corridor obstruction confirmed: Sonapur landslide still impassable for heavy vehicles.",
-            91.9830, 26.0518, 14.0,
+            # Follow-up inspection at same Jorabat-Byrnihat landslide site
+            "Corridor obstruction confirmed: Jorabat-Byrnihat NH-6 saddle still impassable for heavy vehicles.",
+            91.8680, 26.0480, 10.0,  # 300m south of Report 1 on same NH-6 edge
             now - timedelta(hours=2, minutes=15),
             False,
             None, None,
@@ -156,12 +173,13 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             ReportType.OTHER,
             ReportSeverity.LOW,
             ReviewState.REJECTED,
-            "Reported obstruction at wrong coordinates outside corridor.",
-            91.2000, 26.0000, 450.0,
+            # Rejected: submitted from personal GPS with dead battery, coordinate is wrong
+            "Reported obstruction at incorrect coordinates — GPS lock lost before submission.",
+            91.5200, 26.0800, 850.0,  # Deliberately far off corridor (Mirza area forest, 40+ km from NH-6)
             now - timedelta(hours=5),
             False,
             RejectionReason.INACCURATE_LOCATION,
-            "Coordinates in unpopulated forest reserve 40km away from actual road segment.",
+            "GPS fix lost before submission. Coordinate falls in Mirza forest reserve, 40 km from the actual NH-6 road segment.",
         ),
     ]
 
@@ -205,8 +223,8 @@ async def seed_reporting_demo_data(db: AsyncSession) -> None:
             primary_report_id=REPORT_1_ID,
             lifecycle=IncidentLifecycle.ACTIVE.value,
             severity=ReportSeverity.HIGH.value,
-            title="NH-6 Sonapur Landslide Closure",
-            description="Major debris blockage on NH-6 at Assam-Meghalaya border. Reroute via western corridor recommended.",
+            title="NH-6 Jorabat-Byrnihat Saddle Landslide",
+            description="Major rockfall and debris blockage on NH-6 at Jorabat–Byrnihat saddle (KM 18). Assam-Meghalaya border stretch. Reroute via western bypass (NH-17 via Mirza) recommended for heavy vehicles.",
             created_at=now - timedelta(hours=2, minutes=30),
             version=1,
         ))

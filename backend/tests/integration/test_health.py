@@ -147,6 +147,65 @@ class TestReadinessEndpoint:
         assert response.json()["status"] == "degraded"
         assert response.json()["checks"]["database"] == "error"
 
+    async def test_readiness_ok_when_redis_unavailable_in_dev(
+        self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """In development mode, unreachable Redis reports standby without failing 503."""
+        async def mock_healthy_db():
+            return {"status": "ok", "postgis_version": "3.3.0"}
+
+        monkeypatch.setattr("app.api.health.check_db_connectivity", mock_healthy_db)
+
+        import redis.asyncio as aioredis
+
+        class BrokenRedis:
+            async def ping(self) -> bool:
+                raise ConnectionError("Connection refused")
+
+            async def aclose(self) -> None:
+                pass
+
+        monkeypatch.setattr(aioredis, "from_url", lambda *a, **kw: BrokenRedis())
+
+        from app.core.config import get_settings
+        settings = get_settings()
+        monkeypatch.setattr(settings, "APP_ENV", "development")
+
+        response = await client.get("/health/ready")
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["status"] == "ok"
+        assert response.json()["checks"]["redis"] == "standby (dev mode)"
+
+    async def test_readiness_503_when_redis_unavailable_in_production(
+        self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """In production, unreachable Redis fails the readiness probe (503 degraded)."""
+        async def mock_healthy_db():
+            return {"status": "ok", "postgis_version": "3.3.0"}
+
+        monkeypatch.setattr("app.api.health.check_db_connectivity", mock_healthy_db)
+
+        import redis.asyncio as aioredis
+
+        class BrokenRedis:
+            async def ping(self) -> bool:
+                raise ConnectionError("Connection refused")
+
+            async def aclose(self) -> None:
+                pass
+
+        monkeypatch.setattr(aioredis, "from_url", lambda *a, **kw: BrokenRedis())
+
+        from app.core.config import get_settings
+        settings = get_settings()
+        monkeypatch.setattr(settings, "APP_ENV", "production")
+        monkeypatch.setattr(settings, "DEMO_MODE", False)
+
+        response = await client.get("/health/ready")
+        assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+        assert response.json()["status"] == "degraded"
+        assert response.json()["checks"]["redis"] == "error"
+
     async def test_readiness_no_sensitive_info_in_response(
         self, client: AsyncClient
     ) -> None:

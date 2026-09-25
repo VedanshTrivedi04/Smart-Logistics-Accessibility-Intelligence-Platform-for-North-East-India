@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { humanize } from "@/shared/lib/format";
 import { formatDistance, type BBox } from "@/shared/lib/geo";
+import { useScopeFilter } from "@/shared/auth";
 import { MapLegend, MapView, type MapLine, type MapPoint, type Viewport } from "@/shared/map";
 import { Banner, Button, Card, CoverageBanner, ErrorNotice, Stat, StatusBadge } from "@/shared/ui";
 import { useIncidents, useReports } from "@/features/incidents";
@@ -120,10 +121,31 @@ export function AccessibilityExplorer({
     riskZones: true,
   });
 
-  const [roadFilter, setRoadFilter] = useState<RoadFilter>("all");
+  // Default roadFilter to 'attention' so only disrupted/blocked/restricted roads are highlighted as overlays
+  const [roadFilter, setRoadFilter] = useState<RoadFilter>("attention");
   const [search, setSearch] = useState("");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("incidents");
   const [mapError, setMapError] = useState<string | null>(null);
+
+  // State Authority & District Officer Scoping
+  const {
+    isStateAuthority,
+    isDistrictOfficer,
+    assignedState,
+    assignedDistrict,
+    stateBBox,
+    districtBBox,
+    activeBBox,
+    isWithinAssignedScope,
+  } = useScopeFilter();
+  const [scopeActive, setScopeActive] = useState<boolean>(isDistrictOfficer || isStateAuthority);
+
+  const isWithinScope = useMemo(() => {
+    return (lon?: number | null, lat?: number | null) => {
+      if (!scopeActive) return true;
+      return isWithinAssignedScope(lon, lat);
+    };
+  }, [scopeActive, isWithinAssignedScope]);
 
   // Core Data Queries
   const edges = useEdges((viewport?.bbox as BBox | undefined) ?? null, viewport?.zoom ?? null);
@@ -159,6 +181,7 @@ export function AccessibilityExplorer({
     // 1. Critical Facilities Layer
     if (activeLayers.facilities && facilities.data) {
       for (const f of facilities.data) {
+        if (!isWithinScope(f.lon, f.lat)) continue;
         const { glyph, label } = getFacilityIcon(f.kind);
         list.push({
           id: `facility:${f.id}`,
@@ -176,6 +199,7 @@ export function AccessibilityExplorer({
     if (activeLayers.incidents && incidents.data) {
       for (const inc of incidents.data) {
         const r = reportById.get(inc.primary_report_id);
+        if (r?.location && !isWithinScope(r.location.longitude, r.location.latitude)) continue;
         const { glyph, category } = getIncidentIcon(inc.title, inc.description);
         const tone =
           inc.severity === "CRITICAL" || inc.severity === "HIGH"
@@ -201,6 +225,7 @@ export function AccessibilityExplorer({
     if (activeLayers.vehicles && fleetPositions) {
       for (const fp of fleetPositions) {
         if (!fp.position || fp.position.lat == null || fp.position.lon == null) continue;
+        if (!isWithinScope(fp.position.lon, fp.position.lat)) continue;
         const v = fp.vehicle;
         const pos = fp.position;
         const isStale = pos.stale_status === "STALE_WARNING" || pos.stale_status === "FEED_OFFLINE";
@@ -245,6 +270,7 @@ export function AccessibilityExplorer({
     reportById,
     fleetPositions,
     extraPoints,
+    isWithinScope,
   ]);
 
   // Incident categories breakdown for mini chart
@@ -261,8 +287,19 @@ export function AccessibilityExplorer({
     return counts;
   }, [incidents.data]);
 
-  const activeIncidentsList = useMemo(() => incidents.data ?? [], [incidents.data]);
-  const activeVehiclesList = useMemo(() => fleetPositions.filter((fp) => fp.position), [fleetPositions]);
+  const activeIncidentsList = useMemo(() => {
+    const list = incidents.data ?? [];
+    if (!scopeActive) return list;
+    return list.filter((inc) => {
+      const r = reportById.get(inc.primary_report_id);
+      return isWithinScope(r?.location?.longitude, r?.location?.latitude);
+    });
+  }, [incidents.data, scopeActive, reportById, isWithinScope]);
+
+  const activeVehiclesList = useMemo(
+    () => fleetPositions.filter((fp) => !fp.position || isWithinScope(fp.position.lon, fp.position.lat)),
+    [fleetPositions, isWithinScope]
+  );
 
   const selectedPointId =
     selectedEdge ??
@@ -283,6 +320,100 @@ export function AccessibilityExplorer({
 
   return (
     <div className="stack" style={{ gap: "1.25rem" }}>
+      {/* District Officer Scoped Banner */}
+      {isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #064e3b 0%, #065f46 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #10b981",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(16, 185, 129, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📋 District Incident Verifier Active · {assignedDistrict} Map Command</span>
+              <span style={{ background: "#10b981", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                {assignedState} Jurisdiction
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: "0.2rem" }}>
+              Map viewport, ground inspection points, relief fleets, and lifeline facilities are focused on {assignedDistrict}.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#10b981" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedDistrict}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* State Authority Scoped Banner */}
+      {!isDistrictOfficer && isStateAuthority && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #091e3a 0%, #1e3a5f 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #0284c7",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(2, 132, 199, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🏛️ State Authority Active · {assignedState} State Map Command</span>
+              <span style={{ background: "#0284c7", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Assam Corridors
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+              Map viewport, emergency incidents, relief fleets, and lifeline hubs are focused on {assignedState}.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#0284c7" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedState}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. MDoNER Top Command Metrics KPI Strip */}
       {showSummary && (
         <div
@@ -589,7 +720,11 @@ export function AccessibilityExplorer({
                   }}
                 />
                 <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "#0f172a" }}>
-                  MDoNER Live Regional Situational Map
+                  {isDistrictOfficer
+                    ? `${assignedDistrict} District Corridor & Asset Map (${assignedState})`
+                    : isStateAuthority
+                    ? `${assignedState} State Corridor & Accessibility Map`
+                    : "MDoNER Live Regional Situational Map"}
                 </h3>
               </div>
 
@@ -620,12 +755,20 @@ export function AccessibilityExplorer({
 
             <div style={{ padding: "0.5rem" }}>
               <MapView
-                ariaLabel="MDoNER Live Regional Accessibility & Hazards Map"
+                ariaLabel={
+                  isDistrictOfficer
+                    ? `${assignedDistrict} District Accessibility & Hazards Map`
+                    : isStateAuthority
+                    ? `${assignedState} State Accessibility & Hazards Map`
+                    : "MDoNER Live Regional Accessibility & Hazards Map"
+                }
                 lines={lines}
                 points={points}
                 hazardZones={activeLayers.riskZones ? hazard.data?.zones ?? [] : []}
                 selectedId={selectedPointId}
                 height={height}
+                fitBounds={scopeActive && activeBBox ? activeBBox : null}
+                fitKey={isDistrictOfficer ? assignedDistrict : isStateAuthority ? assignedState : undefined}
                 onViewportChange={setViewport}
                 onSelectLine={(id) => {
                   setSelectedEdge(id);

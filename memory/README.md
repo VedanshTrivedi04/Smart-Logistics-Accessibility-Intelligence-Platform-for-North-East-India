@@ -10,7 +10,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [public/offline](portals/public/offline.md) - Public / Offline fallback (`/offline`)
 
 ## field
-- [field/home](portals/field/home.md) - Field / Home (`/field`)
+- [field/home](portals/field/home.md) - Field / Operational Command Home (`/field`)
 - [field/nearby](portals/field/nearby.md) - Field / Nearby and alerts (`/field/nearby`)
 - [field/profile](portals/field/profile.md) - Field / Profile and assignments (`/field/profile`)
 - [field/queue](portals/field/queue.md) - Field / Send queue (`/field/queue`)
@@ -20,16 +20,16 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [field/road-update](portals/field/road-update.md) - Field / Road and bridge status (`/field/road-update`)
 
 ## gov
-- [gov/alerts](portals/gov/alerts.md) - Gov / Alerts (`/gov/alerts`)
-- [gov/analytics](portals/gov/analytics.md) - Gov / Analytics and reports (`/gov/analytics`)
+- [gov/alerts](portals/gov/alerts.md) - Gov / Actionable Alerts Command (`/gov/alerts`)
+- [gov/analytics](portals/gov/analytics.md) - Gov / Operations Analytics & Reports (`/gov/analytics`)
 - [gov/emergency](portals/gov/emergency.md) - Gov / Emergency operations (`/gov/emergency`)
 - [gov/fleet-deliveries](portals/gov/fleet-deliveries.md) - Gov / Deliveries (`/gov/fleet/deliveries`)
 - [gov/fleet-trips-id](portals/gov/fleet-trips-id.md) - Gov / Trip detail (`/gov/fleet/trips/[id]`)
 - [gov/fleet-trips](portals/gov/fleet-trips.md) - Gov / Trips (`/gov/fleet/trips`)
 - [gov/fleet-vehicles-id](portals/gov/fleet-vehicles-id.md) - Gov / Vehicle detail (`/gov/fleet/vehicles/[id]`)
-- [gov/fleet](portals/gov/fleet.md) - Gov / Vehicles (fleet map) (`/gov/fleet`)
+- [gov/fleet](portals/gov/fleet.md) - Gov / Fleet Monitoring & Delivery Operations (`/gov/fleet`)
 - [gov/home](portals/gov/home.md) - Gov / Command overview (`/gov`)
-- [gov/impact](portals/gov/impact.md) - Gov / Impact of disruptions (`/gov/impact`)
+- [gov/impact](portals/gov/impact.md) - Gov / Disruption Impact & Route Intelligence Command Center (`/gov/impact`)
 - [gov/incidents-id](portals/gov/incidents-id.md) - Gov / Incident detail (`/gov/incidents/[id]`)
 - [gov/incidents](portals/gov/incidents.md) - Gov / Incident Management & Triage Center (`/gov/incidents`)
 - [gov/map](portals/gov/map.md) - Gov / Regional map (`/gov/map`)
@@ -52,7 +52,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [logistics/vehicles-id](portals/logistics/vehicles-id.md) - Logistics / Vehicle detail (`/logistics/vehicles/[id]`)
 
 ## shared
-- [shared/account](portals/shared/account.md) - Shared / Account and scope (`/account`)
+- [shared/account](portals/shared/account.md) - Shared / Account & Access Scope (`/account`)
 - [shared/api-client](portals/shared/api-client.md) - Shared / API client and types
 - [shared/backend-ai](portals/shared/backend-ai.md) - Shared / Backend: ai (AI/ML models, data provenance, status)
 - [shared/backend-coordination](portals/shared/backend-coordination.md) - Shared / Backend: coordination (new 2026-09-24)

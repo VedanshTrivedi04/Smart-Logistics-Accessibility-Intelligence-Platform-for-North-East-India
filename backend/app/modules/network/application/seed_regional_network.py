@@ -85,7 +85,7 @@ REGIONAL_EDGES = [
     {
         "index": 301, "src": 4, "tgt": 301, "name": "NH-27 Guwahati-Nagaon Expressway",
         "class": "NATIONAL_HIGHWAY", "speed": 75, "length": 98000.0,
-        "coords": [[91.865, 26.085], [91.980, 26.130], [92.150, 26.170], [92.350, 26.220], [92.520, 26.280], [92.684, 26.345]]
+        "coords": [[91.865, 26.085], [91.970, 26.115], [92.070, 26.135], [92.160, 26.170], [92.290, 26.195], [92.390, 26.225], [92.520, 26.260], [92.684, 26.345]]
     },
     {
         "index": 302, "src": 301, "tgt": 302, "name": "NH-27 Kaziranga Southern Bypass",
@@ -183,12 +183,12 @@ REGIONAL_EDGES = [
     {
         "index": 319, "src": 1, "tgt": 319, "name": "NH-15 Amingaon-Mangaldai North Bank Expressway",
         "class": "NATIONAL_HIGHWAY", "speed": 70, "length": 68000.0,
-        "coords": [[91.685, 26.185], [91.780, 26.260], [91.910, 26.350], [92.030, 26.440]]
+        "coords": [[91.685, 26.185], [91.720, 26.230], [91.780, 26.260], [91.860, 26.310], [91.940, 26.370], [92.030, 26.440]]
     },
     {
         "index": 320, "src": 319, "tgt": 320, "name": "NH-15 Mangaldai-Tezpur Brahmaputra Highway",
         "class": "NATIONAL_HIGHWAY", "speed": 70, "length": 86000.0,
-        "coords": [[92.030, 26.440], [92.280, 26.510], [92.550, 26.580], [92.795, 26.635]]
+        "coords": [[92.030, 26.440], [92.140, 26.515], [92.240, 26.545], [92.350, 26.590], [92.460, 26.630], [92.590, 26.670], [92.740, 26.655], [92.795, 26.635]]
     },
     {
         "index": 321, "src": 320, "tgt": 321, "name": "NH-15 Tezpur-Banderdewa Inter-State Highway",
@@ -252,34 +252,57 @@ async def seed_regional_network(db: AsyncSession) -> dict[str, int]:
     """Execute geometry fixes on the GS road and seed the complete 8-state regional network."""
     logger.info("starting_regional_network_seeding")
 
-    # 1. FIX GS ROAD CORRIDOR GLITCHES (Direct PostGIS updates)
-    # Edge 107 (Nongpoh Valley Approach): Replace 4km mountain spur loop with true NH-6 alignment
-    clean_107_wkt = "SRID=4326;LINESTRING(91.884 25.955, 91.8835 25.946, 91.8821 25.936, 91.8805 25.926, 91.8798 25.918, 91.8812 25.910, 91.881 25.905)"
-    await db.execute(
-        text("UPDATE road_edges SET geom = ST_GeomFromText(:wkt, 4326) WHERE edge_index = 107"),
-        {"wkt": clean_107_wkt}
-    )
+    # 1. FIX ROAD NETWORK CORRIDOR GEOMETRIES (Direct PostGIS updates with real highway curvature)
+    CURVATURE_UPDATES = {
+        # ── NH-6 Guwahati - Shillong Lifeline Corridor ──
+        # 101: Amingaon -> Saraighat Bridge -> Jalukbari -> Maligaon (AT Road) -> Bharalumukh -> Guwahati City Center
+        101: "SRID=4326;LINESTRING(91.6850 26.1850, 91.6840 26.1780, 91.6830 26.1710, 91.6825 26.1660, 91.6835 26.1590, 91.6815 26.1550, 91.6760 26.1520, 91.6660 26.1475, 91.6750 26.1500, 91.6880 26.1535, 91.7000 26.1560, 91.7085 26.1578, 91.7180 26.1580, 91.7260 26.1530, 91.7350 26.1450)",
+        # 102: Guwahati City Center -> Ulubari -> Bhangagarh -> Ganeshguri -> Dispur -> Khanapara
+        102: "SRID=4326;LINESTRING(91.7350 26.1450, 91.7480 26.1470, 91.7600 26.1495, 91.7730 26.1460, 91.7820 26.1320, 91.7850 26.1150)",
+        # 103: Khanapara -> Six Mile -> Beltola -> Basistha -> 11th Mile -> Jorabat (NH-27 Guwahati Bypass)
+        103: "SRID=4326;LINESTRING(91.7850 26.1150, 91.7980 26.1140, 91.8120 26.1120, 91.8210 26.1090, 91.8340 26.1010, 91.8470 26.0950, 91.8580 26.0895, 91.8650 26.0850)",
+        # 104: Jorabat -> Assam-Meghalaya Checkpoint -> 13th Mile Mountain Pass -> Byrnihat Industrial Checkpoint
+        104: "SRID=4326;LINESTRING(91.8650 26.0850, 91.8660 26.0820, 91.8675 26.0760, 91.8690 26.0710, 91.8710 26.0640, 91.8725 26.0570, 91.8735 26.0510, 91.8745 26.0470, 91.8750 26.0450)",
+        # 105: Byrnihat -> Umtrew River Valley (NH-6 4-Lane Expressway)
+        105: "SRID=4326;LINESTRING(91.8750 26.0450, 91.8760 26.0400, 91.8770 26.0345, 91.8780 26.0280, 91.8790 26.0210, 91.8798 26.0145, 91.8805 26.0080, 91.8810 26.0000, 91.8815 25.9920, 91.8818 25.9850, 91.8820 25.9780, 91.8820 25.9650)",
+        # 106: Umtrew River Heavy Bridge Crossing
+        106: "SRID=4326;LINESTRING(91.8820 25.9650, 91.8828 25.9610, 91.8835 25.9570, 91.8840 25.9550)",
+        # 107: Umtrew Bridge South -> Nongpoh Valley Approach
+        107: "SRID=4326;LINESTRING(91.8840 25.9550, 91.8835 25.9460, 91.8825 25.9390, 91.8820 25.9320, 91.8810 25.9250, 91.8800 25.9180, 91.8805 25.9120, 91.8810 25.9050)",
+        # 108: Nongpoh Town -> Umsning 4-Lane Mountain Expressway
+        108: "SRID=4326;LINESTRING(91.8810 25.9050, 91.8818 25.8950, 91.8825 25.8850, 91.8832 25.8750, 91.8840 25.8650, 91.8845 25.8525, 91.8850 25.8400, 91.8848 25.8300, 91.8845 25.8200, 91.8855 25.8100, 91.8875 25.8000, 91.8905 25.7900, 91.8940 25.7800, 91.8985 25.7725, 91.9030 25.7650, 91.9075 25.7600, 91.9120 25.7550)",
+        # 109: Umsning Bypass -> Umiam Lake (Barapani) Northern Grade
+        109: "SRID=4326;LINESTRING(91.9120 25.7550, 91.9115 25.7465, 91.9110 25.7380, 91.9102 25.7290, 91.9095 25.7200, 91.9080 25.7110, 91.9065 25.7020, 91.9050 25.6935, 91.9035 25.6850, 91.9055 25.6750, 91.9080 25.6650)",
+        # 110: Umiam Dam Spillway Overpass
+        110: "SRID=4326;LINESTRING(91.9080 25.6650, 91.9072 25.6625, 91.9065 25.6600, 91.9058 25.6575, 91.9050 25.6550)",
+        # 111: Umiam Lake South -> Mawlai Ridge Grade
+        111: "SRID=4326;LINESTRING(91.9050 25.6550, 91.9030 25.6475, 91.9010 25.6400, 91.8992 25.6325, 91.8975 25.6250, 91.8962 25.6175, 91.8950 25.6100, 91.8942 25.6040, 91.8935 25.5980, 91.8950 25.5950)",
+        # 112: Mawlai -> Shillong Civil Hospital Capital Hub
+        112: "SRID=4326;LINESTRING(91.8950 25.5950, 91.8930 25.5920, 91.8905 25.5890, 91.8885 25.5860, 91.8870 25.5830, 91.8860 25.5790, 91.8850 25.5750)",
+        113: "SRID=4326;LINESTRING(91.8850 25.5750, 91.8950 25.5800, 91.9070 25.5850, 91.9220 25.5900, 91.9350 25.5940, 91.9420 25.5980)",
 
-    # Edge 105 (Khasi Hills Ascending Sector): Clean smooth curvature
-    clean_105_wkt = "SRID=4326;LINESTRING(91.875 26.045, 91.8762 26.031, 91.8778 26.012, 91.8795 25.985, 91.8810 25.972, 91.882 25.965)"
-    await db.execute(
-        text("UPDATE road_edges SET geom = ST_GeomFromText(:wkt, 4326) WHERE edge_index = 105"),
-        {"wkt": clean_105_wkt}
-    )
+        # ── Western Alternative Bypass (via Chhaygaon, Boko & Nongstoin) ──
+        # 201: Amingaon -> Saraighat Bridge -> Jalukbari Rotary -> NH-17 (Airport road via Azara) -> Mirza
+        201: "SRID=4326;LINESTRING(91.6850 26.1850, 91.6840 26.1780, 91.6830 26.1710, 91.6825 26.1660, 91.6835 26.1590, 91.6815 26.1550, 91.6760 26.1520, 91.6660 26.1475, 91.6540 26.1430, 91.6400 26.1360, 91.6220 26.1260, 91.5950 26.1210, 91.5650 26.1180, 91.5350 26.1160, 91.5150 26.1150)",
+        202: "SRID=4326;LINESTRING(91.5150 26.1150, 91.4800 26.1050, 91.4500 26.0950, 91.4100 26.0750, 91.3800 26.0550, 91.3600 26.0350, 91.3300 26.0150, 91.3000 26.0000, 91.2700 25.9850, 91.2450 25.9750)",
+        203: "SRID=4326;LINESTRING(91.2450 25.9750, 91.2480 25.9300, 91.2520 25.8700, 91.2550 25.8000, 91.2580 25.7300, 91.2600 25.6400, 91.2620 25.5700, 91.2650 25.5250)",
+        204: "SRID=4326;LINESTRING(91.2650 25.5250, 91.3300 25.5350, 91.4300 25.5450, 91.5300 25.5550, 91.6350 25.5650)",
+        205: "SRID=4326;LINESTRING(91.6350 25.5650, 91.6900 25.5650, 91.7300 25.5660, 91.7900 25.5670, 91.8350 25.5680)",
+        206: "SRID=4326;LINESTRING(91.8350 25.5680, 91.8550 25.5700, 91.8700 25.5720, 91.8850 25.5750)",
 
-    # Edge 108 (Nongpoh-Umsning): Clean curvature
-    clean_108_wkt = "SRID=4326;LINESTRING(91.881 25.905, 91.8825 25.875, 91.8850 25.840, 91.8820 25.810, 91.8900 25.775, 91.9060 25.758, 91.912 25.755)"
-    await db.execute(
-        text("UPDATE road_edges SET geom = ST_GeomFromText(:wkt, 4326) WHERE edge_index = 108"),
-        {"wkt": clean_108_wkt}
-    )
+        # ── NH-27 Guwahati - Nagaon 4-Lane Expressway ──
+        301: "SRID=4326;LINESTRING(91.8650 26.0850, 91.9700 26.1150, 92.0700 26.1350, 92.1600 26.1700, 92.2900 26.1950, 92.3900 26.2250, 92.5200 26.2600, 92.6840 26.3450)",
 
-    # Edge 109 (Barapani Lake Approach): Clean curvature
-    clean_109_wkt = "SRID=4326;LINESTRING(91.912 25.755, 91.9095 25.725, 91.9040 25.695, 91.9020 25.678, 91.908 25.665)"
-    await db.execute(
-        text("UPDATE road_edges SET geom = ST_GeomFromText(:wkt, 4326) WHERE edge_index = 109"),
-        {"wkt": clean_109_wkt}
-    )
+        # ── NH-15 North Bank Expressway to Tezpur (Strictly North of Brahmaputra River) ──
+        319: "SRID=4326;LINESTRING(91.6850 26.1850, 91.7200 26.2300, 91.7800 26.2600, 91.8600 26.3100, 91.9400 26.3700, 92.0300 26.4400)",
+        320: "SRID=4326;LINESTRING(92.0300 26.4400, 92.1400 26.5150, 92.2400 26.5450, 92.3500 26.5900, 92.4600 26.6300, 92.5900 26.6700, 92.7400 26.6550, 92.7950 26.6350)",
+    }
+
+    for e_idx, wkt in CURVATURE_UPDATES.items():
+        await db.execute(
+            text("UPDATE road_edges SET geom = ST_GeomFromText(:wkt, 4326) WHERE edge_index = :idx"),
+            {"wkt": wkt, "idx": e_idx},
+        )
 
     # 2. Get active network version
     v_res = await db.execute(select(NetworkVersionModel).where(NetworkVersionModel.status == "ACTIVE").limit(1))

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Providers } from "@/shared/auth";
+import { NavigationProgress } from "@/shared/ui";
+
 import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 import "./globals.css";
 
@@ -22,6 +24,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
       </body>

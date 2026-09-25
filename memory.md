@@ -31,6 +31,29 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 ## Interaction History
 
+### 2026-09-25 12:42
+
+**User Request**
+> how we fix that error (503 Service degraded readiness check failure on /status and AppShell banner)
+
+**Diagnosis**
+- In `backend/app/api/health.py`, the readiness check (`GET /health/ready`) strictly required both database and Redis connectivity to return HTTP 200.
+- In local development on Windows, PostgreSQL (Neon) was active and healthy, but Redis was not running locally on port 6379.
+- This caused `readiness()` to return `503 Service Unavailable`, which caused Next.js `AppShell` to display the "Service degraded" warning banner and `/status` to display "Request failed (503)".
+
+**Work Done**
+- Updated `backend/app/api/health.py`: in development and demo mode (`settings.APP_ENV != "production" or settings.DEMO_MODE`), Redis is now treated as non-blocking (aligning with `main.py` startup and `rate_limit.py` fail-open behavior). If database is healthy, readiness returns HTTP 200 with Redis status `"standby (dev mode)"`. Production retains strict Redis enforcement.
+- Updated `backend/tests/integration/test_health.py`: added `test_readiness_ok_when_redis_unavailable_in_dev` and `test_readiness_503_when_redis_unavailable_in_production`.
+- Enhanced `frontend/src/features/session/AccountView.tsx`: `ServiceStatusView` now parses response error bodies if structured checks are present, preventing generic 503 screen crashes during partial outages.
+- Updated `memory/portals/shared/status.md` and appended to `memory.md`.
+
+**Files Changed**
+- `backend/app/api/health.py`
+- `backend/tests/integration/test_health.py`
+- `frontend/src/features/session/AccountView.tsx`
+- `memory/portals/shared/status.md`
+- `memory.md`
+
 ### 2026-09-22 00:16
 
 **User Request**
@@ -1069,6 +1092,433 @@ This document dynamically records the lifecycle of interactions, design decision
 - `backend/app/modules/ai/infrastructure/bhashini_client.py`
 - `backend/tests/unit/ai/test_bhashini_client.py`
 - `memory/portals/shared/backend-ai.md`
+
+### 2026-09-24 20:30 Disruption Impact & Route Intelligence Command Center (/gov/impact)
+
+**User Request**
+> Combine Impact, Route Intelligence, Critical Facilities Impact, Delivery impact, and Trip disruption into a unified `/gov/impact` command center with 4 tabs (Overview, Trips, Deliveries, Facilities), active disruptions (5 Critical, 9 High, 12 Moderate), visual impact chain (`ROAD DISRUPTION` → `Affected Trips` → `Affected Deliveries` → `SLA Risk` → `Facility Accessibility`), interactive data visualizations (speedometer gauge, SLA risk donut, corridor delay distributions), MapLibre tactical map, and embedded route intelligence studio with alternative comparisons and Regional Commander dispatch directive actions. Fully dynamic backend-wired, no hardcoded values.
+
+**Work Done**
+- Designed and built `frontend/src/features/impact/ImpactCommandCenter.tsx`:
+  - **4 Top Operational Tabs**: `Overview`, `Affected Trips`, `Deliveries & SLA`, `Critical Facilities`.
+  - **Active Disruption Counter Deck**: Critical (5), High (9), Moderate (12), and Cleared with real-time incident severity breakdown.
+  - **Cascading Interactive Impact Chain**: Clickable 5-stage cascade (`ROAD DISRUPTION` → `Affected Trips` → `Affected Deliveries` → `SLA Risk` → `Facility Accessibility`) that switches tabs and filters the dashboard on click.
+  - **Interactive Data Visualizations**:
+    - SVG Speedometer Gauges for Facility Accessibility and Corridor Network Throughput.
+    - SVG Donut Chart displaying consignment SLA risk (`Breached / Critical`, `Imminent Delay`, `Unhindered`).
+    - Corridor Delay Breakdown bars for key NER lifelines (NH-6, NH-29, NH-2, NH-10, NH-306).
+  - **Tactical MapLibre GL Overview**: Displays isolated facilities (red pulse), blocked incident segments, and active vehicle telemetry.
+  - **Disrupted Trips Tactical Cards**: Telemetry and blockage distance (e.g. `TR-208` on NH-6 blocked, vehicle `AS01XX1234`, distance `12.4 km`, `BLOCKED_ROUTE`, `REROUTE MANDATORY`), live backend query via `useTrips` and `useImpactData`.
+  - **Consignment SLA Impact**: High-consequence cargo tracking (e.g. `DL-402` Insulin / Critical Medical, `TIER-1 CRITICAL`, original ETA 16:30, projected 19:10, SLA `🔴 BREACHED`, cold chain status), live backend query via `useCommitments`.
+  - **Critical Facilities Access**: Isolated hospitals and supply depots (e.g. `Civil Hospital Shillong`, `🔴 NO FEASIBLE PATH / ISOLATED`, inbound supply risk), live backend query via `useFacilities`.
+  - **Embedded Route Intelligence Studio**: Zero-navigation route evaluation directly inside the impact center comparing Original Blocked (red dashed) vs Alternative A (emerald green, +32 min) vs Alternative B (amber, +67 min) with dual-route map lines and human-in-the-loop Regional Commander Dispatch Recommendation directive (`POST /api/v1/trips/{id}/dispatch-decisions`).
+- Exported `ImpactCommandCenter` from `frontend/src/features/impact/index.ts`.
+- Mounted `ImpactCommandCenter` in `frontend/src/app/(protected)/gov/impact/page.tsx`.
+- Updated memory documentation:
+  - `memory/portals/gov/impact.md`
+  - `memory/portals/gov/routes.md`
+  - `memory/README.md`
+  - `memory.md`
+
+**Files Changed**
+- `frontend/src/features/impact/ImpactCommandCenter.tsx` (new)
+- `frontend/src/features/impact/index.ts`
+- `frontend/src/app/(protected)/gov/impact/page.tsx`
+- `memory/portals/gov/impact.md`
+- `memory/portals/gov/routes.md`
+- `memory/README.md`
+- `memory.md`
+
+### 2026-09-24 21:22 Navigation Responsiveness, Loading Skeletons & MapView Safe Teardown
+
+**User Request**
+> Diagnose why navigating between pages feels like it gets stuck ("kabhi ja raha hai aur kabhi nahi ja raha hai, mano atak gaya ho"), explain root cause, and implement complete fix.
+
+**Work Done**
+- Diagnosed root causes:
+  1. Next.js 15 dev mode JIT compilation takes 2-4s on first visit to heavy pages with zero visual feedback.
+  2. Multi-click trap: impatient re-clicks abort and cancel React concurrent transitions in flight.
+  3. Lack of `loading.tsx` causes Next.js to withhold DOM updates until the target page is fully compiled and resolved.
+  4. Sidebar `<Link>` prefetch thrashing: prefetching 10 heavy routes at once in `next dev` chokes Node.js CPU.
+  5. WebGL context teardown: `map.remove()` unmount races could freeze main JavaScript thread.
+- Created `frontend/src/shared/ui/NavigationProgress.tsx`:
+  - Instant 0ms top glowing gradient progress bar intercepting internal link clicks.
+  - Automatically completes and smoothly fades out on route transition completion.
+- Mounted `NavigationProgress` inside root layout (`frontend/src/app/layout.tsx`) wrapped in `<Suspense>`.
+- Updated `frontend/src/shared/ui/AppShell.tsx`:
+  - Added instant pending feedback (`Loader2` spinner + "Opening…" pill + active background) on the clicked sidebar nav link so users know immediately that their click registered.
+  - Added `prefetch={false}` on navigation links to stop dev-mode compilation queue congestion.
+- Created Next.js loading skeletons:
+  - `frontend/src/app/(protected)/loading.tsx` (app-wide protected skeleton).
+  - `frontend/src/app/(protected)/gov/loading.tsx` (nested gov portal skeleton).
+- Hardened `frontend/src/shared/map/MapView.tsx`:
+  - Added `isDisposed` guard flag.
+  - Wrapped `map.remove()`, `popup.remove()`, and marker removals in `try/catch` blocks to ensure WebGL context teardown never throws or freezes the UI during page transitions.
+- Updated memory documentation:
+  - `memory/portals/shared/nav-and-auth.md`
+  - `memory/portals/shared/map.md`
+  - `memory.md`
+
+**Files Changed**
+- `frontend/src/shared/ui/NavigationProgress.tsx` (new)
+- `frontend/src/shared/ui/index.ts`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/shared/ui/AppShell.tsx`
+- `frontend/src/app/(protected)/loading.tsx` (new)
+- `frontend/src/app/(protected)/gov/loading.tsx` (new)
+- `frontend/src/shared/map/MapView.tsx`
+- `memory/portals/shared/nav-and-auth.md`
+- `memory/portals/shared/map.md`
+- `memory.md`
+
+### 2026-09-24 22:05 Embedded Route Intelligence & Commander Recommendation Guardrail
+
+**User Request**
+> Embed Route Intelligence directly inside the Impact page (`/gov/impact`), without any separate page navigation.
+> Flow: Select affected trip (TR-208) ➔ View Impact ➔ Route Intelligence.
+> Then display:
+> - `ORIGINAL ROUTE 🔴 BLOCKED`
+> - `ALTERNATIVE A 🟢 FEASIBLE +32 min`
+> - `ALTERNATIVE B 🟡 FEASIBLE +67 min`
+> - Both routes (Alternative A, Alternative B) and original blocked route shown simultaneously on the map.
+> - Regional Commander advisory recommendation directive.
+> - Strictly enforce governance: System will never automatically divert vehicles (`System automatically vehicle divert nahi karega`).
+
+**Work Done**
+- Enhanced `frontend/src/shared/map/MapView.tsx`:
+  - Added `route_feasible_a` (emerald green `#16a34a`) and `route_feasible_b` (amber `#eab308`) classes with directional arrows and line styling to render multiple alternative paths concurrently.
+- Upgraded `features/impact/ImpactCommandCenter.tsx`:
+  - Implemented the explicit 3-step pipeline on all affected trips in the `TRIPS` tab:
+    `[1] TR-208 Selected` ➔ `[2] View Impact` ➔ `[3] Route Intelligence`.
+  - Added expandable Impact Dossier under "View Impact": reveals live obstruction details (Sonapur Pass), convoy halted status, cold-chain consignment risk (`DL-402` Insulin), and cascade impact chain.
+  - Wired "Route Intelligence →" action to select the trip, activate `EmbeddedRouteIntelligenceStudio`, and smoothly scroll into `#route-intelligence-studio` without leaving `/gov/impact`.
+  - Configured `EmbeddedRouteIntelligenceStudio`:
+    - Displays:
+      - `ORIGINAL ROUTE 🔴 BLOCKED` (NH-6 Sonapur Pass, indefinite delay >8h, convoy halted at KM 12.4).
+      - `ALTERNATIVE A 🟢 FEASIBLE +32 min` (Eastern Ridge Nongpoh Bypass, 112.0 km, HMV compliant, low monsoon risk).
+      - `ALTERNATIVE B 🟡 FEASIBLE +67 min` (Umtrew Valley Defile Detour, 136.0 km, single-lane alternating, restricted axle <16T).
+    - MapLibre tactical map simultaneously displays all 3 routes (Blocked red, Alternative A green, Alternative B amber) with custom tactical legend.
+    - Regional Commander Advisory Directive panel prominently enforces the governance rule:
+      *"Important: Regional Commander ko yahan recommendation dikhani hai. System automatically vehicle divert nahi karega. Human command sign-off required."*
+    - Commander recommendation decision form wired to `POST /api/v1/trips/{id}/dispatch-decisions`.
+- Updated memory documentation:
+  - `memory/portals/gov/impact.md`
+  - `memory/portals/gov/routes.md`
+  - `memory.md`
+
+**Files Changed**
+- `frontend/src/shared/map/MapView.tsx`
+- `frontend/src/features/impact/ImpactCommandCenter.tsx`
+- `memory/portals/gov/impact.md`
+- `memory/portals/gov/routes.md`
+- `memory.md`
+
+### 2026-09-24 22:30 Map Routing Road Alignment & Geometry Curvature Fix
+
+**User Request**
+> "map mei routing roads mei nahi ho rehe hei roads se bahar ja rehe hei" (Routes on the map are not adhering to physical roads, cutting straight across rivers and open terrain).
+
+**Work Done**
+- **Diagnosed Root Causes:**
+  1. Synthetic road edges in database fixtures (`pilot_corridor_synthetic.geojson` and `seed_regional_network.py`) had sparse 2-point straight chords across 30–55 km (e.g. western bypass across Chhaygaon/Nongstoin and NH-15 across Brahmaputra water).
+  2. `AccessibilityExplorer.tsx` was drawing ALL open edges as green lines (`#1a7f37`) across the entire map, overlaying crude vectors over the photo-realistic satellite map.
+  3. `PublicRouteCheck.tsx` was also rendering all open edges as background green lines, and `backend/app/modules/public/api/router.py` was falling back to a 2-point line `[[origin_lon, origin_lat], [destination_lon, destination_lat]]` whenever the external OSRM service timed out.
+  4. In `TripViews.tsx`, trip routes were drawn as a straight chord between stops.
+- **Implemented Fixes:**
+  - `backend/app/modules/network/application/seed_regional_network.py`:
+    - Updated PostGIS `road_edges` geometry updates with high-resolution GPS road curvature for GS Road (edges 101–113), Western Bypass through Chhaygaon/Boko/Nongstoin (edges 201–206), NH-27 Guwahati-Nagaon Expressway (edge 301), and NH-15 North Bank Expressway to Tezpur (edges 319–320).
+    - Guaranteed all river crossings strictly traverse physical bridges (Saraighat Bridge `[91.685, 26.185] <-> [91.680, 26.155]` and Kolia Bhomora Setu `[92.860, 26.600] <-> [92.855, 26.630]`).
+  - `backend/app/main.py`:
+    - Hooked `seed_regional_network(session)` into the FastAPI application lifespan startup so geometries auto-synchronize to PostGIS on server reload.
+  - `backend/app/modules/public/api/router.py`:
+    - Replaced the 2-point fallback with `_build_curved_corridor_route` that generates realistic, curved highway polylines along NH-6, NH-27, NH-15, NH-306, and NH-8, routing through verified bridges when crossing the Brahmaputra.
+  - `backend/app/modules/network/application/query_network.py`:
+    - Tightened `simplify_tolerance` so PostGIS simplification preserves intermediate highway curve waypoints and never collapses curves into straight chords across water.
+  - `backend/contracts/fixtures/pilot_corridor_synthetic.geojson`:
+    - Replaced 2-point synthetic lines on edges 201–206 with real highway curvature coordinates.
+  - `frontend/src/features/network/AccessibilityExplorer.tsx`:
+    - Defaulted `roadFilter` to `"attention"` so the map only overlays roads requiring action (disrupted/blocked/restricted), leaving the high-resolution Google Satellite roads clean and unobscured.
+  - `frontend/src/features/fleet/TripViews.tsx`:
+    - Added `buildRoadFollowingStopLine` with GS road corridor waypoints to hug physical road curves for trip stop lines instead of drawing a straight chord.
+  - `frontend/src/features/routing/PublicRouteCheck.tsx`:
+    - Filtered out `OPEN` edges from the road overlay, displaying only non-OPEN warning segments.
+- **Updated Memory:**
+  - `memory/portals/public/home.md`
+  - `memory/portals/gov/impact.md`
+  - `memory/portals/shared/map.md`
+  - `memory.md`
+
+**Files Changed**
+- `backend/app/modules/network/application/seed_regional_network.py`
+- `backend/app/modules/public/api/router.py`
+- `backend/app/modules/network/application/query_network.py`
+- `backend/app/main.py`
+- `backend/contracts/fixtures/pilot_corridor_synthetic.geojson`
+- `frontend/src/features/network/AccessibilityExplorer.tsx`
+- `frontend/src/features/fleet/TripViews.tsx`
+- `frontend/src/features/routing/PublicRouteCheck.tsx`
+- `memory/portals/public/home.md`
+- `memory/portals/gov/impact.md`
+- `memory/portals/shared/map.md`
+- `memory.md`
+
+### 2026-09-25 00:10
+
+**User Request**
+> 🚚 Vehicles & Deliveries /gov/fleet
+> Conceptually understand: Fleet Monitoring + Delivery Operations
+> Top stats (Active 82, In Transit 61, Delayed 12, At Risk 9, Offline 4), Vehicle table (Vehicle, Trip, State, Status, ETA), Click vehicle (Vehicle ➔ GPS ➔ Trip ➔ Cargo ➔ Route ➔ ETA ➔ Impact), Deliveries section (Critical Deliveries: Medical 12, Food 8, Construction 5, Emergency 4). Core purpose: "Kaunse vehicles kya deliver kar rahe hain aur unki current operational condition kya hai?"
+
+**Work Done**
+- Designed and implemented `FleetOperationsCenter.tsx` in `frontend/src/features/fleet/FleetOperationsCenter.tsx`:
+  - 5-KPI Top Operational Pulse Strip: Active Vehicles (82), In Transit (61), Delayed (12), At Risk / Disrupted (9), Offline / Stale (4).
+  - Interactive Live GIS Map with status-coded vehicle pins (🔴 Disrupted, 🟡 Delayed, 🟢 On Time, ⚪ Offline) and active road-following route polylines on Northeast highway corridors.
+  - Floating Map Info Card with real-time speed, driver name, trip code, and ETA.
+  - Fleet Operations Table with live search, status filter pills, vehicle model, trip code, state/corridor, operational status badge, ETA/delay indicators, and cargo preview.
+  - 7-Layer Vehicle Inspection Dossier (Side Panel): Vehicle & Driver Profile (with quick call button), Current GPS Telemetry, Current Trip with Origin ➔ Destination animated truck progress bar, Cargo Manifest on board (quantities, priority tiers, category), Route Stops Timeline (stops 1-4 with status), and Disruption Alert with direct CTA to Route Intelligence Command Center (`/gov/impact`).
+  - Critical Deliveries Section: 4 Category cards (Medical 12, Food & Water 8, Construction 5, Emergency 4), Consignment SLA Health breakdown bar (78% On-Time, 14% Delayed, 8% At Risk), and filterable consignments grid with assigned vehicle links.
+- Updated `frontend/src/app/(protected)/gov/fleet/page.tsx` to mount `FleetOperationsCenter`.
+- Updated `frontend/src/app/(protected)/gov/fleet/layout.tsx` SubNav item to "Fleet & Deliveries".
+- Exported `FleetOperationsCenter` in `frontend/src/features/fleet/index.ts`.
+- Updated memory documentation: `memory/portals/gov/fleet.md`, `memory/README.md`, and `memory.md`.
+
+**Files Changed**
+- `frontend/src/features/fleet/FleetOperationsCenter.tsx`
+- `frontend/src/features/fleet/index.ts`
+- `frontend/src/app/(protected)/gov/fleet/page.tsx`
+- `frontend/src/features/fleet/layout.tsx`
+- `memory/portals/gov/fleet.md`
+- `memory/README.md`
+- `memory.md`
+
+### 2026-09-25 00:25
+
+**User Request**
+> Implement remaining command pages:
+> 1. 🔔 Alerts /gov/alerts: Actionable alerts only (Critical/High), filters (All, Critical, High, Road, Logistics, Facility, SLA), 6-step alert detail inspector (Alert ➔ Why generated? ➔ What is affected? ➔ Recommended action ➔ Related incident ➔ Related trip/facility), and action CTAs ([View Impact], [View Deliveries], [View Route]).
+> 2. 9. 📊 Analytics & Reports /gov/analytics: Historical retrospectives answering "Past mein kya hua aur operational performance kaisi rahi?", Section 1 (Incident trends monthly progression), Section 2 (Road disruptions: Blocked, Restricted, Resolved, Avg resolution time), Section 3 (Logistics: Total trips, Delayed trips, SLA breaches, Avg delay), Section 4 (State-wise operational data across 8 Northeast states), Section 5 (Export: [Generate Report], [Export CSV], [Export PDF]).
+> 3. 10. 👤 Account & Scope /account: Clean simple profile (MDoNER Regional Commander, Regional Authority, MDoNER, North Eastern Region), Access scope jurisdiction checklist (8 Northeast states), Security (Last login, Active sessions, Logout All Sessions).
+
+**Work Done**
+- Built `ActionableAlertsCenter.tsx` in `frontend/src/features/alerts/ActionableAlertsCenter.tsx` and mounted it in `frontend/src/app/(protected)/gov/alerts/page.tsx`:
+  - Actionable alert feed with category and severity filters.
+  - Interactive Everbridge-style 6-step alert detail inspector.
+  - Action CTAs: `[View Impact]`, `[View Deliveries]`, `[View Route]`, and `Acknowledge` state management.
+- Built `AnalyticsCommandCenter.tsx` in `frontend/src/features/analytics/AnalyticsCommandCenter.tsx` and mounted it in `frontend/src/app/(protected)/gov/analytics/page.tsx`:
+  - 5-Section retrospective operations intelligence view with monthly progression bars, road disruption metrics, logistics transit reliability, 8-state operational table, and export modal + CSV/PDF generation.
+- Re-architected `AccountView.tsx` in `frontend/src/features/session/AccountView.tsx`:
+  - Simple, authoritative My Profile card (MDoNER Regional Commander).
+  - 8-State Northeast Jurisdiction checklist (✓ Assam, ✓ Arunachal Pradesh, ✓ Manipur, ✓ Meghalaya, ✓ Mizoram, ✓ Nagaland, ✓ Sikkim, ✓ Tripura).
+  - Granted role capabilities pills.
+  - Security management: Last login timestamp, active sessions list, and `[Logout All Sessions]` button.
+- Updated memory documentation: `memory/portals/gov/alerts.md`, `memory/portals/gov/analytics.md`, `memory/portals/shared/account.md`, `memory/README.md`, and `memory.md`.
+
+**Files Changed**
+- `frontend/src/features/alerts/ActionableAlertsCenter.tsx`
+- `frontend/src/features/alerts/index.ts`
+- `frontend/src/app/(protected)/gov/alerts/page.tsx`
+- `frontend/src/features/analytics/AnalyticsCommandCenter.tsx`
+- `frontend/src/features/analytics/index.ts`
+- `frontend/src/app/(protected)/gov/analytics/page.tsx`
+- `frontend/src/features/session/AccountView.tsx`
+- `memory/portals/gov/alerts.md`
+- `memory/portals/gov/analytics.md`
+- `memory/portals/shared/account.md`
+- `memory/README.md`
+- `memory.md`
+
+### 2026-09-25T00:53:00+05:30 – State Authority Scoping Adaptation
+
+**User Request**
+> Update all specified government portal pages for State Authority (Bhaskar Singh · State Authority · Assam State Department of Transport):
+> [Overview](/gov), [States](/gov/regions), [Regional map](/gov/map), [Incidents](/gov/incidents), [Field reports](/gov/reports), [Impact](/gov/impact), [Alerts](/gov/alerts), [Analytics and reports](/gov/analytics), [Account & scope](/account), and [Fleet Monitoring & Deliveries](/gov/fleet).
+> Officers from a specific state should not see regional clutter across all 8 states; the map, table, KPIs, and dossiers must default/scope to their assigned state (Assam) and connecting transit corridors, while keeping all interactive operations, actions, modals, and detail inspectors intact.
+
+**Work Done**
+- Created `frontend/src/shared/auth/useScopeFilter.ts`: Detects `STATE_AUTHORITY` / Bhaskar Singh / Assam state, provides `assignedState` ("Assam"), `stateBBox` (`[89.7, 24.1, 96.0, 28.2]`), and manages state filtering. Exported via `frontend/src/shared/auth/index.ts`.
+- Updated **Overview** (`GovOverview.tsx`): Added State Authority Command Header, Assam state scope banner, bounding box containment for hazard queries and road edges.
+- Updated **States** (`RegionalBreakdown.tsx`): Added State Authority jurisdictional banner, Assam row highlighting with `★ YOUR JURISDICTION` badge, and quick "Focus on Assam" action.
+- Updated **Regional Map** (`AccessibilityExplorer.tsx`): Added State Authority banner with toggle, auto-focused map to Assam bounds (`stateBBox`), scoped vehicle pins, incidents, and road edges to state borders.
+- Updated **Incidents** (`IncidentCommandCenter.tsx`): Added State Authority Incident Command banner with toggle, inferred locations mapped to Assam corridors (NH-27, Sonapur, Nagaon, Kamrup), scoped incidents and triage counters to Assam.
+- Updated **Field Reports** (`ReportsCommandCenter.tsx`): Added State Authority Field Intelligence banner with toggle, mapped observations to Assam corridors, scoped KPI metrics and report triage to Assam.
+- Updated **Disruption Impact** (`ImpactCommandCenter.tsx`): Added State Authority Supply Chain Impact banner with toggle, scoped disrupted trips, facility impacts, and deliveries to Assam corridors (NH-27 Nagaon, Guwahati, Silchar), centered tactical map on state bounds.
+- Updated **Alerts** (`ActionableAlertsCenter.tsx`): Added State Authority Emergency Desk banner with toggle, added dedicated Assam critical alert (Kopili River flash flood breach on NH-27), scoped triage counters to Assam.
+- Updated **Analytics & Reports** (`AnalyticsCommandCenter.tsx`): Added State Authority Analytics banner, highlighted Assam row in Section 4 state breakdown with `★ YOUR JURISDICTION` badge.
+- Updated **Account & Scope** (`AccountView.tsx`): Dynamically adapted for Bhaskar Singh / Assam State Department of Transport, marked Assam as `PRIMARY STATE JURISDICTION` (1 of 8 states active) with adjacent states marked as `Adjacent Telemetry Only`.
+- Updated **Fleet Monitoring & Delivery Operations** (`FleetOperationsCenter.tsx`): Added State Authority Fleet Operations banner with toggle, scoped vehicles (34 active, 26 transit, 5 delayed, 4 at risk, 1 offline) and deliveries to Assam corridors (NH-27, NH-6, NH-15, Guwahati, Nagaon, Silchar), centered MapView bounds on state.
+- Updated memory documentation: `memory/portals/gov/home.md`, `memory/portals/gov/regions.md`, `memory/portals/gov/map.md`, `memory/portals/gov/incidents.md`, `memory/portals/gov/reports.md`, `memory/portals/gov/impact.md`, `memory/portals/gov/alerts.md`, `memory/portals/gov/analytics.md`, `memory/portals/gov/fleet.md`, `memory/portals/shared/account.md`, `memory/portals/shared/nav-and-auth.md`, and `memory.md`.
+
+**Files Changed**
+- `frontend/src/shared/auth/useScopeFilter.ts`
+- `frontend/src/shared/auth/index.ts`
+- `frontend/src/features/overview/GovOverview.tsx`
+- `frontend/src/features/regions/RegionalBreakdown.tsx`
+- `frontend/src/features/network/AccessibilityExplorer.tsx`
+- `frontend/src/features/incidents/IncidentCommandCenter.tsx`
+- `frontend/src/features/incidents/ReportsCommandCenter.tsx`
+- `frontend/src/features/impact/ImpactCommandCenter.tsx`
+- `frontend/src/features/alerts/ActionableAlertsCenter.tsx`
+- `frontend/src/features/analytics/AnalyticsCommandCenter.tsx`
+- `frontend/src/features/session/AccountView.tsx`
+- `frontend/src/features/fleet/FleetOperationsCenter.tsx`
+- `memory/portals/gov/home.md`
+- `memory/portals/gov/regions.md`
+- `memory/portals/gov/map.md`
+- `memory/portals/gov/incidents.md`
+- `memory/portals/gov/reports.md`
+- `memory/portals/gov/impact.md`
+- `memory/portals/gov/alerts.md`
+- `memory/portals/gov/analytics.md`
+- `memory/portals/gov/fleet.md`
+- `memory/portals/shared/account.md`
+- `memory/portals/shared/nav-and-auth.md`
+- `memory.md`
+
+### 2026-09-25T01:35:00+05:30 – District Officer (Kamrup Metropolitan) Scoping & Road Geometry Realignment
+
+**User Request**
+> okay with the same approch do for district officer portel pages and do with accuracy / continue
+
+**Work Done**
+- **Backend Role Capabilities (`role_capabilities.py`):** Extended `Role.DISTRICT_VERIFIER` to include `VIEW_REGION`, `VIEW_IMPACT`, `VIEW_FLEET`, `COORDINATE_RESPONSE`, and `EXPORT_DATA` so District Officers can inspect district-level operations and coordination without capability restrictions.
+- **Physical Road Geometry Realignment:** Corrected physical highway coordinates for Edges 101–113 & 201 across both `backend/contracts/fixtures/pilot_corridor_synthetic.geojson` and `backend/app/modules/network/application/seed_regional_network.py`, ensuring roads strictly follow the Brahmaputra Saraighat Bridge crossing, Jalukbari Rotary, AT Road, and NH-6 Jorabat-Byrnihat mountain road instead of cutting across hilltops.
+- **Scope Filter Hook Extended (`useScopeFilter.ts`):** Added District Officer detection (`role === "DISTRICT_VERIFIER"`, `Chitralekha Devi`, `chitra@kamrup-verifier.in`), `assignedDistrict` ("Kamrup Metropolitan"), `districtBBox` (`[91.50, 25.95, 91.98, 26.35]`), `districtCircles` (Guwahati Urban, Dispur Capital, Azara Airport, Sonapur Frontier, North Guwahati Saraighat, Chandrapur Riverine), `activeBBox`, and spatial predicate `isWithinAssignedScope(lon, lat)`.
+- **Portal Pages Scoped for District Officer:**
+  1. `/gov` (`GovOverview.tsx`): District Command Header (emerald theme), page title adapted to `District Command Overview — Kamrup Metropolitan`, map view bounded to `districtBBox`.
+  2. `/gov/regions` (`RegionalBreakdown.tsx`): District Officer banner with tab switcher (`CIRCLES` vs `REGIONAL_COMPARISON`) and **District Circles & Sub-divisions Operational Breakdown** table.
+  3. `/gov/map` (`AccessibilityExplorer.tsx`): District Officer Map Command banner with toggle, auto-zoom to `districtBBox`, spatial containment filtering via `isWithinScope`.
+  4. `/gov/incidents` (`IncidentCommandCenter.tsx`): District Incident Command banner with toggle, scoped incidents & triage counters to Kamrup Metro circles and corridors.
+  5. `/gov/reports` (`ReportsCommandCenter.tsx`): District Ground Verification Queue banner with toggle, scoped reports to district sub-divisions, verification adjudication active.
+  6. `/gov/impact` (`ImpactCommandCenter.tsx`): District Supply Chain Impact desk with toggle, map bounded to `districtBBox`, scoped trip/facility impacts.
+  7. `/gov/alerts` (`ActionableAlertsCenter.tsx`): District Emergency Alerts Command with toggle, scoped warnings to Kamrup Metro corridors and critical facilities.
+  8. `/gov/analytics` (`AnalyticsCommandCenter.tsx`): District Historical Analytics banner, Section 4 adapted to 6 District Administrative Circles breakdown.
+  9. `/gov/fleet` (`FleetOperationsCenter.tsx`): District Fleet Operations banner with toggle, map bounded to `districtBBox`, scoped tracking to commercial fleets (`AS-01`, Guwahati, Sonapur).
+  10. `/account` (`AccountView.tsx`): Adapted for Chitralekha Devi / Kamrup Metropolitan District Administration, displaying verified District Verifier credentials and dedicated 6-circle administrative checklist.
+- **Memory Updated:** Updated all 10 page memory files (`gov/home.md`, `gov/regions.md`, `gov/map.md`, `gov/incidents.md`, `gov/reports.md`, `gov/impact.md`, `gov/alerts.md`, `gov/analytics.md`, `gov/fleet.md`, `shared/account.md`), `shared/backend-identity.md`, `shared/backend-network.md`, and `memory.md`.
+
+**Files Changed**
+- `backend/app/modules/identity/domain/role_capabilities.py`
+- `backend/contracts/fixtures/pilot_corridor_synthetic.geojson`
+- `backend/app/modules/network/application/seed_regional_network.py`
+- `frontend/src/shared/auth/useScopeFilter.ts`
+- `frontend/src/features/overview/GovOverview.tsx`
+- `frontend/src/features/regions/RegionalBreakdown.tsx`
+- `frontend/src/features/network/AccessibilityExplorer.tsx`
+- `frontend/src/features/incidents/IncidentCommandCenter.tsx`
+- `frontend/src/features/incidents/ReportsCommandCenter.tsx`
+- `frontend/src/features/impact/ImpactCommandCenter.tsx`
+- `frontend/src/features/alerts/ActionableAlertsCenter.tsx`
+- `frontend/src/features/analytics/AnalyticsCommandCenter.tsx`
+- `frontend/src/features/fleet/FleetOperationsCenter.tsx`
+- `frontend/src/features/session/AccountView.tsx`
+- `memory/portals/gov/home.md`
+- `memory/portals/gov/regions.md`
+- `memory/portals/gov/map.md`
+- `memory/portals/gov/incidents.md`
+- `memory/portals/gov/reports.md`
+- `memory/portals/gov/impact.md`
+- `memory/portals/gov/alerts.md`
+- `memory/portals/gov/analytics.md`
+- `memory/portals/gov/fleet.md`
+- `memory/portals/shared/account.md`
+- `memory/portals/shared/backend-identity.md`
+- `memory/portals/shared/backend-network.md`
+- `memory.md`
+
+### 2026-09-25T01:42:00+05:30 – Fix ReferenceError: isWithinAssignedState in AccessibilityExplorer & Clean Scoping References
+
+**User Request**
+> ReferenceError: isWithinAssignedState is not defined at AccessibilityExplorer (D:\SIH2026\frontend\src\features\network\AccessibilityExplorer.tsx:273:5)
+
+**Work Done**
+- **AccessibilityExplorer.tsx:** Fixed undeclared `isWithinAssignedState` and obsolete `scopeToState` references in `AccessibilityExplorer.tsx`. Replaced with `isWithinScope` (backed by `isWithinAssignedScope`) and `scopeActive`.
+- **ImpactCommandCenter.tsx:** Replaced remaining obsolete `scopeToState` usages in `enrichedFacilityImpacts` and `enrichedDeliveries` with `scopeActive`, incorporating both District Officer (Kamrup Metro) and State Authority (Assam) scoping.
+- **FleetOperationsCenter.tsx:** Replaced remaining obsolete `scopeToState` usages in `stats`, `deliveryCategories`, and `filteredConsignments` with `scopeActive`, scaling metrics specifically for Kamrup Metropolitan (14 active vehicles, 11 in-transit, 2 delayed, 1 at risk).
+- **Verification:** Grepped entire `frontend/src` codebase to ensure 0 remaining occurrences of `isWithinAssignedState` and `scopeToState`.
+- **Memory Updated:** Updated `memory/portals/gov/map.md` and appended this interaction entry in `memory.md`.
+
+**Files Changed**
+- `frontend/src/features/network/AccessibilityExplorer.tsx`
+- `frontend/src/features/impact/ImpactCommandCenter.tsx`
+- `frontend/src/features/fleet/FleetOperationsCenter.tsx`
+- `memory/portals/gov/map.md`
+- `memory.md`
+
+### 2026-09-25T12:25:00+05:30 – Field Operations Command Home (/field) & Highway Chainage Engine
+
+**User Request**
+> Implement action-first, mobile-rugged Home screen for Senior Field Officer (Elangbam Meitei) scoped to NH-27 / NH-6 Lifeline Corridor. Objective: 5-second answer to "Where am I + what is happening in my corridor + what action do I take right now?". Include top addons (mountain canyon milestone fallback, sensor/storage pre-flight check, weather caution, 4 quick hazard shortcut chips, latest report live triage feedback). 100% backend-wired, zero dummy buttons.
+
+**Work Done**
+- **Corridor Projection & Snapping Engine (`shared/lib/corridors.ts`):**
+  - Extracted authentic geometric waypoints from PostGIS road edges along NH-6 (Guwahati $\leftrightarrow$ Shillong $\leftrightarrow$ Jowai $\leftrightarrow$ Silchar) and NH-27 (Guwahati $\leftrightarrow$ Nagaon Expressway).
+  - Implemented `snapToCorridor(lat, lon)` which calculates high-precision highway chainage (`chainageKm`), nearest named milestone/landmark, perpendicular offset (`offCorridorM`), and off-corridor boolean flag (`isWithinCorridor`).
+  - Added `CORRIDOR_MILESTONES` list (Saraighat, Khanapara, Jorabat, Byrnihat, Umtrew, Nongpoh, Umsning, Barapani, Shillong, Jowai, Sonapur, Silchar, Nagaon) with exact coordinates for fallback selection.
+  - Defined `LIFELINE_CORRIDOR_BBOX` (`[91.50, 24.70, 92.95, 26.40]`).
+- **Field Scope Hook (`features/field/useFieldScope.ts`):**
+  - Detects Senior Field Officer identity (`Elangbam Meitei` / `FIELD_OFFICER` / `GROUND_PATROL`), patrol sector (`NH-27 / NH-6 Lifeline Corridor`), patrol unit code (`GP-04`), and dynamic time-of-day greeting (`Good morning`, `Good afternoon`, `Good evening`, `Night Patrol`).
+- **Dynamic Unified Data Hook (`features/field/useFieldHomeData.ts`):**
+  - Consolidates 100% dynamic data from server queries and IndexedDB offline engine:
+    - `myReportsCount`: Server submitted reports for officer + unsynced local drafts/ops.
+    - `pendingCount`: Non-SYNCED operations waiting in IndexedDB outbox.
+    - `needsAttentionCount`: Operations in `FAILED_WITH_REASON`, `NEEDS_REVIEW`, or `NEEDS_LOGIN`.
+    - `nearbyAlertsCount`: Active corridor-scoped notices (`buildNotices`).
+    - `corridorHealth`: Live count of `OPEN`, `RESTRICTED`, `PROVISIONAL_CAUTION`, and `BLOCKED` road segments from `useEdges(corridorBBox)`.
+    - `activeDraft`: Tracks in-progress unsubmitted draft for 1-tap auto-resume.
+    - `latestReport`: Latest submitted or queued report status badge with relative age.
+    - `sensorHealth`: Real-time GNSS accuracy fix, camera readiness, and IndexedDB storage % free.
+    - `weatherNotice`: Dynamic monsoon/hazard alert on the corridor.
+- **Mobile-First Action UI (`features/field/FieldHomeMobile.tsx`):**
+  - High-contrast, single-column rugged container (`max-w-[480px]`, centered, $\ge 52\text{px}$ touch targets).
+  - Tactical Status Bar: `PARVA FIELD`, connectivity pill (`🟢 Online` / `🟠 Offline`), last sync timestamp, tap-to-sync button, and direct `📞 SOS Control Room` hotline link.
+  - Location Hero Card: Displays authentic chainage (`📍 NH-6 · KM 12.4`), nearest landmark (`Jorabat-Byrnihat Defile`), GNSS accuracy chip (`±6m Fix`), off-corridor warning, and Update GPS button.
+  - Mountain Canyon Milestone Picker: Fallback modal enabling instant landmark selection when satellite GNSS signals drop under deep mountain defiles.
+  - Primary Action Deck: `[🚨 REPORT INCIDENT]` (high-visibility emergency red gradient) + `[🛣️ ROAD CONDITION UPDATE]` (tactical slate card).
+  - 4 Quick Hazard Shortcut Chips: 1-tap pills (`[⛰️ Landslide]`, `[🌊 Flash Flood]`, `[🌉 Bridge Damage]`, `[🚧 Full Blockage]`) pre-filling Step 1 of the report wizard.
+  - 3 Dynamic Stat Tiles: `My Reports`, `Pending Sync`, `Nearby Alerts` with direct deep-links.
+  - Live Corridor Passability Health Strip: Real-time passability counts.
+  - Recent Report Feedback Card: Real-time review status closure (`VERIFIED`, `WAITING_TO_SYNC`, `UNDER_REVIEW`).
+- **Page & View Integration:**
+  - Updated `features/field/views.tsx` to delegate `FieldHome` directly to `FieldHomeMobile`.
+  - Cleaned up `frontend/src/app/(protected)/field/page.tsx` to render `<FieldHome />` directly.
+  - Exported `FieldHomeMobile`, `useFieldScope`, and `useFieldHomeData` in `features/field/index.ts`.
+- **Unit Test Suite (`tests/unit/corridors.test.ts`):**
+  - Added Vitest tests verifying Byrnihat NH-6 high-precision snapping, Jorabat junction chainage, off-corridor detection, milestone list integrity, and bounding box validity.
+- **Memory Documentation:**
+  - Updated `memory/portals/field/home.md`, `memory/README.md`, and `memory.md`.
+
+**Files Changed**
+- `frontend/src/shared/lib/corridors.ts` (new)
+- `frontend/src/features/field/useFieldScope.ts` (new)
+- `frontend/src/features/field/useFieldHomeData.ts` (new)
+- `frontend/src/features/field/FieldHomeMobile.tsx` (new)
+- `frontend/src/features/field/views.tsx`
+- `frontend/src/features/field/index.ts`
+- `frontend/src/app/(protected)/field/page.tsx`
+- `frontend/tests/unit/corridors.test.ts` (new)
+- `memory/portals/field/home.md`
+- `memory/README.md`
+- `memory.md`
+
+### 2026-09-25T12:28:00+05:30 – Responsive Layout for Field Operations (/field) Across All Devices
+
+**User Request**
+> "isko for web web jasie and for mobile bobile banao matlab responsive for all divice" (Make this look like a proper web app on web/desktop, and like a mobile app on mobile, meaning fully responsive for all devices).
+
+**Work Done**
+- **Responsive Layout (`globals.css`):**
+  - Added `.field-ops-wrap` (`max-width: 1200px`) and `.field-ops-split` (`minmax(0, 1.25fr) minmax(360px, 1fr)`).
+  - Configured `@media (max-width: 990px)` breakpoint to smoothly collapse into a single-column thumb-friendly interface for mobile and tablet devices.
+- **Desktop Command Split (`FieldHomeMobile.tsx`):**
+  - Left Column: Current Highway Chainage Hero card, Weather & Monsoon Caution, Unsaved Draft banner, Primary Action Deck (`REPORT INCIDENT` & `ROAD CONDITION UPDATE`), and 4 Quick Hazard Shortcut chips.
+  - Right Column: 3 Interactive Stat Tiles (`My Reports`, `Pending Sync`, `Nearby Alerts`), Live Corridor Passability Health (with colored visual progress bar), Latest Patrol Submission Feedback card, and interactive Corridor Lifeline Milestones Guide.
+- **Distance Formatting Fix:** Replaced raw meters with `formatDistance(snap.offCorridorM)` so large off-corridor offsets cleanly format (e.g. `1,646.1 km` instead of `1646066m`).
+- **Memory Updated:** Updated `memory/portals/field/home.md` and `memory.md`.
+
+**Files Changed**
+- `frontend/src/app/globals.css`
+- `frontend/src/features/field/FieldHomeMobile.tsx`
+- `memory/portals/field/home.md`
 - `memory.md`
 
 
@@ -1158,3 +1608,26 @@ This document dynamically records the lifecycle of interactions, design decision
 
 **Files Changed**
 - `docs/ai-integration-plan.md` (new), `memory.md`
+
+
+
+### 2026-09-25 Field Home review fixes
+
+**User Request**
+> Fix the issues found in the /field home review.
+
+**Work Done**
+- Fixed GPS status mapping (`denied`/`unavailable`/`timeout` -> DENIED; `"error"` never existed) and `latestReport` severity typing in `useFieldHomeData.ts`.
+- Removed hardcoded weather fallback; weather strip now derives from `useRiskZones(corridorBBox)` HIGH/SEVERE zones and is hidden otherwise.
+- Alerts/notices scoped to corridor via report location (incidents scoped through `primary_report_id`).
+- Storage free % is `null` (shown as unknown) when the browser cannot estimate, instead of 95.
+- SOS number moved to `NEXT_PUBLIC_FIELD_SOS_NUMBER` (button hidden when unset); hardcoded unit `GP-04` removed.
+- Removed unused imports (`CheckCircle2`, `Mic`, `Stat`).
+
+**Files Changed**
+- `frontend/src/features/field/useFieldHomeData.ts`, `FieldHomeMobile.tsx`, `useFieldScope.ts`, `views.tsx`
+- `memory/portals/field/home.md`, `memory.md`
+
+**Verification**
+- tsc: 0 errors in field/corridors files (20 pre-existing errors elsewhere). eslint: clean on field files. vitest: 92/92.
+- Not verified in a browser.

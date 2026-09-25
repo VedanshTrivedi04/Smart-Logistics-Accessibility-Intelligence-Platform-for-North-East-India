@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import { FieldHome } from "@/features/field";
-import { PageHeader } from "@/shared/ui";
 
-export const metadata: Metadata = { title: "Field home" };
+export const metadata: Metadata = { title: "Field Operations · Ground Patrol" };
 
 export default function FieldHomePage() {
-  return (
-    <>
-      <PageHeader title="Field home" />
-      <FieldHome />
-    </>
-  );
+  return <FieldHome />;
 }

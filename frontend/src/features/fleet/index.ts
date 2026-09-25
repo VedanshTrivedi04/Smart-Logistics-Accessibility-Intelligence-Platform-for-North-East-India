@@ -1,4 +1,5 @@
 export { FleetMap } from "./FleetMap";
+export { FleetOperationsCenter } from "./FleetOperationsCenter";
 export { VehicleDetail } from "./VehicleDetail";
 export { TripList, TripDetail, CommitmentList, CommitmentTable, DeliveryHistory } from "./TripViews";
 export { OperatorCockpit } from "./OperatorView";
