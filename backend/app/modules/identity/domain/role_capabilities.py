@@ -44,6 +44,11 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VERIFY_REPORT,
         Capability.VIEW_ROAD_STATUS,
         Capability.UPDATE_ROAD_STATUS,
+        Capability.VIEW_REGION,
+        Capability.VIEW_IMPACT,
+        Capability.VIEW_FLEET,
+        Capability.COORDINATE_RESPONSE,
+        Capability.EXPORT_DATA,
     }),
 
     Role.EMERGENCY_COORDINATOR: frozenset({

@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Menu, ShieldAlert, UserCircle2, WifiOff, type LucideIcon } from "lucide-react";
+import { Loader2, Menu, ShieldAlert, UserCircle2, WifiOff, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, Suspense, type ReactNode } from "react";
 import { api, unwrap } from "@/shared/api";
 import type { Capability } from "@/shared/api/types";
 import { ROLE_LABEL, useSession } from "@/shared/auth";
@@ -58,6 +58,7 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, to
   const [emergency, setEmergency] = useEmergencyMode();
   const health = useServiceHealth(session.status === "authenticated");
   const [online, setOnline] = useState(true);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -71,7 +72,10 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, to
     };
   }, []);
 
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    setMenuOpen(false);
+    setPendingHref(null);
+  }, [pathname]);
 
   const announce = useCallback((m: string) => {
     setMessage("");
@@ -133,18 +137,94 @@ export function AppShell({ surfaceLabel, nav, children, allowEmergencyToggle, to
           </div>
           <nav aria-label={`${surfaceLabel} navigation`}>
             <ul>
-              {items.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className="nav-link" aria-current={isActive(item) ? "page" : undefined}>
-                    <item.icon size={18} aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              ))}
+              {items.map((item) => {
+                const active = isActive(item);
+                const isPending = pendingHref === item.href;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      prefetch={false}
+                      className="nav-link"
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => {
+                        if (!active) setPendingHref(item.href);
+                      }}
+                      style={
+                        isPending
+                          ? {
+                              background: "rgba(2, 132, 199, 0.09)",
+                              color: "#0284c7",
+                              fontWeight: 600,
+                            }
+                          : undefined
+                      }
+                    >
+                      {isPending ? (
+                        <Loader2 size={18} className="animate-spin" style={{ color: "#0284c7" }} />
+                      ) : (
+                        <item.icon size={18} aria-hidden="true" />
+                      )}
+                      <span>{item.label}</span>
+                      {isPending && (
+                        <span
+                          style={{
+                            marginLeft: "auto",
+                            fontSize: "0.68rem",
+                            background: "#e0f2fe",
+                            color: "#0369a1",
+                            padding: "0.1rem 0.35rem",
+                            borderRadius: "4px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Opening…
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
               <li>
-                <Link href="/account" className="nav-link" aria-current={pathname === "/account" ? "page" : undefined}>
-                  <UserCircle2 size={18} aria-hidden="true" />
+                <Link
+                  href="/account"
+                  prefetch={false}
+                  className="nav-link"
+                  aria-current={pathname === "/account" ? "page" : undefined}
+                  onClick={() => {
+                    if (pathname !== "/account") setPendingHref("/account");
+                  }}
+                  style={
+                    pendingHref === "/account"
+                      ? {
+                          background: "rgba(2, 132, 199, 0.09)",
+                          color: "#0284c7",
+                          fontWeight: 600,
+                        }
+                      : undefined
+                  }
+                >
+                  {pendingHref === "/account" ? (
+                    <Loader2 size={18} className="animate-spin" style={{ color: "#0284c7" }} />
+                  ) : (
+                    <UserCircle2 size={18} aria-hidden="true" />
+                  )}
                   <span>Account &amp; scope</span>
+                  {pendingHref === "/account" && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: "0.68rem",
+                        background: "#e0f2fe",
+                        color: "#0369a1",
+                        padding: "0.1rem 0.35rem",
+                        borderRadius: "4px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Opening…
+                    </span>
+                  )}
                 </Link>
               </li>
             </ul>

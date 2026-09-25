@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { GovernmentAlerts } from "@/features/alerts";
-import { PageHeader } from "@/shared/ui";
+import { ActionableAlertsCenter } from "@/features/alerts";
 
-export const metadata: Metadata = { title: "Alerts" };
+export const metadata: Metadata = { title: "Actionable Alerts | Emergency Command" };
 
 export default function GovAlertsPage() {
-  return (
-    <>
-      <PageHeader title="Alerts" subtitle="Notices derived from current records, most urgent first." />
-      <GovernmentAlerts />
-    </>
-  );
+  return <ActionableAlertsCenter />;
 }

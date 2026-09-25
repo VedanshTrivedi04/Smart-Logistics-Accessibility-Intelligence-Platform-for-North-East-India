@@ -71,6 +71,56 @@ export function TripList({ tripBase }: { tripBase: string }) {
   );
 }
 
+const GS_ROAD_WAYPOINTS: Array<[number, number]> = [
+  [91.7350, 26.1450], [91.7550, 26.1360], [91.7850, 26.1150], [91.8150, 26.1090],
+  [91.8470, 26.0950], [91.8650, 26.0850], [91.8685, 26.0750], [91.8715, 26.0630],
+  [91.8735, 26.0530], [91.8750, 26.0450], [91.8770, 26.0350], [91.8790, 26.0210],
+  [91.8805, 26.0080], [91.8815, 25.9920], [91.8820, 25.9780], [91.8820, 25.9650],
+  [91.8828, 25.9610], [91.8835, 25.9570], [91.8840, 25.9550], [91.8835, 25.9460],
+  [91.8821, 25.9360], [91.8805, 25.9260], [91.8798, 25.9180], [91.8812, 25.9100],
+  [91.8810, 25.9050], [91.8825, 25.8850], [91.8840, 25.8650], [91.8850, 25.8400],
+  [91.8845, 25.8200], [91.8875, 25.8000], [91.8940, 25.7800], [91.9030, 25.7650],
+  [91.9120, 25.7550], [91.9110, 25.7380], [91.9095, 25.7200], [91.9065, 25.7020],
+  [91.9035, 25.6850], [91.9080, 25.6650], [91.9065, 25.6600], [91.9050, 25.6550],
+  [91.9010, 25.6400], [91.8975, 25.6250], [91.8950, 25.6100], [91.8935, 25.5980],
+  [91.8950, 25.5950], [91.8905, 25.5890], [91.8870, 25.5830], [91.8840, 25.5780],
+];
+
+function buildRoadFollowingStopLine(stops: readonly TripStop[]): Array<[number, number]> {
+  if (stops.length < 2) return [];
+  const coords: Array<[number, number]> = [];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const s1 = stops[i];
+    const s2 = stops[i + 1];
+    if (!s1 || !s2) continue;
+
+    let minIdx1 = 0;
+    let minD1 = Infinity;
+    let minIdx2 = 0;
+    let minD2 = Infinity;
+
+    for (let j = 0; j < GS_ROAD_WAYPOINTS.length; j++) {
+      const wp = GS_ROAD_WAYPOINTS[j]!;
+      const d1 = Math.hypot(wp[0] - s1.lon, wp[1] - s1.lat);
+      const d2 = Math.hypot(wp[0] - s2.lon, wp[1] - s2.lat);
+      if (d1 < minD1) { minD1 = d1; minIdx1 = j; }
+      if (d2 < minD2) { minD2 = d2; minIdx2 = j; }
+    }
+
+    if (minD1 < 0.2 && minD2 < 0.2 && minIdx1 !== minIdx2) {
+      const seg = minIdx1 < minIdx2
+        ? GS_ROAD_WAYPOINTS.slice(minIdx1, minIdx2 + 1)
+        : GS_ROAD_WAYPOINTS.slice(minIdx2, minIdx1 + 1).reverse();
+      if (coords.length > 0) coords.pop();
+      coords.push([s1.lon, s1.lat], ...seg, [s2.lon, s2.lat]);
+    } else {
+      if (coords.length === 0) coords.push([s1.lon, s1.lat]);
+      coords.push([s2.lon, s2.lat]);
+    }
+  }
+  return coords;
+}
+
 export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBase: string }) {
   const { can } = useSession();
   const announce = useAnnounce();
@@ -92,8 +142,9 @@ export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBas
         const last = t.stops[t.stops.length - 1];
         const priorityTier = linked.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING") ? "TIER_1_LIFE_SAVING" : linked.some((c) => c.priority_tier === "TIER_2_ESSENTIAL") ? "TIER_2_ESSENTIAL" : "TIER_3_STANDARD";
         const stopPoints: MapPoint[] = t.stops.map((s, i) => ({ id: s.id, kind: "stop", lon: s.lon, lat: s.lat, label: `Stop ${i + 1}: ${humanize(s.stop_type)} · ${humanize(s.status)}`, tone: STOP_TONE[s.status], glyph: String(i + 1) }));
-        const stopLine: MapLine[] = t.stops.length > 1 ? [{ id: "planned", cls: "route_primary", coordinates: t.stops.map((s) => [s.lon, s.lat]) }] : [];
-        const stopBounds = t.stops.length ? bboxOfCoordinates(t.stops.map((s) => [s.lon, s.lat])) : null;
+        const stopLineCoords = buildRoadFollowingStopLine(t.stops);
+        const stopLine: MapLine[] = stopLineCoords.length > 1 ? [{ id: "planned", cls: "route_primary", coordinates: stopLineCoords }] : [];
+        const stopBounds = stopLineCoords.length ? bboxOfCoordinates(stopLineCoords) : null;
         return (
           <div className="stack">
             {t.stops.length ? (

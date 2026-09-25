@@ -33,7 +33,7 @@ import {
   X,
 } from "lucide-react";
 
-import { useSession } from "@/shared/auth";
+import { useSession, useScopeFilter } from "@/shared/auth";
 import { humanize, shortId } from "@/shared/lib/format";
 import { formatDateTime } from "@/shared/lib/time";
 import { Banner, Button, Card, ErrorNotice, QueryState, StatusBadge } from "@/shared/ui";
@@ -50,12 +50,42 @@ function getCorridorDetails(lat: number, lon: number, text?: string): {
 } {
   const t = (text || "").toLowerCase();
 
-  // NH-6 Meghalaya / Assam
+  // NH-27 / Assam Valley
+  if (
+    t.includes("kamrup") ||
+    t.includes("guwahati") ||
+    t.includes("nagaon") ||
+    t.includes("nh-27") ||
+    t.includes("silchar") ||
+    t.includes("cachar") ||
+    t.includes("jorhat") ||
+    t.includes("dibrugarh") ||
+    t.includes("tezpur") ||
+    t.includes("brahmaputra") ||
+    t.includes("assam") ||
+    (lat >= 26.0 && lat <= 26.8 && lon >= 91.0 && lon <= 93.5)
+  ) {
+    return {
+      highway: "NH-27 East-West Assam Lifeline Corridor",
+      state: "Assam",
+      district: t.includes("kamrup")
+        ? "Kamrup Metropolitan"
+        : t.includes("nagaon")
+          ? "Nagaon District"
+          : t.includes("silchar")
+            ? "Cachar District"
+            : "Kamrup / Nagaon District",
+      milestone: "KM 74.2 (Guwahati-Nagaon Heavy Freight Arterial)",
+      terrain: "Alluvial Floodplain & Highway Embankment · Lowland Transit Corridor · 55m MSL",
+    };
+  }
+
+  // NH-6 Meghalaya / Assam Border
   if (t.includes("sonapur") || (lat >= 25.8 && lat <= 26.2 && lon >= 91.7 && lon <= 92.2)) {
     return {
-      highway: "NH-6 National Lifeline Highway",
-      state: "Meghalaya",
-      district: "Ri-Bhoi / East Khasi Hills",
+      highway: "NH-6 National Lifeline Highway (Assam-Meghalaya Border)",
+      state: t.includes("sonapur") ? "Assam" : "Meghalaya",
+      district: t.includes("sonapur") ? "Kamrup Metropolitan (Assam)" : "Ri-Bhoi / East Khasi Hills",
       milestone: "KM 48.2 (Sonapur Border Pass / Nongpoh Ridge)",
       terrain: "Steep Mountain Ridge · High Monsoon Defile · 620m MSL",
     };
@@ -800,6 +830,8 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
   const searchParams = useSearchParams();
   const selectedParam = searchParams.get("selected");
   const { can } = useSession();
+  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, isWithinAssignedScope } = useScopeFilter();
+  const [scopeActive, setScopeActive] = useState<boolean>(isDistrictOfficer || isStateAuthority);
 
   // 100% Dynamic Queries from backend API
   const reportsQ = useReports();
@@ -815,6 +847,52 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
   const allReports = useMemo(() => reportsQ.data || [], [reportsQ.data]);
   const allIncidents = useMemo(() => incidentsQ.data || [], [incidentsQ.data]);
 
+  // Scoped reports (filtered by District Officer or State Authority if active)
+  const scopedReports = useMemo(() => {
+    if (!scopeActive) return allReports;
+    if (isDistrictOfficer) {
+      return allReports.filter((r) => {
+        const corridor = getCorridorDetails(r.location.latitude, r.location.longitude, r.description);
+        const desc = r.description.toLowerCase();
+        const isInDistrict =
+          isWithinAssignedScope(r.location.longitude, r.location.latitude) ||
+          corridor.district.toLowerCase().includes("kamrup") ||
+          corridor.district.toLowerCase().includes(assignedDistrict.toLowerCase()) ||
+          desc.includes("kamrup") ||
+          desc.includes("guwahati") ||
+          desc.includes("jalukbari") ||
+          desc.includes("dispur") ||
+          desc.includes("azara") ||
+          desc.includes("khanapara") ||
+          desc.includes("sonapur") ||
+          desc.includes("saraighat") ||
+          desc.includes("borjhar") ||
+          desc.includes("chandrapur") ||
+          corridor.highway.includes("NH-27") ||
+          corridor.highway.includes("NH-6");
+        return isInDistrict;
+      });
+    }
+    if (isStateAuthority) {
+      return allReports.filter((r) => {
+        const corridor = getCorridorDetails(r.location.latitude, r.location.longitude, r.description);
+        const isAssam =
+          corridor.state.toLowerCase().includes(assignedState.toLowerCase()) ||
+          corridor.district.toLowerCase().includes(assignedState.toLowerCase()) ||
+          r.description.toLowerCase().includes(assignedState.toLowerCase()) ||
+          r.description.toLowerCase().includes("kamrup") ||
+          r.description.toLowerCase().includes("guwahati") ||
+          r.description.toLowerCase().includes("nagaon") ||
+          r.description.toLowerCase().includes("sonapur") ||
+          r.description.toLowerCase().includes("silchar") ||
+          corridor.highway.includes("NH-27") ||
+          corridor.highway.includes("NH-6");
+        return isAssam;
+      });
+    }
+    return allReports;
+  }, [allReports, scopeActive, isDistrictOfficer, isStateAuthority, assignedDistrict, assignedState, isWithinAssignedScope]);
+
   // Compute live triage counters directly from real DB records
   const metrics = useMemo(() => {
     let submitted = 0;
@@ -823,7 +901,7 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
     let moreInfo = 0;
     let rejected = 0;
 
-    for (const r of allReports) {
+    for (const r of scopedReports) {
       if (r.review_state === "SUBMITTED") submitted++;
       else if (r.review_state === "UNDER_REVIEW" || r.review_state === "PROVISIONAL_CAUTION") underReview++;
       else if (r.review_state === "VERIFIED") verified++;
@@ -832,18 +910,18 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
     }
 
     return {
-      total: allReports.length,
+      total: scopedReports.length,
       submitted,
       underReview,
       verified,
       moreInfo,
       rejected,
     };
-  }, [allReports]);
+  }, [scopedReports]);
 
   // Filtered reports list for Master feed
   const filteredReports = useMemo(() => {
-    return allReports.filter((r) => {
+    return scopedReports.filter((r) => {
       // Status filter
       if (statusFilter !== "ALL") {
         if (statusFilter === "UNDER_REVIEW") {
@@ -868,16 +946,16 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
 
       return true;
     });
-  }, [allReports, statusFilter, severityFilter, searchQuery]);
+  }, [scopedReports, statusFilter, severityFilter, searchQuery]);
 
   // Automatically select first report if none selected or selected not in list
   const activeReport = useMemo(() => {
     if (selectedReportId) {
-      const found = allReports.find((r) => r.id === selectedReportId);
+      const found = scopedReports.find((r) => r.id === selectedReportId);
       if (found) return found;
     }
     return filteredReports.length > 0 ? filteredReports[0] : null;
-  }, [allReports, filteredReports, selectedReportId]);
+  }, [scopedReports, filteredReports, selectedReportId]);
 
   // Find linked incident if active report is VERIFIED
   const linkedIncident = useMemo(() => {
@@ -894,6 +972,100 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", paddingBottom: "3rem" }}>
+      {/* District Officer Scoped Banner */}
+      {isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #064e3b 0%, #065f46 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #10b981",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(16, 185, 129, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📋 District Incident Verifier Active · {assignedDistrict} Verification Queue</span>
+              <span style={{ background: "#10b981", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Kamrup Metro Sub-Divisions
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: "0.2rem" }}>
+              Ground observations, forensic photos, and verification dossiers are scoped to {assignedDistrict} administrative circles.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#10b981" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedDistrict}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* State Authority Scoped Banner */}
+      {isStateAuthority && !isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #091e3a 0%, #1e3a5f 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #0284c7",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(2, 132, 199, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🏛️ State Authority Active · {assignedState} Field Intelligence Desk</span>
+              <span style={{ background: "#0284c7", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Assam Reports
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+              Field observations, forensic photos, and verification dossiers are scoped to {assignedState} highway sectors.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#0284c7" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedState}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Header & Live KPI Metrics ── */}
       <div
         style={{
@@ -921,11 +1093,19 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
                 }}
               />
               <h2 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 800, color: "#0f172a" }}>
-                Field Intelligence & Damage Assessment Dossier
+                {isDistrictOfficer
+                  ? `Field Intelligence & Ground Verification — ${assignedDistrict}`
+                  : isStateAuthority
+                  ? `Field Intelligence & Damage Assessment — ${assignedState}`
+                  : "Field Intelligence & Damage Assessment Dossier"}
               </h2>
             </div>
             <p style={{ margin: "0.3rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
-              Raw ground observations, forensic telemetry, and damage evidence transmitted by Field Patrol Units across North-East India.
+              {isDistrictOfficer
+                ? `Kamrup Metropolitan District Verifier Desk · Ground report adjudication, photographic inspection, and incident escalation within ${assignedDistrict}.`
+                : isStateAuthority
+                ? `Assam State Department of Transport · State Authority Scope. Ground observations and damage evidence for ${assignedState}.`
+                : "Raw ground observations, forensic telemetry, and damage evidence transmitted by Field Patrol Units across North-East India."}
             </p>
           </div>
 

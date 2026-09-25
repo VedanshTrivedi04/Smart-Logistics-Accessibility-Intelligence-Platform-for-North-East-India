@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import sqlalchemy as sa
-from geoalchemy2.functions import ST_GeomFromText
+from geoalchemy2.functions import ST_GeomFromText, ST_X, ST_Y
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_engine
@@ -252,19 +252,35 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
         )
         session.add(trip)
 
-        # Stops
-        stops_coords = [
-            (26.1152, 91.8153, "PICKUP", origin_fac.id),
-            (25.9080, 91.8795, "DELIVERY", dest_fac.id),
+        # Stops — coordinates derived directly from facility geometry so pin is
+        # exactly at the facility gate, not a hardcoded dummy coordinate.
+        # origin_fac = Guwahati Multi-Modal Logistics Hub  [91.685, 26.185]
+        # dest_fac   = Ri-Bhoi District Civil Hospital      [91.881, 25.905]
+        #
+        # Extract lon/lat from the stored PostGIS POINT geometry.
+        fac_coords_res = await session.execute(
+            sa.select(
+                FacilityModel.id,
+                ST_X(FacilityModel.geom).label("lon"),
+                ST_Y(FacilityModel.geom).label("lat"),
+            ).where(FacilityModel.id.in_([origin_fac.id, dest_fac.id]))
+        )
+        fac_coords = {row.id: (float(row.lon), float(row.lat)) for row in fac_coords_res}
+
+        stops = [
+            (origin_fac, "PICKUP"),
+            (dest_fac, "DELIVERY"),
         ]
-        for s_idx, (lat, lon, stype, fac_id) in enumerate(stops_coords):
+        for s_idx, (fac, stype) in enumerate(stops):
+            # Use the facility's own stored coordinates — never hardcode
+            fac_lon, fac_lat = fac_coords[fac.id]
             stop_model = TripStopModel(
                 id=uuid4(),
                 trip_id=trip.id,
                 sequence_order=s_idx + 1,
                 stop_type=stype,
-                facility_id=fac_id,
-                geom=ST_GeomFromText(f"SRID=4326;POINT({lon} {lat})", 4326),
+                facility_id=fac.id,
+                geom=ST_GeomFromText(f"SRID=4326;POINT({fac_lon} {fac_lat})", 4326),
                 planned_arrival=now + timedelta(hours=s_idx),
                 planned_departure=now + timedelta(hours=s_idx, minutes=30),
                 actual_arrival=now - timedelta(minutes=40) if s_idx == 0 else None,
@@ -279,8 +295,30 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
         vac_comm.status = "IN_TRANSIT"
 
         # 8. Seed current position and replay ledger for Pharma Van
+        #
+        # Vehicle is mid-route on NH-6 between Jorabat (Node 4) and Byrnihat (Node 5).
+        # Pilot corridor edge 104 runs Node 4 [91.865, 26.085] → Node 5 [91.875, 26.045].
+        # We place the vehicle ~60% along that edge heading south (toward Shillong).
+        #
+        # Coordinate verification:
+        #   Node 4 (Jorabat Fork):    91.865, 26.085  — elevation 95m
+        #   Node 5 (Byrnihat Check):  91.875, 26.045  — elevation 120m
+        #   Vehicle at 60% progress:  91.871, 26.061  — on NH-6 tarmac
         pharma_dev = saved_devices["OBD-AS01-RF-4412"]
-        curr_pt = "SRID=4326;POINT(91.8684 26.0821)"  # near Byrnihat
+
+        # Lookup the snapped edge id for Jorabat→Byrnihat (edge_index 104)
+        # This ties the vehicle to the road segment in our graph, so routing
+        # and map snapping both recognise it as on-road.
+        from app.modules.network.infrastructure.models import RoadEdgeModel
+        edge_res = await session.execute(
+            sa.select(RoadEdgeModel.id).where(RoadEdgeModel.edge_index == 104).limit(1)
+        )
+        jorabat_byrnihat_edge_id = edge_res.scalar_one_or_none()
+
+        # Current position — exact NH-6 centerline, 60% between Node 4 & Node 5
+        curr_lon, curr_lat = 91.8710, 26.0610
+        curr_pt = f"SRID=4326;POINT({curr_lon} {curr_lat})"
+
         pos = VehicleCurrentPositionModel(
             vehicle_id=pharma_veh.id,
             device_id=pharma_dev.id,
@@ -288,14 +326,14 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
             geom=ST_GeomFromText(curr_pt, 4326),
             event_at=now - timedelta(minutes=2),
             received_at=now,
-            speed_kph=42.5,
-            heading_deg=175.0,
-            altitude_m=160.0,
+            speed_kph=38.0,
+            heading_deg=178.0,  # heading south-southeast toward Byrnihat
+            altitude_m=108.0,   # interpolated between 95m (Node4) and 120m (Node5)
             battery_pct=92.0,
             fix_quality="GPS_FIX_3D",
             source_type="HARDWARE_OBD_CELLULAR",
             source_rank=1,
-            snapped_edge_id=None,
+            snapped_edge_id=jorabat_byrnihat_edge_id,  # officially on NH-6 edge 104
             is_simulated=False,
             updated_at=now,
         )
@@ -304,31 +342,42 @@ async def seed_fleet_demo_data(session: AsyncSession) -> None:
         ledger = DeviceReplayLedgerModel(
             device_id=pharma_dev.id,
             vehicle_id=pharma_veh.id,
-            last_sequence_number=105,
+            last_sequence_number=107,
             last_event_at=now - timedelta(minutes=2),
             last_received_at=now,
             updated_at=now,
         )
         session.add(ledger)
 
-        bc = PositionBreadcrumbModel(
-            id=uuid4(),
-            vehicle_id=pharma_veh.id,
-            device_id=pharma_dev.id,
-            trip_id=trip.id,
-            geom=ST_GeomFromText(curr_pt, 4326),
-            event_at=now - timedelta(minutes=2),
-            received_at=now,
-            sequence_number=105,
-            speed_kph=42.5,
-            heading_deg=175.0,
-            fix_quality="GPS_FIX_3D",
-            source_type="HARDWARE_OBD_CELLULAR",
-            is_anomalous_speed=False,
-            is_simulated=False,
-            created_at=now,
-        )
-        session.add(bc)
+        # Breadcrumb trail — 3 pings along the actual NH-6 between Jorabat and Byrnihat.
+        # Each ping is a real waypoint on the highway so the trail follows the road.
+        breadcrumbs = [
+            # Ping 1: Near Jorabat Fork (Node 4), 18 min ago — just departing
+            (105, now - timedelta(minutes=18), 91.8660, 26.0820, 28.0, 175.0, 97.0),
+            # Ping 2: Mid-edge, 10 min ago — climbing toward Byrnihat
+            (106, now - timedelta(minutes=10), 91.8690, 26.0720, 34.0, 177.0, 102.0),
+            # Ping 3: Current, 2 min ago — nearing Byrnihat checkpoint
+            (107, now - timedelta(minutes=2),  curr_lon, curr_lat, 38.0, 178.0, 108.0),
+        ]
+        for seq, evt_at, b_lon, b_lat, spd, hdg, alt in breadcrumbs:
+            bc = PositionBreadcrumbModel(
+                id=uuid4(),
+                vehicle_id=pharma_veh.id,
+                device_id=pharma_dev.id,
+                trip_id=trip.id,
+                geom=ST_GeomFromText(f"SRID=4326;POINT({b_lon} {b_lat})", 4326),
+                event_at=evt_at,
+                received_at=evt_at + timedelta(seconds=3),
+                sequence_number=seq,
+                speed_kph=spd,
+                heading_deg=hdg,
+                fix_quality="GPS_FIX_3D",
+                source_type="HARDWARE_OBD_CELLULAR",
+                is_anomalous_speed=False,
+                is_simulated=False,
+                created_at=evt_at + timedelta(seconds=3),
+            )
+            session.add(bc)
 
     await session.commit()
     print("[seed_fleet] Successfully seeded vehicles, drivers, devices, commitments, and demo trip!")

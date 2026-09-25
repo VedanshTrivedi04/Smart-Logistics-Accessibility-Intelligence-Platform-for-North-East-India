@@ -7,4 +7,6 @@ export { SourceAge, CoverageBanner, EvidencePanel, ValidityStatement } from "./e
 export type { EvidencePanelProps } from "./evidence";
 export { AppShell, useAnnounce } from "./AppShell";
 export type { NavItem } from "./AppShell";
+export { NavigationProgress } from "./NavigationProgress";
 export { useEmergencyMode } from "./emergency";
+

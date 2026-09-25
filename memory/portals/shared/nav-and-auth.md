@@ -24,5 +24,12 @@
 - PLATFORM_ADMINISTRATOR: report summary/detail (NOT media), MANAGE_IDENTITY, MANAGE_GRANTS, road status view/update, VIEW_REGION, EXPORT_DATA, VIEW_DRIVER_PII
 - `COORDINATE_RESPONSE` added 2026-09-24 for Regional/State/Emergency roles.
 
-## Session
+## Session & Jurisdictional Scoping
 - HttpOnly cookie, CSRF token via GET /api/v1/auth/csrf-token (`shared/api/csrf.ts`), identity from GET /api/v1/me, cached offline in `shared/offline/identity-cache.ts`.
+- `useScopeFilter` (`frontend/src/shared/auth/useScopeFilter.ts`): Scopes operational data, incident triage, live fleet tracking, and GIS map bounding boxes to the assigned state (e.g. Assam `[89.7, 24.1, 96.0, 28.2]`) when authenticated as a State Authority (e.g. Bhaskar Singh), with user toggles to view the full 8-state Northeast region.
+
+## Navigation Responsiveness & UX
+- `shared/ui/NavigationProgress.tsx`: Top responsive animated gradient progress bar intercepting internal link clicks for 0ms visual confirmation. Mounted in `frontend/src/app/layout.tsx`.
+- `shared/ui/AppShell.tsx`: Navigation items feature instant pending state (`Loader2` spinner + "Opening…" chip) on click to prevent multi-click abort loops during page compilation. Links use `prefetch={false}` to avoid dev-server CPU thrashing.
+- `app/(protected)/loading.tsx` and `app/(protected)/gov/loading.tsx`: Instant skeleton loaders rendered during route transitions.
+
