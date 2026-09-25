@@ -10,7 +10,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [public/offline](portals/public/offline.md) - Public / Offline fallback (`/offline`)
 
 ## field
-- [field/home](portals/field/home.md) - Field / Home (`/field`)
+- [field/home](portals/field/home.md) - Field / Operational Command Home (`/field`)
 - [field/nearby](portals/field/nearby.md) - Field / Nearby and alerts (`/field/nearby`)
 - [field/profile](portals/field/profile.md) - Field / Profile and assignments (`/field/profile`)
 - [field/queue](portals/field/queue.md) - Field / Send queue (`/field/queue`)

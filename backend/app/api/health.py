@@ -72,13 +72,22 @@ async def readiness() -> ORJSONResponse:
     except Exception:
         pass
 
-    all_ok = db_status["status"] == "ok" and redis_ok
+    is_dev = settings.APP_ENV != "production" or settings.DEMO_MODE
+
+    # In development / demo mode, Redis is optional (it fails open in rate limiting and startup).
+    # In production, both PostgreSQL and Redis are strictly required.
+    if is_dev:
+        all_ok = db_status["status"] == "ok"
+        redis_check = "ok" if redis_ok else "standby (dev mode)"
+    else:
+        all_ok = db_status["status"] == "ok" and redis_ok
+        redis_check = "ok" if redis_ok else "error"
 
     response_body: dict[str, object] = {
         "status": "ok" if all_ok else "degraded",
         "checks": {
             "database": db_status["status"],
-            "redis": "ok" if redis_ok else "error",
+            "redis": redis_check,
         },
     }
 

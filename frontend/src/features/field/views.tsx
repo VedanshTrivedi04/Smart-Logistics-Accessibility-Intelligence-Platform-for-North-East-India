@@ -12,7 +12,7 @@ import { formatAge, formatDateTime } from "@/shared/lib/time";
 import { useNow } from "@/shared/lib/useNow";
 import { pilotLocale, reviewedLocales } from "@/shared/i18n";
 import { MapLegend, MapView } from "@/shared/map";
-import { Banner, Button, Card, ErrorNotice, Field, KeyValue, QueryState, Stat, StatusBadge } from "@/shared/ui";
+import { Banner, Button, Card, ErrorNotice, Field, KeyValue, QueryState, StatusBadge } from "@/shared/ui";
 import { buildNotices, NoticeDisclaimer, NoticeList } from "@/features/alerts";
 import { ReportEvidence, useIncidents, useReport, useReports } from "@/features/incidents";
 import { EdgePanel, edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
@@ -35,91 +35,10 @@ function LocationCard({ geo }: { geo: ReturnType<typeof useGeolocation> }) {
   );
 }
 
+import { FieldHomeMobile } from "./FieldHomeMobile";
+
 export function FieldHome() {
-  const me = usePrincipal();
-  const geo = useGeolocation(true);
-  const { snapshot, syncNow, syncing, ready, simulatedOffline, toggleSimulatedOffline } = useOffline();
-  const incidents = useIncidents("ACTIVE");
-  const reports = useReports();
-  const pending = snapshot?.operations.filter((o) => o.state !== "SYNCED") ?? [];
-  const needsAttention = pending.filter((o) => ["NEEDS_LOGIN", "NEEDS_REVIEW", "FAILED_WITH_REASON"].includes(o.state)).length;
-  const nearbyCount = useMemo(() => {
-    if (geo.state.status !== "ok" || !reports.data) return null;
-    const f = geo.state.fix;
-    return reports.data.filter((r) => haversineMeters(f.latitude, f.longitude, r.location.latitude, r.location.longitude) <= 10_000).length;
-  }, [geo.state, reports.data]);
-  const notices = useMemo(() => buildNotices({ incidents: incidents.data ?? [], reports: reports.data ?? [], ownUserId: me.user_id, hrefs: { report: (id) => `/field/reports/${id}` } }), [incidents.data, reports.data, me.user_id]);
-
-  return (
-    <div className="stack">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0.85rem 1.25rem",
-          borderRadius: "10px",
-          background: simulatedOffline
-            ? "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(180, 83, 9, 0.25) 100%)"
-            : "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.2) 100%)",
-          border: `1px solid ${simulatedOffline ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.35)"}`,
-          flexWrap: "wrap",
-          gap: "0.75rem",
-        }}
-      >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600 }}>
-            <span style={{ fontSize: "1.1rem" }}>{simulatedOffline ? "🟠" : "🟢"}</span>
-            <span>
-              Field Network Status: {simulatedOffline ? "SIMULATED OFFLINE (IndexedDB Local Queue Active)" : "ONLINE (Live API Sync Active)"}
-            </span>
-          </div>
-          <p className="small muted" style={{ margin: "0.25rem 0 0 1.6rem" }}>
-            {simulatedOffline
-              ? "Requests are suspended to simulate remote mountain terrain with zero cellular connectivity. Reports will queue in IndexedDB."
-              : "Connected to central PARVA servers. Auto-syncing background queue on network change."}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button
-            size="small"
-            variant={simulatedOffline ? "primary" : "default"}
-            onClick={toggleSimulatedOffline}
-          >
-            {simulatedOffline ? "📡 Reconnect & Auto-Sync" : "📴 Simulate Offline (Cut Network)"}
-          </Button>
-          {!simulatedOffline && (
-            <Button size="small" onClick={() => void syncNow()} busy={syncing}>
-              Sync now
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid cols-2">
-        <Link className="btn large primary" href="/field/report/new">Report an incident</Link>
-        <Link className="btn large" href="/field/road-update">Update road status</Link>
-        <Link className="btn large" href="/field/queue">Send queue{ready ? ` (${pending.length})` : ""}</Link>
-        <Link className="btn large" href="/field/nearby">Nearby and alerts</Link>
-      </div>
-      {needsAttention ? <Banner tone="warn" title={`${needsAttention} report(s) need your attention`}><p className="small">Open the send queue to sign in, edit or discard them.</p></Banner> : null}
-      <div className="grid cols-2">
-        <LocationCard geo={geo} />
-        <Card title="Assignment">
-          <KeyValue items={[["Role", ROLE_LABEL[me.role] ?? me.role], ["Organization", me.org_name], ["Assigned areas", `${me.jurisdiction_ids?.length ?? 0} jurisdiction(s)`]]} />
-          <p className="small muted">What you see is limited to your assigned areas by the server.</p>
-        </Card>
-      </div>
-      <div className="grid cols-3">
-        <Card><Stat label="Waiting to send" value={pending.length} hint="Saved on this device" /></Card>
-        <Card><Stat label="Active incidents in scope" value={incidents.isPending ? "…" : incidents.data?.length ?? "—"} /></Card>
-        <Card><Stat label="Reports within 10 km" value={nearbyCount ?? "—"} hint={nearbyCount === null ? "Needs your location" : undefined} /></Card>
-      </div>
-      <Card title="Notices for you" actions={<Button size="small" onClick={() => void syncNow()} busy={syncing}>Sync now</Button>}>
-        <NoticeList notices={notices.slice(0, 5)} emptyText="No notices right now." />
-      </Card>
-    </div>
-  );
+  return <FieldHomeMobile />;
 }
 
 type Row = { key: string; kind: "local"; opId: string; title: string; state: string; at: string; reportId: string | null } | { key: string; kind: "server"; report: Report };

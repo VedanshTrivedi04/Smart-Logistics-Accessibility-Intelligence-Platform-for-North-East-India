@@ -491,8 +491,23 @@ export function ForbiddenView() {
 }
 
 export function ServiceStatusView() {
-  const ready = useQuery({ queryKey: ["status", "ready"], queryFn: () => unwrap(() => api.GET("/health/ready")) as Promise<unknown>, retry: false, refetchInterval: 20_000 });
+  const ready = useQuery({
+    queryKey: ["status", "ready"],
+    queryFn: async () => {
+      const res = await api.GET("/health/ready");
+      if (res.data) return res.data;
+      if (res.error && typeof res.error === "object" && "checks" in (res.error as Record<string, unknown>)) {
+        return res.error;
+      }
+      return unwrap(() => Promise.resolve(res));
+    },
+    retry: false,
+    refetchInterval: 20_000,
+  });
   const live = useQuery({ queryKey: ["status", "live"], queryFn: () => unwrap(() => api.GET("/health/live")) as Promise<unknown>, retry: false, refetchInterval: 20_000 });
+  const readyData = ready.data as { status?: string; checks?: Record<string, string> } | undefined;
+  const isAllOk = readyData?.status === "ok";
+
   return (
     <div className="stack">
       <PageHeader title="Service status" subtitle="Checked every 20 seconds while this page is open." />
@@ -500,7 +515,19 @@ export function ServiceStatusView() {
         {live.isError ? <ErrorNotice error={live.error} subject="the API" onRetry={() => void live.refetch()} /> : live.isPending ? <p role="status" className="muted">Checking…</p> : <Banner tone="ok" title="The API process is running" />}
       </Card>
       <Card title="Dependencies (database and cache)">
-        {ready.isError ? <ErrorNotice error={ready.error} subject="dependency status" onRetry={() => void ready.refetch()} /> : ready.isPending ? <p role="status" className="muted">Checking…</p> : <><Banner tone="ok" title="Ready to serve requests" /><pre className="mono small" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(ready.data, null, 2)}</pre></>}
+        {ready.isError ? (
+          <ErrorNotice error={ready.error} subject="dependency status" onRetry={() => void ready.refetch()} />
+        ) : ready.isPending ? (
+          <p role="status" className="muted">Checking…</p>
+        ) : (
+          <>
+            <Banner
+              tone={isAllOk ? "ok" : "warn"}
+              title={isAllOk ? "Ready to serve requests" : "Some dependencies are unavailable or degraded"}
+            />
+            <pre className="mono small" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(ready.data, null, 2)}</pre>
+          </>
+        )}
         <p className="small muted">When a dependency is down, screens show a service error, never an empty result. Weather and external feeds are not connected in this build, so their freshness cannot be shown.</p>
       </Card>
     </div>
