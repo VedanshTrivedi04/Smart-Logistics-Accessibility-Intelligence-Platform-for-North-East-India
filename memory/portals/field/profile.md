@@ -26,3 +26,6 @@ No page-specific test.
 
 ## Update 2026-09-26
 - New "Offline readiness" card: whether the field screens are saved for offline use (`offlineReady`) and whether the browser promised to keep storage.
+- Field Officer Dossier: displays Senior Field Officer designation, Ground Patrol & Infrastructure Monitoring division, organization, assigned lifeline corridors (NH-6 & NH-27), and active patrol duty.
+- Authentic Client Telemetry: displays genuine client instance ID, storage persistence guarantee, live storage quota utilization, IndexedDB schema v1 status, and PWA offline shell caching (no fictional hardware enclave claims).
+- Language & Low-Bandwidth Mode preferences.

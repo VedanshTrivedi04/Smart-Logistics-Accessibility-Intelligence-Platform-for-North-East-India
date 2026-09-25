@@ -26,3 +26,8 @@ State machine in `shared/offline/queue-state.ts`. Error shown if offline storage
 
 ## Update 2026-09-26
 - Each unsent report has a "Send by SMS" link when `NEXT_PUBLIC_FIELD_SMS_NUMBER` is set (compact text with reference, type, severity, coordinates, chainage, lane status, time). It does not send anything by itself and the report stays queued.
+- Tactical operational header added: 3-stat metric bar (`Pending in Queue`, `In-Flight / Transmitting`, `Synced to Server`).
+- Live network connectivity indicator pill (`🟢 Online · Server Connectivity Active` vs `🟠 Offline · Local Storage Engine Active`).
+- Explicit session expiration banner with one-click re-authentication link when reports have `NEEDS_LOGIN`.
+- Tactical queue card items: `OP-XXXX` reference codes, attached media count/text-only badges, GPS fix badge, retry countdown timer, and low-bandwidth fallback ("Send without photos").
+- Storage status panel with dynamic utilization progress bar.

@@ -28,5 +28,8 @@ No page-specific test.
 
 ## Update 2026-09-26
 - New `RoadConditionForm` at the top of the page: choose a nearby segment, what you see (Open / Restricted / Blocked), optional notes. Saved on device and queued (works offline). Files a `ROAD_CONDITION_UPDATE` report with `candidate_edge_id`, lane status and severity mapped from the choice. It never changes official road status; policy 21 auto-caution does not apply to this type.
+- Active Lifeline Corridor Position HUD (`snapToCorridor`) automatically detects chainage and lateral offset along NH-6 / NH-27.
+- Restricted passability matrix allows fine-tuning lane status (`SINGLE_LANE_OPEN` vs `SHOULDER_ONLY`) and selecting passable vehicle classes (`LIGHT_4X4`, `EMERGENCY_ONLY`, `HEAVY_TRUCK`).
+- Downstream intelligence card communicates the closed-loop governance: observation -> District Verifier confirmation -> Spatial Graph edge status update -> Logistics Impact Engine route recalculation.
 - Nearby segments come from `useEdges` with an offline snapshot (`nearby-edges`); `StaleDataBanner` shows the fetch time. The segment list and `EdgePanel` (official status, needs a connection) remain.
 - Tests: `tests/unit/offline-extras.test.ts`.

@@ -23,11 +23,12 @@ export const OBSERVED_STATUS: Record<ObservedRoadStatus, StatusMapping> = {
 };
 
 export const CONDITION_NOTE_CHIPS = [
-  "Debris cleared from the carriageway",
-  "Temporary bypass in use",
-  "Only one lane open, alternating traffic",
-  "Heavy vehicles still cannot pass",
-  "Repair crew and machinery on site",
+  "Debris cleared from eastbound lane",
+  "Temporary bypass operational",
+  "Single lane open with alternating traffic",
+  "Culvert reinforced and passable",
+  "Heavy vehicles still cannot pass (light 4x4 only)",
+  "Repair crew and earth-moving machinery on site",
 ] as const;
 
 export interface RoadConditionInput {
@@ -36,21 +37,23 @@ export interface RoadConditionInput {
   edgeId: string;
   edgeLabel: string;
   location: ReportLocation;
+  laneStatus?: LaneStatus | null;
+  passableClasses?: string[];
   now?: Date;
 }
 
-export function buildRoadConditionPayload({ status, notes, edgeId, edgeLabel, location, now = new Date() }: RoadConditionInput): ReportPayload {
+export function buildRoadConditionPayload({ status, notes, edgeId, edgeLabel, location, laneStatus, passableClasses = [], now = new Date() }: RoadConditionInput): ReportPayload {
   const m = OBSERVED_STATUS[status];
   const text = notes.trim();
   return {
     ...emptyPayload(now),
     reportType: "ROAD_CONDITION_UPDATE",
     severity: m.severity,
-    description: `${edgeLabel}: seen ${m.label.toLowerCase()}.${text ? ` ${text}` : ""}`,
+    description: `${edgeLabel}: observed ${m.label.toLowerCase()}.${text ? ` ${text}` : ""}`,
     location,
     candidateEdgeId: edgeId,
-    laneStatus: m.laneStatus,
-    passableClasses: [],
+    laneStatus: laneStatus ?? m.laneStatus,
+    passableClasses,
     lifeSafetyRisk: false,
   };
 }

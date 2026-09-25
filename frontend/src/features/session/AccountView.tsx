@@ -12,6 +12,7 @@ export function AccountView() {
   const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, districtCircles } = useScopeFilter();
 
   if (!principal) return null;
+  const isFieldOfficer = principal.role === "FIELD_OFFICER" || principal.role === "ROAD_INSPECTION" || principal.role === "LOCAL_AUTHORITY";
   const caps = [...principal.capabilities].sort();
 
   const neStates = [
@@ -27,6 +28,38 @@ export function AccountView() {
 
   return (
     <div className="stack" style={{ gap: "1.75rem", maxWidth: "920px", paddingBottom: "3rem" }}>
+      {/* Field Officer Scoped Banner */}
+      {isFieldOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #1e3a8a 0%, #0369a1 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #38bdf8",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(2, 132, 199, 0.2)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🦺 Senior Field Operations Unit Active · Strategic Patrol Command</span>
+              <span style={{ background: "#0284c7", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Field Operations
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#bae6fd", marginTop: "0.2rem" }}>
+              Field Officer authorized for rapid incident reporting, photo evidence capture, and road condition observations along NH-6 / NH-27 lifeline corridors.
+            </div>
+          </div>
+          <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
+            Officer: {principal.display_name || "Elangbam Meitei"}
+          </span>
+        </div>
+      )}
+
       {/* District Officer Scoped Banner */}
       {isDistrictOfficer && (
         <div
@@ -138,6 +171,8 @@ export function AccountView() {
                 ? (principal.display_name || "Chitralekha Devi")
                 : isStateAuthority
                 ? (principal.display_name || "Bhaskar Singh")
+                : isFieldOfficer
+                ? (principal.display_name || "Elangbam Meitei")
                 : (principal.display_name || "MDoNER Regional Commander")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -145,6 +180,8 @@ export function AccountView() {
                 ? (principal.email ?? "chitra@kamrup-verifier.in")
                 : isStateAuthority
                 ? (principal.email ?? "bhaskar.singh@assam-gov.in")
+                : isFieldOfficer
+                ? (principal.email ?? "elangbam.meitei@ner-field.gov.in")
                 : (principal.email ?? "commander@mdoner.gov.in")}
             </div>
           </div>
@@ -152,10 +189,10 @@ export function AccountView() {
           <div style={{ background: "var(--surface-2)", padding: "0.9rem 1.1rem", borderRadius: "12px", border: "1px solid var(--border)" }}>
             <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Role</div>
             <div style={{ fontSize: "1.1rem", fontWeight: 800, color: isDistrictOfficer ? "#059669" : "#0284c7", marginTop: "0.2rem" }}>
-              {isDistrictOfficer ? "District Incident Verifier" : isStateAuthority ? "State Authority" : (ROLE_LABEL[principal.role] ?? "Regional Authority")}
+              {isDistrictOfficer ? "District Incident Verifier" : isStateAuthority ? "State Authority" : isFieldOfficer ? "Senior Field Officer" : (ROLE_LABEL[principal.role] ?? "Regional Authority")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-              Level: {isDistrictOfficer ? `${assignedDistrict} District Operations Command` : isStateAuthority ? `${assignedState} State Operations Command` : "Inter-State Regional Command"}
+              Level: {isDistrictOfficer ? `${assignedDistrict} District Operations Command` : isStateAuthority ? `${assignedState} State Operations Command` : isFieldOfficer ? "Active Lifeline Reconnaissance & Ground Patrol" : "Inter-State Regional Command"}
             </div>
           </div>
 
@@ -166,6 +203,8 @@ export function AccountView() {
                 ? "Kamrup Metropolitan District Administration"
                 : isStateAuthority
                 ? "Assam State Department of Transport"
+                : isFieldOfficer
+                ? (principal.org_name || "North East Strategic Lifelines Division")
                 : (principal.org_name || "MDoNER")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -173,6 +212,8 @@ export function AccountView() {
                 ? "Government of Assam · District Verifier Desk"
                 : isStateAuthority
                 ? "Government of Assam · Transport & Logistics"
+                : isFieldOfficer
+                ? "Field Operations & Emergency Patrol Division"
                 : "Ministry of Development of North Eastern Region"}
             </div>
           </div>
@@ -184,6 +225,8 @@ export function AccountView() {
                 ? `${assignedDistrict} Circles & Corridors`
                 : isStateAuthority
                 ? `${assignedState} State Corridors & Districts`
+                : isFieldOfficer
+                ? "NH-6 / NH-27 Lifeline Patrol Sectors"
                 : "North Eastern Region (NER)"}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -191,6 +234,8 @@ export function AccountView() {
                 ? "6 Administrative Circles · Ground Damage Adjudication"
                 : isStateAuthority
                 ? "Assam State Highways · District Emergency Triage"
+                : isFieldOfficer
+                ? "Strategic Mountain Corridors · Rapid Hazard Reporting"
                 : "All 8 States · Full Access Scope"}
             </div>
           </div>
@@ -322,7 +367,7 @@ export function AccountView() {
         {/* Assigned Capabilities */}
         <div style={{ marginTop: "1.5rem", paddingTop: "1.25rem", borderTop: "1px solid var(--border)" }}>
           <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.6rem" }}>
-            Granted Role Capabilities
+            Granted Role Capabilities (Active Authorization)
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
             {caps.map((c) => (
@@ -331,17 +376,59 @@ export function AccountView() {
                 style={{
                   fontSize: "0.75rem",
                   fontWeight: 600,
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
                   padding: "0.25rem 0.55rem",
                   borderRadius: "6px",
-                  color: "var(--text)",
+                  color: "#166534",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
                 }}
               >
-                {c.toLowerCase().replace(/_/g, " ")}
+                <span>✓</span> {c.toLowerCase().replace(/_/g, " ")}
               </span>
             ))}
           </div>
+
+          {/* Explicit Restricted Capabilities for Field Role */}
+          {isFieldOfficer && (
+            <div style={{ marginTop: "1.25rem" }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                Restricted Operational Capabilities (Enforced by Server Security RBAC)
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {[
+                  { name: "update road status", reason: "Requires District / State Authority" },
+                  { name: "verify report", reason: "Reserved for District Verifier Desk" },
+                  { name: "manage fleet", reason: "Reserved for Logistics Coordinator" },
+                  { name: "regional analytics", reason: "Reserved for MDoNER Command" },
+                ].map((r) => (
+                  <span
+                    key={r.name}
+                    style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 500,
+                      background: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      padding: "0.25rem 0.55rem",
+                      borderRadius: "6px",
+                      color: "#991b1b",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                    }}
+                    title={r.reason}
+                  >
+                    <span>✗</span> {r.name} ({r.reason})
+                  </span>
+                ))}
+              </div>
+              <p className="small muted" style={{ marginTop: "0.45rem", marginBottom: 0 }}>
+                Under zero-trust governance, field officers submit objective observations; official edge status mutations and incident clearance are authorized exclusively by District Verifiers.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

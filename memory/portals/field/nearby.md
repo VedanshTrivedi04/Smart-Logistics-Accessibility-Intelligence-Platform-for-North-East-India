@@ -26,3 +26,6 @@ No page-specific test.
 
 ## Update 2026-09-26
 - Reports, incidents and nearby road segments use offline snapshots; a warning banner shows when the screen is using saved data. Reports are now scoped by the server (own reports plus reports inside the user's jurisdiction).
+- Tactical Highway Position HUD: computes `snapToCorridor(fix.latitude, fix.longitude)` showing formatted chainage (e.g. `NH-6 · KM 21.5`), milestone name (`Jorabat Strategic Fork`), and lateral offset from road centerline.
+- Distance-sorted nearby hazards card: categorizes hazards into critical (red) and warnings (amber), distance from officer (`4.2 km away`), and direct dossier navigation links.
+- Two-way government advisory feed: distinct section for regional advisories and broadcast weather alerts issued by MDoNER Command and District Emergency Operations.
