@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from app.core.config import get_settings
@@ -42,8 +43,8 @@ class MediaUploadService:
         file_size_bytes: int,
         mime_type: str,
         checksum_sha256: str,
-    ) -> dict[str, str | int]:
-        """Validate media metadata and issue a time-bounded presigned PUT upload URL."""
+    ) -> dict[str, Any]:
+        """Validate media metadata and issue a direct-upload ticket (presigned PUT, or signed POST for Cloudinary)."""
         # 1. MIME Whitelist
         allowed_mimes = {"image/jpeg", "image/png", "image/webp"}
         if mime_type not in allowed_mimes:
@@ -69,7 +70,7 @@ class MediaUploadService:
 
         # 5. Generate Presigned PUT URL
         expires_in = 900  # 15 minutes
-        upload_url = await self.storage.generate_presigned_upload_url(
+        target = await self.storage.create_upload_target(
             bucket=bucket,
             object_key=object_key,
             content_type=mime_type,
@@ -93,7 +94,10 @@ class MediaUploadService:
 
         return {
             "media_id": str(media_id),
-            "upload_url": upload_url,
+            "upload_url": target.url,
+            "upload_method": target.method,
+            "upload_headers": dict(target.headers),
+            "upload_fields": dict(target.fields),
             "object_key": object_key,
             "expires_in_seconds": expires_in,
         }

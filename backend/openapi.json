@@ -3631,31 +3631,6 @@
           }
         }
       }
-    },
-    "/api/v1/seed-demo": {
-      "post": {
-        "tags": [
-          "Demo"
-        ],
-        "summary": "Run Demo Seed",
-        "operationId": "run_demo_seed_api_v1_seed_demo_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Run Demo Seed Api V1 Seed Demo Post"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -5305,6 +5280,18 @@
           },
           "model_status": {
             "$ref": "#/components/schemas/ModelStatus"
+          },
+          "training_data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Data",
+            "description": "Provenance of the ETA training data (e.g. SYNTHETIC_NE_CALIBRATED)"
           }
         },
         "type": "object",
@@ -5862,6 +5849,17 @@
         ],
         "title": "JurisdictionResponse"
       },
+      "LaneStatus": {
+        "type": "string",
+        "enum": [
+          "BOTH_BLOCKED",
+          "SINGLE_LANE_OPEN",
+          "SHOULDER_ONLY",
+          "CLEAR"
+        ],
+        "title": "LaneStatus",
+        "description": "Observed lane availability on the affected road section."
+      },
       "LocationPointDTO": {
         "properties": {
           "longitude": {
@@ -6250,6 +6248,17 @@
           "unassigned_commitment_ids"
         ],
         "title": "OptimizeDispatchResponse"
+      },
+      "PassableVehicleClass": {
+        "type": "string",
+        "enum": [
+          "HEAVY_TRUCK",
+          "LIGHT_4X4",
+          "EMERGENCY_ONLY",
+          "NONE"
+        ],
+        "title": "PassableVehicleClass",
+        "description": "Vehicle classes the reporter observed getting through."
       },
       "PolicyVersion": {
         "type": "string",
@@ -6679,6 +6688,29 @@
               }
             ],
             "title": "Candidate Bridge Id"
+          },
+          "lane_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaneStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "passable_classes": {
+            "items": {
+              "$ref": "#/components/schemas/PassableVehicleClass"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Passable Classes"
+          },
+          "life_safety_risk": {
+            "type": "boolean",
+            "title": "Life Safety Risk",
+            "default": false
           }
         },
         "type": "object",
@@ -6793,6 +6825,32 @@
             ],
             "title": "Candidate Bridge Id",
             "description": "Explicitly snapped bridge ID"
+          },
+          "lane_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaneStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Observed lane availability"
+          },
+          "passable_classes": {
+            "items": {
+              "$ref": "#/components/schemas/PassableVehicleClass"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Passable Classes",
+            "description": "Vehicle classes observed passing"
+          },
+          "life_safety_risk": {
+            "type": "boolean",
+            "title": "Life Safety Risk",
+            "description": "Reporter flags an acute risk to life",
+            "default": false
           }
         },
         "type": "object",
@@ -6934,6 +6992,28 @@
             ],
             "title": "Amendment Of Report Id"
           },
+          "lane_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaneStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "passable_classes": {
+            "items": {
+              "$ref": "#/components/schemas/PassableVehicleClass"
+            },
+            "type": "array",
+            "title": "Passable Classes"
+          },
+          "life_safety_risk": {
+            "type": "boolean",
+            "title": "Life Safety Risk",
+            "default": false
+          },
           "observed_at": {
             "type": "string",
             "format": "date-time",
@@ -7007,6 +7087,7 @@
           "TREE_FALL",
           "WEATHER_HAZARD",
           "SECURITY_INCIDENT",
+          "OBSTRUCTION",
           "OTHER"
         ],
         "title": "ReportType",
@@ -8294,6 +8375,25 @@
             "type": "string",
             "title": "Upload Url"
           },
+          "upload_method": {
+            "type": "string",
+            "title": "Upload Method",
+            "default": "PUT"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Upload Headers"
+          },
+          "upload_fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Upload Fields"
+          },
           "object_key": {
             "type": "string",
             "title": "Object Key"
@@ -8311,7 +8411,7 @@
           "expires_in_seconds"
         ],
         "title": "UploadTicketResponse",
-        "description": "Pre-signed PUT upload ticket."
+        "description": "Direct-upload ticket: a presigned PUT, or a signed multipart POST (Cloudinary)."
       },
       "ValidationError": {
         "properties": {

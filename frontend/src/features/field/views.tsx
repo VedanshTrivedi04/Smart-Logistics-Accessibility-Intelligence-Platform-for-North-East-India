@@ -103,7 +103,7 @@ function AmendForm({ report }: { report: Report }) {
       unwrap(() =>
         api.POST("/api/v1/reports/{report_id}/amend", {
           params: { path: { report_id: report.id } },
-          body: { reason: reason.trim(), report_type: type, severity, description: description.trim(), location: report.location, observed_at: report.observed_at, media_ids: report.media_ids },
+          body: { reason: reason.trim(), report_type: type, severity, description: description.trim(), location: report.location, observed_at: report.observed_at, media_ids: report.media_ids, lane_status: report.lane_status ?? null, passable_classes: report.passable_classes ?? [], life_safety_risk: report.life_safety_risk ?? false },
         }),
       ),
     onSuccess: () => void qc.invalidateQueries({ predicate: (q) => q.queryKey.includes("reports") || q.queryKey.includes("report") }),

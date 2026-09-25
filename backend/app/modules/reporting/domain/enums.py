@@ -16,6 +16,7 @@ class ReportType(str, Enum):
     TREE_FALL = "TREE_FALL"
     WEATHER_HAZARD = "WEATHER_HAZARD"
     SECURITY_INCIDENT = "SECURITY_INCIDENT"
+    OBSTRUCTION = "OBSTRUCTION"
     OTHER = "OTHER"
 
 
@@ -25,6 +26,22 @@ class ReportSeverity(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
+
+class LaneStatus(str, Enum):
+    """Observed lane availability on the affected road section."""
+    BOTH_BLOCKED = "BOTH_BLOCKED"
+    SINGLE_LANE_OPEN = "SINGLE_LANE_OPEN"
+    SHOULDER_ONLY = "SHOULDER_ONLY"
+    CLEAR = "CLEAR"
+
+
+class PassableVehicleClass(str, Enum):
+    """Vehicle classes the reporter observed getting through."""
+    HEAVY_TRUCK = "HEAVY_TRUCK"
+    LIGHT_4X4 = "LIGHT_4X4"
+    EMERGENCY_ONLY = "EMERGENCY_ONLY"
+    NONE = "NONE"
 
 
 class ReviewState(str, Enum):

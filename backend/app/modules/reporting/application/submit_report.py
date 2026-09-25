@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from app.modules.incidents.application.ports import IncidentRepositoryPort
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
+    PassableVehicleClass,
     ReportSeverity,
     ReportType,
     ReviewState,
@@ -53,6 +55,9 @@ class SubmitFieldReportUseCase:
         media_ids: list[UUID] | None = None,
         candidate_edge_id: UUID | None = None,
         candidate_bridge_id: UUID | None = None,
+        lane_status: LaneStatus | None = None,
+        passable_classes: list[PassableVehicleClass] | None = None,
+        life_safety_risk: bool = False,
     ) -> FieldReport:
         # 1. Location and timestamp validation
         location.validate()
@@ -130,6 +135,9 @@ class SubmitFieldReportUseCase:
             created_at=received_at,
             media_ids=validated_media_ids,
             review_state=ReviewState.SUBMITTED,
+            lane_status=lane_status,
+            passable_classes=list(dict.fromkeys(passable_classes or [])),
+            life_safety_risk=life_safety_risk,
         )
         report.validate_timestamps()
 

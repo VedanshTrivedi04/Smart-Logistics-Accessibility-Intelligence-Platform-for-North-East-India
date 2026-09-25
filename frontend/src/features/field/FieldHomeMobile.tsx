@@ -614,7 +614,7 @@ export function FieldHomeMobile() {
                 <span>⛰️</span> Landslide
               </Link>
               <Link
-                href="/field/report/new?type=FLOOD"
+                href="/field/report/new?type=FLOODING"
                 style={{
                   padding: "0.6rem 0.75rem",
                   background: "#ffffff",
@@ -632,7 +632,7 @@ export function FieldHomeMobile() {
                 <span>🌊</span> Flash Flood
               </Link>
               <Link
-                href="/field/report/new?type=BRIDGE_DAMAGE"
+                href="/field/report/new?type=BRIDGE_COLLAPSE"
                 style={{
                   padding: "0.6rem 0.75rem",
                   background: "#ffffff",
@@ -650,7 +650,7 @@ export function FieldHomeMobile() {
                 <span>🌉</span> Bridge Damage
               </Link>
               <Link
-                href="/field/report/new?type=ROAD_BLOCKAGE"
+                href="/field/report/new?type=OBSTRUCTION"
                 style={{
                   padding: "0.6rem 0.75rem",
                   background: "#ffffff",
@@ -665,7 +665,7 @@ export function FieldHomeMobile() {
                   textDecoration: "none",
                 }}
               >
-                <span>🚧</span> Full Blockage
+                <span>🚧</span> Full Obstruction
               </Link>
             </div>
           </div>

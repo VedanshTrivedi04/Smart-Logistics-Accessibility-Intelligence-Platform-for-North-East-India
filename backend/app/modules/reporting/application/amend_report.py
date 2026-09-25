@@ -14,6 +14,8 @@ from app.modules.reporting.application.ports import ReportingRepositoryPort
 from app.modules.reporting.application.submit_report import SubmitFieldReportUseCase
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint, ReportAmendment
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
+    PassableVehicleClass,
     ReportSeverity,
     ReportType,
     ReviewState,
@@ -48,6 +50,9 @@ class AmendReportUseCase:
         media_ids: list[UUID] | None = None,
         candidate_edge_id: UUID | None = None,
         candidate_bridge_id: UUID | None = None,
+        lane_status: LaneStatus | None = None,
+        passable_classes: list[PassableVehicleClass] | None = None,
+        life_safety_risk: bool = False,
     ) -> FieldReport:
         if not reason or not reason.strip():
             raise ValidationError("An explicit explanation reason is required for amendments.")
@@ -80,6 +85,9 @@ class AmendReportUseCase:
             media_ids=media_ids,
             candidate_edge_id=candidate_edge_id,
             candidate_bridge_id=candidate_bridge_id,
+            lane_status=lane_status,
+            passable_classes=passable_classes,
+            life_safety_risk=life_safety_risk,
         )
 
         # Link as amendment

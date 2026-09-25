@@ -16,6 +16,11 @@ export class TransportError extends Error {
 export interface UploadTicket {
   mediaId: string;
   uploadUrl: string;
+  /** "PUT" for a presigned S3/MinIO URL, "POST" for a signed multipart upload (Cloudinary). */
+  method: string;
+  headers: Record<string, string>;
+  /** Signed form fields sent with a POST upload. Empty for PUT. */
+  fields: Record<string, string>;
 }
 
 /**
@@ -24,7 +29,7 @@ export interface UploadTicket {
  */
 export interface SyncTransport {
   requestUploadTicket(input: { fileName: string; sizeBytes: number; mimeType: string; sha256: string }): Promise<UploadTicket>;
-  putObject(url: string, blob: Blob, mimeType: string): Promise<void>;
+  putObject(ticket: UploadTicket, blob: Blob, mimeType: string): Promise<void>;
   confirmUpload(mediaId: string, meta: { widthPx?: number; heightPx?: number }): Promise<void>;
   syncBatch(items: Array<Record<string, unknown>>, ctx: { appInstanceId?: string }): Promise<BatchSyncResponse>;
 }
@@ -47,15 +52,23 @@ export const httpTransport: SyncTransport = {
     if (simulatedOffline) throw new TransportError(0, "Simulated NER hill network outage");
     try {
       const t = await unwrap(() => api.POST("/api/v1/media/upload-ticket", { body: { file_name: fileName, file_size_bytes: sizeBytes, mime_type: mimeType, checksum_sha256: sha256 } }));
-      return { mediaId: t.media_id, uploadUrl: t.upload_url };
+      return { mediaId: t.media_id, uploadUrl: t.upload_url, method: t.upload_method ?? "PUT", headers: t.upload_headers ?? {}, fields: t.upload_fields ?? {} };
     } catch (e) {
       throw wrap(e);
     }
   },
-  async putObject(url, blob, mimeType) {
+  async putObject(ticket, blob, mimeType) {
     let res: Response;
     try {
-      res = await fetch(url, { method: "PUT", body: blob, headers: { "Content-Type": mimeType } });
+      if (ticket.method === "POST") {
+        // Signed multipart upload. No Content-Type header: the browser sets the multipart boundary.
+        const form = new FormData();
+        for (const [k, v] of Object.entries(ticket.fields)) form.append(k, v);
+        form.append("file", blob);
+        res = await fetch(ticket.uploadUrl, { method: "POST", body: form });
+      } else {
+        res = await fetch(ticket.uploadUrl, { method: "PUT", body: blob, headers: Object.keys(ticket.headers).length ? ticket.headers : { "Content-Type": mimeType } });
+      }
     } catch (e) {
       throw wrap(e);
     }

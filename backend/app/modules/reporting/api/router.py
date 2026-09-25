@@ -66,6 +66,9 @@ def _to_response_dto(r: FieldReport) -> ReportResponse:
         rejection_reason=r.rejection_reason.value if r.rejection_reason else None,
         rejection_notes=r.rejection_notes,
         amendment_of_report_id=r.amendment_of_report_id,
+        lane_status=r.lane_status,
+        passable_classes=r.passable_classes,
+        life_safety_risk=r.life_safety_risk,
         observed_at=r.observed_at,
         received_at=r.received_at,
         created_at=r.created_at,
@@ -114,6 +117,9 @@ async def submit_report(
         media_ids=req.media_ids,
         candidate_edge_id=req.candidate_edge_id,
         candidate_bridge_id=req.candidate_bridge_id,
+        lane_status=req.lane_status,
+        passable_classes=req.passable_classes,
+        life_safety_risk=req.life_safety_risk,
     )
     return _to_response_dto(report)
 
@@ -224,6 +230,9 @@ async def amend_report(
         media_ids=req.media_ids,
         candidate_edge_id=req.candidate_edge_id,
         candidate_bridge_id=req.candidate_bridge_id,
+        lane_status=req.lane_status,
+        passable_classes=req.passable_classes,
+        life_safety_risk=req.life_safety_risk,
     )
     return _to_response_dto(amended)
 
@@ -254,6 +263,9 @@ async def request_upload_ticket(
     return UploadTicketResponse(
         media_id=UUID(str(res["media_id"])),
         upload_url=str(res["upload_url"]),
+        upload_method=str(res["upload_method"]),
+        upload_headers=dict(res["upload_headers"]),
+        upload_fields=dict(res["upload_fields"]),
         object_key=str(res["object_key"]),
         expires_in_seconds=int(res["expires_in_seconds"]),
     )

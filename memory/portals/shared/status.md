@@ -18,6 +18,7 @@ API liveness and dependency readiness, polled every 20 s.
 ## Behaviour notes
 - In development/demo mode (`APP_ENV != "production" or DEMO_MODE`), Redis is optional and reports `standby (dev mode)` rather than failing the readiness probe with 503.
 - In production, both PostgreSQL and Redis are strictly required for 200 readiness status.
+- Redis URL is normalized to IPv4 `127.0.0.1` across backend to avoid Windows `localhost` -> `::1` IPv6 connection timeouts.
 - `ServiceStatusView` resiliently parses dependency check bodies even if 503 is returned, rendering granular diagnostics for database and Redis.
 
 ## Tests

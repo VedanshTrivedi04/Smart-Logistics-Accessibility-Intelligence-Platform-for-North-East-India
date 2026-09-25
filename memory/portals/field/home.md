@@ -18,7 +18,7 @@ Mobile-first, action-first operational command screen for Senior Field Officer (
   1. Mountain Canyon Milestone Selector (`CORRIDOR_MILESTONES` modal fallback when GPS drops under deep rock cuts).
   2. Hazard caution strip, shown only when a HIGH/SEVERE risk zone (hazard module) overlaps the corridor; hidden otherwise. No fallback text.
   3. Pre-flight Sensor & Storage Health indicator (`🛰️ GPS accuracy`, `📷 Camera`, `💾 IDB % free`, or 'storage size unknown' when the browser cannot estimate).
-  4. 4 Quick Hazard Shortcut chips (`[⛰️ Landslide]`, `[🌊 Flash Flood]`, `[🌉 Bridge]`, `[🚧 Blockage]` pre-filling Step 1).
+  4. 4 Quick Hazard Shortcut chips (`[⛰️ Landslide]`, `[🌊 Flash Flood]`, `[🌉 Bridge]`, `[🛑 Obstruction]`) correctly linked to `/field/report/new?type=...` matching backend `ReportType` enums (`LANDSLIDE`, `FLOODING`, `BRIDGE_COLLAPSE`, `OBSTRUCTION`).
   5. Latest Report Triage feedback card & Unfinished draft auto-resume banner.
 
 ## Data & API

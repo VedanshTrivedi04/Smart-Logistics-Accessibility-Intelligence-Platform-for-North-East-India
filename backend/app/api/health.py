@@ -65,7 +65,8 @@ async def readiness() -> ORJSONResponse:
     # Check Redis
     redis_ok = False
     try:
-        client = aioredis.from_url(settings.REDIS_URL, socket_timeout=2.0)
+        redis_url = settings.REDIS_URL.replace("localhost", "127.0.0.1")
+        client = aioredis.from_url(redis_url, socket_timeout=2.0)
         await client.ping()
         await client.aclose()
         redis_ok = True

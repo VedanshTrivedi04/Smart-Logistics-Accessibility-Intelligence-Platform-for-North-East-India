@@ -1190,23 +1190,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/seed-demo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Run Demo Seed */
-        post: operations["run_demo_seed_api_v1_seed_demo_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1895,6 +1878,11 @@ export interface components {
             /** Upper Bound Seconds */
             upper_bound_seconds: number;
             model_status: components["schemas"]["ModelStatus"];
+            /**
+             * Training Data
+             * @description Provenance of the ETA training data (e.g. SYNTHETIC_NE_CALIBRATED)
+             */
+            training_data?: string | null;
         };
         /** EvaluateImpactRequest */
         EvaluateImpactRequest: {
@@ -2130,6 +2118,12 @@ export interface components {
             parent_id: string | null;
         };
         /**
+         * LaneStatus
+         * @description Observed lane availability on the affected road section.
+         * @enum {string}
+         */
+        LaneStatus: "BOTH_BLOCKED" | "SINGLE_LANE_OPEN" | "SHOULDER_ONLY" | "CLEAR";
+        /**
          * LocationPointDTO
          * @description Geographic coordinates with accuracy and sensor source.
          */
@@ -2316,6 +2310,12 @@ export interface components {
             unassigned_commitment_ids: string[];
         };
         /**
+         * PassableVehicleClass
+         * @description Vehicle classes the reporter observed getting through.
+         * @enum {string}
+         */
+        PassableVehicleClass: "HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE";
+        /**
          * PolicyVersion
          * @enum {string}
          */
@@ -2489,6 +2489,14 @@ export interface components {
             candidate_edge_id?: string | null;
             /** Candidate Bridge Id */
             candidate_bridge_id?: string | null;
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /** Passable Classes */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @default false
+             */
+            life_safety_risk: boolean;
         };
         /**
          * ReportCreateRequest
@@ -2542,6 +2550,19 @@ export interface components {
              * @description Explicitly snapped bridge ID
              */
             candidate_bridge_id?: string | null;
+            /** @description Observed lane availability */
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /**
+             * Passable Classes
+             * @description Vehicle classes observed passing
+             */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @description Reporter flags an acute risk to life
+             * @default false
+             */
+            life_safety_risk: boolean;
         };
         /**
          * ReportResponse
@@ -2585,6 +2606,14 @@ export interface components {
             rejection_notes?: string | null;
             /** Amendment Of Report Id */
             amendment_of_report_id?: string | null;
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /** Passable Classes */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @default false
+             */
+            life_safety_risk: boolean;
             /**
              * Observed At
              * Format: date-time
@@ -2616,7 +2645,7 @@ export interface components {
          * @description Specific field observation types in North-East mountain terrain.
          * @enum {string}
          */
-        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OTHER";
+        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OBSTRUCTION" | "OTHER";
         /**
          * ResolutionReason
          * @description Enumerated justification for closing an operational incident.
@@ -3132,7 +3161,7 @@ export interface components {
         };
         /**
          * UploadTicketResponse
-         * @description Pre-signed PUT upload ticket.
+         * @description Direct-upload ticket: a presigned PUT, or a signed multipart POST (Cloudinary).
          */
         UploadTicketResponse: {
             /**
@@ -3142,6 +3171,19 @@ export interface components {
             media_id: string;
             /** Upload Url */
             upload_url: string;
+            /**
+             * Upload Method
+             * @default PUT
+             */
+            upload_method: string;
+            /** Upload Headers */
+            upload_headers?: {
+                [key: string]: string;
+            };
+            /** Upload Fields */
+            upload_fields?: {
+                [key: string]: string;
+            };
             /** Object Key */
             object_key: string;
             /** Expires In Seconds */
@@ -5637,28 +5679,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    run_demo_seed_api_v1_seed_demo_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
                 };
             };
         };
