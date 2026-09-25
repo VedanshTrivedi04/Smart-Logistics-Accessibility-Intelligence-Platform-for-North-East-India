@@ -12,3 +12,5 @@ export { DirectionsList } from "./DirectionsList";
 export { AddressSearch } from "./AddressSearch";
 export type { GeocodeResult } from "./AddressSearch";
 export { ElevationProfile } from "./ElevationProfile";
+export { DynamicEtaCard } from "./DynamicEtaCard";
+export { RiskExplainerDrawer } from "./RiskExplainerDrawer";

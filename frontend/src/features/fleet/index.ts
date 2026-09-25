@@ -2,8 +2,10 @@ export { FleetMap } from "./FleetMap";
 export { FleetOperationsCenter } from "./FleetOperationsCenter";
 export { VehicleDetail } from "./VehicleDetail";
 export { TripList, TripDetail, CommitmentList, CommitmentTable, DeliveryHistory } from "./TripViews";
+export { DeliveriesView } from "./DeliveriesView";
 export { OperatorCockpit } from "./OperatorView";
 export { FleetManagement, DriverList } from "./forms";
+export { DispatchOptimizer } from "./DispatchOptimizer";
 export { describeGps } from "./gps";
 export {
   useVehicles,

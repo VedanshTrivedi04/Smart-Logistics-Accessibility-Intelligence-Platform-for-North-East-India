@@ -242,3 +242,23 @@ def require_capability(
         return principal
 
     return dependency
+
+
+def require_any_capability(*capabilities: Capability) -> Callable:
+    """
+    FastAPI dependency factory: enforces that the principal holds at least one of the capabilities.
+    """
+    async def dependency(
+        request: Request,
+        principal: PrincipalContext = Depends(require_authenticated),
+    ) -> PrincipalContext:
+        for cap in capabilities:
+            if cap in principal.capabilities:
+                return principal
+        authz_denied_total.labels(
+            capability=",".join(c.value for c in capabilities),
+            reason="ForbiddenError",
+        ).inc()
+        raise ForbiddenError("Action not permitted: capability_not_granted")
+
+    return dependency

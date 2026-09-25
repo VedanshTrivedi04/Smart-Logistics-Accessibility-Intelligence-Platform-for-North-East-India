@@ -4,6 +4,7 @@ pytest - not named test_*). Same LOCAL stack and real-Bhashini server as e2e_voi
 Never point this at the shared Neon DB.
 """
 
+import os
 import subprocess
 import sys
 import uuid
@@ -20,7 +21,7 @@ results: list[tuple[str, bool, str]] = []
 
 def psql(sql: str) -> str:
     return subprocess.run(
-        ["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", "ner_test", "-Atc", sql],
+        ["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", os.environ.get("E2E_DB", "ner_e2e"), "-Atc", sql],
         capture_output=True, text=True, check=True,
     ).stdout.strip()
 

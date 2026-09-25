@@ -1,11 +1,12 @@
 """
 HTTP end-to-end check of the /api/v1/ai endpoints (NOT collected by pytest - not named test_*).
 
-Needs: a LOCAL seeded Postgres (docker container ner_test_pg on :55432, PostGIS+pgRouting, SSL on,
+Needs: a LOCAL seeded Postgres (docker container ner_test_pg on :55432, API database `ner_e2e` (E2E_DB), PostGIS+pgRouting, SSL on,
 alembic upgrade head + seed_demo/load_pilot_corridor/seed_fleet_demo/seed_reporting_demo) and the API
 running on :8010 with USE_MOCK_STORAGE=true and the LOCAL DATABASE_URL. Never point it at the shared Neon DB.
 """
 import glob
+import os
 import subprocess
 import sys
 
@@ -18,7 +19,7 @@ results: list[tuple[str, bool, str]] = []
 
 
 def psql(sql: str) -> list[str]:
-    out = subprocess.run(["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", "ner_test", "-Atc", sql],
+    out = subprocess.run(["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", os.environ.get("E2E_DB", "ner_e2e"), "-Atc", sql],
                          capture_output=True, text=True, check=True).stdout.strip()
     return [line for line in out.splitlines() if line]
 

@@ -10,6 +10,7 @@ import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { ReportEvidence } from "./evidence";
+import { AiVisualTriageDossier } from "./AiVisualTriageDossier";
 import { useIncidents, useReport, useReview, useTriage, type ReviewInput } from "./queries";
 
 type Decision = ReviewInput["decision"];
@@ -156,6 +157,7 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
         <div className="split">
           <div className="stack">
             <ReportEvidence report={r} />
+            <AiVisualTriageDossier report={r} />
             <Card title="Location">
               <MapView
                 ariaLabel="Report location"

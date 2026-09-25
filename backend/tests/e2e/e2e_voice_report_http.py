@@ -5,6 +5,7 @@ Needs the LOCAL stack described in e2e_ai_http.py, plus the API started with rea
 (backend/bhashini.env) and a Hindi sample WAV at ml-training/data/bhashini_sample_hi.wav
 (generated once with Bhashini TTS). Never point this at the shared Neon DB.
 """
+import os
 import subprocess
 import sys
 import uuid
@@ -20,7 +21,7 @@ results: list[tuple[str, bool, str]] = []
 
 
 def psql(sql: str) -> str:
-    return subprocess.run(["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", "ner_test", "-Atc", sql],
+    return subprocess.run(["docker", "exec", "ner_test_pg", "psql", "-U", "test", "-d", os.environ.get("E2E_DB", "ner_e2e"), "-Atc", sql],
                           capture_output=True, text=True, check=True).stdout.strip()
 
 

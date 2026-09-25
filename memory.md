@@ -17,19 +17,60 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 ## Current State
 
-* `frontend/` module complete with 79 unit tests passing (`vitest`), full TypeScript compilation passing without errors, and ESLint passing with zero warnings.
-* Offline database schema (`idb`), sync queue, field reporting, fleet management, logistics overview, and role-based route gating implemented.
+* All 5 AI/ML modules (`predict-risk`, `verify-photo`/`auto-triage`, `estimate-eta`, `optimize-dispatch`, `voice-report`/`translate-text`) fully integrated across FastAPI backend and Next.js 15 frontend with end-to-end type safety.
+* 92 frontend unit tests passing (`vitest`), 196 backend AI tests passing (`pytest`).
+* Remote Neon database inspected and active with 57 tables (including edge features, risk assessments, and CV reports).
 
 ## Known Issues
 
-* None currently in the frontend application test suite.
+* Pre-existing TypeScript issues in teammates' legacy command centers (`ImpactCommandCenter`, `IncidentCommandCenter`, `AccountView`) documented in `memory/portals/shared/known-issues.md`.
 
 ## Pending Work
 
-* Integration testing between frontend proxy and backend API endpoints.
-* Continuous deployment setup for staging environments.
+* Full end-to-end demo rehearsals with live regional audio and field photos.
 
 ## Interaction History
+
+### 2026-09-25 21:00
+
+**User Request**
+> Integrate all 5 AI/ML modules across backend and frontend phase-by-phase with end-to-end testing and validation. Add "Simulate Field Voice Sample" 1-click button for field demo. Remote Neon DB is the target environment.
+
+**Work Done**
+- **Phase 0 (Foundations & Schema Sync)**: Generated updated OpenAPI specification and synchronized TypeScript schemas via `openapi-typescript` (`schema.d.ts`, `types.ts`). Added `microphone=(self)` to `Permissions-Policy` in `next.config.ts`. Created shared TanStack Query hooks in `features/ai/queries.ts`.
+- **Phase 1 (Multilingual Voice Reporting)**: Built `features/field/VoiceReportSection.tsx` with MediaRecorder live recording, regional language selector (hi, bn, as, mni, en), Bhashini ASR/translation preview, and 1-click "Simulate Field Voice Sample" audio playback (`bhashini_sample_hi.wav`).
+- **Phase 2 (YOLOv8 Computer Vision Hazard Detection & Triage)**: Built `features/field/PhotoHazardPreview.tsx` for inline ONNX hazard verification with bounding boxes and confidence indicators. Built `features/incidents/AiVisualTriageDossier.tsx` in Gov report review for 1-click incident confirmation or override.
+- **Phase 3 (Landslide Risk Prediction & SHAP Explainability)**: Built `features/routing/RiskExplainerDrawer.tsx` calling `/api/v1/ai/predict-risk` with SHAP waterfall contributions and 72-hour monsoon risk timeline.
+- **Phase 4 (Dynamic Weather/Terrain-Aware ETA)**: Built `features/routing/DynamicEtaCard.tsx` calling `/api/v1/ai/estimate-eta` with confidence interval bounds.
+- **Phase 5 (Multi-Stop Vehicle Routing & Capacity Scheduling)**: Built `features/fleet/DispatchOptimizer.tsx` calling `/api/v1/ai/optimize-dispatch` (Google OR-Tools CVRP solver). Built `features/fleet/DeliveriesView.tsx` with tabbed navigation in `/logistics/deliveries`.
+- **Phase 6 (Verification & Testing)**: All 92 frontend unit tests passed clean (`npx vitest run`). All 196 backend AI pytest unit tests passed clean (`pytest tests/unit/ai`). All new frontend components pass `tsc` with zero errors.
+
+**Files Changed**
+- `backend/openapi.json`
+- `frontend/next.config.ts`
+- `frontend/src/shared/api/schema.d.ts`
+- `frontend/src/shared/api/types.ts`
+- `frontend/src/features/ai/queries.ts`
+- `frontend/src/features/ai/index.ts`
+- `frontend/src/features/field/VoiceReportSection.tsx`
+- `frontend/src/features/field/PhotoHazardPreview.tsx`
+- `frontend/src/features/field/ReportWizard.tsx`
+- `frontend/src/features/incidents/AiVisualTriageDossier.tsx`
+- `frontend/src/features/incidents/ReportReview.tsx`
+- `frontend/src/features/routing/DynamicEtaCard.tsx`
+- `frontend/src/features/routing/RiskExplainerDrawer.tsx`
+- `frontend/src/features/routing/RoutePlanView.tsx`
+- `frontend/src/features/routing/index.ts`
+- `frontend/src/features/fleet/DispatchOptimizer.tsx`
+- `frontend/src/features/fleet/DeliveriesView.tsx`
+- `frontend/src/features/fleet/index.ts`
+- `frontend/src/app/(protected)/logistics/deliveries/page.tsx`
+- `memory/portals/shared/backend-ai.md`
+- `memory/portals/field/report-new.md`
+- `memory/portals/gov/reports-id.md`
+- `memory/portals/gov/routes.md`
+- `memory/portals/logistics/deliveries.md`
+- `memory.md`
 
 ### 2026-09-25 12:42
 
@@ -1646,3 +1687,20 @@ This document dynamically records the lifecycle of interactions, design decision
 
 **Files Changed**
 - \memory.md
+### 2026-09-25 (night) AI/ML: NE-Realistic Synthetic ETA Model + Validation; Migration/Seed Findings
+
+**User Request**
+> implement the NE-realistic synthetic ETA data + training, with end-to-end verification and validation
+
+**Work Done**
+- New pipeline in `ml-training/scripts/`: `fetch_eta_ne_routes.py` (44 real NE corridors from OSRM geometry, SRTM elevation, real hourly rain; cached), `eta_physics.py`, `generate_eta_ne_dataset.py` (calibration on 4 published anchor times; 35,917 segment rows), `train_eta_ne_model.py` (CatBoost, monotone constraints, leave-corridor-out CV), `validate_eta_model.py`. Anchors + sources in `ml-training/anchors/eta_ne_anchors.json`.
+- Findings: OSRM durations are 2-3x too fast in NE hills -> only geometry/distance used. Loss comparison: 1/y^2 weighting biased route totals -15 %; RMSE with 1/sqrt(y) weights gives ~0 % bias (route MAPE 12.6 %, relative std 0.155). Oracle with hidden curvature would reach 8.2 %.
+- Validation (all pass): held-out anchors mean error 14.2 % (old synthetic 25.6 %, OSRM 56.4 %); monotone in all 5 features (0 violations); truck/car, rain, climb, length orderings; coverage of backend-style edges.
+- Backend: predictor band = max(sqrt(n) independent, route_relative_std x total), `training_data` provenance on entity + API; new `tests/unit/ai/test_eta_predictor.py`; HTTP E2E `e2e_eta_http.py` 10/10 (routing plan -> AI ETA; weight, SRTM gain, rain, band). Other E2Es still pass (23 + 17 + 19).
+- Discovered along the way: (1) teammate commit added startup auto-seed of the regional network (writes on every start; invalid `DISTRIBUTION_CENTER` kind) which polluted my local test DB -> now the API/E2E use a separate DB `ner_e2e`; (2) my local rename of the AI migrations (009/010) had broken the chain vs origin and vs Neon (already at 011 with the AI schema applied under the original ids) -> restored the original ids/files from origin/frontend; (3) DISTRICT_VERIFIER identity test fails in HEAD (not AI).
+- Final: pytest 538 passed, 1 failed (teammates' identity test); ruff/mypy clean on AI code; E2E 69/69.
+
+**Files Changed**
+- `ml-training/scripts/{fetch_eta_ne_routes,eta_physics,generate_eta_ne_dataset,train_eta_ne_model,validate_eta_model}.py`, `ml-training/anchors/eta_ne_anchors.json`
+- `backend/app/modules/ai/{domain/entities.py,infrastructure/catboost_eta_predictor.py,api/{routes,schemas}.py}`, `backend/tests/{unit/ai/test_eta_predictor.py,e2e/*}`, restored `backend/alembic/versions/{007_ai_feature_store,008_reporting_cv_verification}.py`, removed the renamed `009_ai_feature_store.py`/`010_reporting_cv_verification.py`
+- `docs/ai-integration-plan.md`, `memory/portals/shared/{backend-ai,known-issues}.md`, `memory.md`

@@ -68,6 +68,9 @@ class EstimateEtaResponse(BaseModel):
     lower_bound_seconds: float
     upper_bound_seconds: float
     model_status: ModelStatus
+    training_data: str | None = Field(
+        None, description="Provenance of the ETA training data (e.g. SYNTHETIC_NE_CALIBRATED)"
+    )
 
 
 class OptimizeDispatchRequest(BaseModel):

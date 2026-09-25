@@ -213,6 +213,7 @@ async def estimate_eta(
         lower_bound_seconds=result.lower_bound_seconds,
         upper_bound_seconds=result.upper_bound_seconds,
         model_status=result.model_status,
+        training_data=result.training_data,
     )
 
 

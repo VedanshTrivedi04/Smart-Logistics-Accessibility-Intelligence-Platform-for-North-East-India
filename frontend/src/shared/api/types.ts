@@ -37,6 +37,23 @@ export type Media = S["MediaResponse"];
 export type UploadTicket = S["UploadTicketResponse"];
 export type BatchSyncResponse = S["BatchSyncResponse"];
 
+// AI/ML Inference types
+export type VerifyPhotoResponse = S["VerifyPhotoResponse"];
+export type AutoTriageReportRequest = S["AutoTriageReportRequest"];
+export type PredictRiskRequest = S["PredictRiskRequest"];
+export type PredictRiskResponse = S["PredictRiskResponse"];
+export type FeatureContribution = S["FeatureContributionResponse"];
+export type EstimateEtaRequest = S["EstimateEtaRequest"];
+export type EstimateEtaResponse = S["EstimateEtaResponse"];
+export type OptimizeDispatchRequest = S["OptimizeDispatchRequest"];
+export type OptimizeDispatchResponse = S["OptimizeDispatchResponse"];
+export type DispatchRoute = S["DispatchRouteResponse"];
+export type TranscribeVoiceResponse = S["TranscribeVoiceResponse"];
+export type VoiceReportResponse = S["VoiceReportResponse"];
+export type TranslateTextRequest = S["TranslateTextRequest"];
+export type TranslateTextResponse = S["TranslateTextResponse"];
+export type TextReportRequest = S["TextReportRequest"];
+
 export type AccessibilityStatus = S["AccessibilityStatus"];
 export type ReportType = S["ReportType"];
 export type ReportSeverity = S["ReportSeverity"];

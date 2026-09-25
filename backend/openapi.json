@@ -752,6 +752,48 @@
         }
       }
     },
+    "/api/v1/network/seed-regional-network": {
+      "get": {
+        "tags": [
+          "Road Network & Spatial Intelligence"
+        ],
+        "summary": "Correct road geometry glitches and expand network across all 8 NER states",
+        "operationId": "seed_regional_highway_network_api_v1_network_seed_regional_network_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Seed Regional Highway Network Api V1 Network Seed Regional Network Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Road Network & Spatial Intelligence"
+        ],
+        "summary": "Correct road geometry glitches and expand network across all 8 NER states",
+        "operationId": "seed_regional_highway_network_api_v1_network_seed_regional_network_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Seed Regional Highway Network Api V1 Network Seed Regional Network Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports": {
       "post": {
         "tags": [
@@ -2537,6 +2579,375 @@
         }
       }
     },
+    "/api/v1/ai/predict-risk": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Predict disruption/blockage probability for a road edge",
+        "operationId": "predict_risk_api_v1_ai_predict_risk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictRiskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictRiskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/verify-photo": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Classify a field-report photo for hazard type, severity, and blockage",
+        "operationId": "verify_photo_api_v1_ai_verify_photo_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_verify_photo_api_v1_ai_verify_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPhotoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/auto-triage-report": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Run CV hazard verification against an already-submitted report's photo",
+        "operationId": "auto_triage_report_api_v1_ai_auto_triage_report_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoTriageReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPhotoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/estimate-eta": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Estimate calibrated, terrain/weather-adjusted travel time for a route",
+        "operationId": "estimate_eta_api_v1_ai_estimate_eta_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstimateEtaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateEtaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/optimize-dispatch": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Optimize vehicle-to-delivery assignment and stop ordering (CVRPTW-R)",
+        "operationId": "optimize_dispatch_api_v1_ai_optimize_dispatch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimizeDispatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptimizeDispatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/transcribe-voice": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Transcribe and translate a field officer's spoken voice note",
+        "operationId": "transcribe_voice_api_v1_ai_transcribe_voice_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_transcribe_voice_api_v1_ai_transcribe_voice_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscribeVoiceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/voice-report": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Create a field report from a spoken voice note (Bhashini ASR + translation)",
+        "operationId": "submit_voice_report_api_v1_ai_voice_report_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_submit_voice_report_api_v1_ai_voice_report_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceReportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/translate-text": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Machine-translate typed text (Bhashini); works for Assamese, Manipuri, Bodo, Nepali",
+        "operationId": "translate_text_api_v1_ai_translate_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateTextResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/text-report": {
+      "post": {
+        "tags": [
+          "AI/ML Inference"
+        ],
+        "summary": "Create a field report from typed text in any Bhashini-translatable language",
+        "operationId": "submit_text_report_api_v1_ai_text_report_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceReportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hazard/risk-zones": {
       "get": {
         "tags": [
@@ -3309,6 +3720,20 @@
         ],
         "title": "AlternativeRouteResponse"
       },
+      "AutoTriageReportRequest": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_id"
+        ],
+        "title": "AutoTriageReportRequest"
+      },
       "BatchIngestResponse": {
         "properties": {
           "device_id": {
@@ -3439,6 +3864,122 @@
         ],
         "title": "BatchSyncResponse",
         "description": "Result of batch sync processing with per-item status."
+      },
+      "Body_submit_voice_report_api_v1_ai_voice_report_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          },
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "accuracy_m": {
+            "type": "number",
+            "title": "Accuracy M"
+          },
+          "report_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "client_operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Operation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "source_language",
+          "latitude",
+          "longitude",
+          "accuracy_m"
+        ],
+        "title": "Body_submit_voice_report_api_v1_ai_voice_report_post"
+      },
+      "Body_transcribe_voice_api_v1_ai_transcribe_voice_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          },
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language",
+            "default": "en"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "source_language"
+        ],
+        "title": "Body_transcribe_voice_api_v1_ai_transcribe_voice_post"
+      },
+      "Body_verify_photo_api_v1_ai_verify_photo_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_verify_photo_api_v1_ai_verify_photo_post"
       },
       "BreadcrumbResponse": {
         "properties": {
@@ -4327,6 +4868,39 @@
         ],
         "title": "DispatchDecisionResponse"
       },
+      "DispatchRouteResponse": {
+        "properties": {
+          "vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vehicle Id"
+          },
+          "commitment_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Commitment Ids"
+          },
+          "total_distance_meters": {
+            "type": "number",
+            "title": "Total Distance Meters"
+          },
+          "total_duration_seconds": {
+            "type": "number",
+            "title": "Total Duration Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vehicle_id",
+          "commitment_ids",
+          "total_distance_meters",
+          "total_duration_seconds"
+        ],
+        "title": "DispatchRouteResponse"
+      },
       "DispatchTripRequest": {
         "properties": {
           "vehicle_id": {
@@ -4663,6 +5237,85 @@
         "title": "EdgeImpactSpec",
         "description": "Specific road edge closure impact specification."
       },
+      "EstimateEtaRequest": {
+        "properties": {
+          "edge_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Edge Ids"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          },
+          "max_weight_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Weight Kg",
+            "default": 16000.0
+          },
+          "height_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Height M",
+            "default": 3.5
+          },
+          "is_hazmat": {
+            "type": "boolean",
+            "title": "Is Hazmat",
+            "default": false
+          },
+          "cargo_priority": {
+            "type": "string",
+            "title": "Cargo Priority",
+            "default": "TIER_2_ESSENTIAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "edge_ids"
+        ],
+        "title": "EstimateEtaRequest"
+      },
+      "EstimateEtaResponse": {
+        "properties": {
+          "total_seconds": {
+            "type": "number",
+            "title": "Total Seconds"
+          },
+          "lower_bound_seconds": {
+            "type": "number",
+            "title": "Lower Bound Seconds"
+          },
+          "upper_bound_seconds": {
+            "type": "number",
+            "title": "Upper Bound Seconds"
+          },
+          "model_status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_seconds",
+          "lower_bound_seconds",
+          "upper_bound_seconds",
+          "model_status"
+        ],
+        "title": "EstimateEtaResponse"
+      },
       "EvaluateImpactRequest": {
         "properties": {
           "edge_id": {
@@ -4909,6 +5562,29 @@
         "title": "FacilityResponse",
         "description": "Response DTO for an enrolled critical facility."
       },
+      "FeatureContributionResponse": {
+        "properties": {
+          "feature_name": {
+            "type": "string",
+            "title": "Feature Name"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "shap_contribution": {
+            "type": "number",
+            "title": "Shap Contribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature_name",
+          "value",
+          "shap_contribution"
+        ],
+        "title": "FeatureContributionResponse"
+      },
       "FixOutcome": {
         "type": "string",
         "enum": [
@@ -4971,6 +5647,18 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HazardClass": {
+        "type": "string",
+        "enum": [
+          "LANDSLIDE",
+          "FLOOD_WATERLOGGING",
+          "ROAD_DAMAGE_CRACK",
+          "TREE_FALL",
+          "CLEAR_ROAD"
+        ],
+        "title": "HazardClass",
+        "description": "Hazard categories detected by the CV verification model."
       },
       "ImpactSeverity": {
         "type": "string",
@@ -5455,6 +6143,15 @@
         ],
         "title": "MessageResponse"
       },
+      "ModelStatus": {
+        "type": "string",
+        "enum": [
+          "STUB",
+          "LOADED"
+        ],
+        "title": "ModelStatus",
+        "description": "Runtime readiness of an inference backend (real model vs. stub fallback)."
+      },
       "NetworkVersionResponse": {
         "properties": {
           "id": {
@@ -5495,6 +6192,65 @@
         "title": "NetworkVersionResponse",
         "description": "Response DTO for a network graph snapshot version."
       },
+      "OptimizeDispatchRequest": {
+        "properties": {
+          "depot_facility_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Depot Facility Id"
+          },
+          "commitment_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Commitment Ids"
+          },
+          "vehicle_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Vehicle Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "depot_facility_id",
+          "commitment_ids",
+          "vehicle_ids"
+        ],
+        "title": "OptimizeDispatchRequest"
+      },
+      "OptimizeDispatchResponse": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchRouteResponse"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "unassigned_commitment_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Unassigned Commitment Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "routes",
+          "unassigned_commitment_ids"
+        ],
+        "title": "OptimizeDispatchResponse"
+      },
       "PolicyVersion": {
         "type": "string",
         "enum": [
@@ -5502,6 +6258,73 @@
           "STANDARD_DISPATCH_V1"
         ],
         "title": "PolicyVersion"
+      },
+      "PredictRiskRequest": {
+        "properties": {
+          "edge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Edge Id"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/RiskHorizon",
+            "default": "H6"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Features"
+          }
+        },
+        "type": "object",
+        "required": [
+          "edge_id"
+        ],
+        "title": "PredictRiskRequest"
+      },
+      "PredictRiskResponse": {
+        "properties": {
+          "edge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Edge Id"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/RiskHorizon"
+          },
+          "probability": {
+            "type": "number",
+            "title": "Probability"
+          },
+          "model_status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          },
+          "top_contributions": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureContributionResponse"
+            },
+            "type": "array",
+            "title": "Top Contributions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "edge_id",
+          "horizon",
+          "probability",
+          "model_status",
+          "top_contributions"
+        ],
+        "title": "PredictRiskResponse"
       },
       "PriorityTier": {
         "type": "string",
@@ -6375,6 +7198,17 @@
         "title": "ReviewState",
         "description": "Field observation review workflow state."
       },
+      "RiskHorizon": {
+        "type": "string",
+        "enum": [
+          "H3",
+          "H6",
+          "H12",
+          "H24"
+        ],
+        "title": "RiskHorizon",
+        "description": "Forecast horizon for edge disruption risk prediction."
+      },
       "RiskZoneRefreshResponse": {
         "properties": {
           "zones_refreshed": {
@@ -6848,6 +7682,184 @@
           "fixes"
         ],
         "title": "TelemetryIngestRequest"
+      },
+      "TextReportRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1500,
+            "minLength": 3,
+            "title": "Text"
+          },
+          "source_language": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 2,
+            "title": "Source Language"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "accuracy_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Accuracy M"
+          },
+          "report_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Auto-suggested when omitted"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Never inferred; defaults to MEDIUM"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "client_operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Operation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source_language",
+          "latitude",
+          "longitude",
+          "accuracy_m"
+        ],
+        "title": "TextReportRequest",
+        "description": "Typed-text report for languages Bhashini can translate but not transcribe."
+      },
+      "TranscribeVoiceResponse": {
+        "properties": {
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language"
+          },
+          "transcribed_text": {
+            "type": "string",
+            "title": "Transcribed Text"
+          },
+          "translated_text": {
+            "type": "string",
+            "title": "Translated Text"
+          },
+          "model_status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_language",
+          "target_language",
+          "transcribed_text",
+          "translated_text",
+          "model_status"
+        ],
+        "title": "TranscribeVoiceResponse"
+      },
+      "TranslateTextRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "source_language": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 2,
+            "title": "Source Language"
+          },
+          "target_language": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 2,
+            "title": "Target Language",
+            "default": "en"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source_language"
+        ],
+        "title": "TranslateTextRequest"
+      },
+      "TranslateTextResponse": {
+        "properties": {
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language"
+          },
+          "source_text": {
+            "type": "string",
+            "title": "Source Text"
+          },
+          "translated_text": {
+            "type": "string",
+            "title": "Translated Text"
+          },
+          "model_status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_language",
+          "target_language",
+          "source_text",
+          "translated_text",
+          "model_status"
+        ],
+        "title": "TranslateTextResponse"
       },
       "TripImpactResponse": {
         "properties": {
@@ -7621,6 +8633,155 @@
           "TWO_WHEEL_SPECIAL"
         ],
         "title": "VehicleType"
+      },
+      "VerifyPhotoResponse": {
+        "properties": {
+          "hazard_detected": {
+            "type": "boolean",
+            "title": "Hazard Detected"
+          },
+          "hazard_class": {
+            "$ref": "#/components/schemas/HazardClass"
+          },
+          "severity_score": {
+            "type": "number",
+            "title": "Severity Score"
+          },
+          "is_roadway_blocked": {
+            "type": "boolean",
+            "title": "Is Roadway Blocked"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "model_status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          },
+          "detectable_classes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Detectable Classes",
+            "description": "Hazard classes this model can recognise (empty = unknown). 'No hazard found' only means 'road clear' when CLEAR_ROAD is listed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "hazard_detected",
+          "hazard_class",
+          "severity_score",
+          "is_roadway_blocked",
+          "confidence",
+          "model_status"
+        ],
+        "title": "VerifyPhotoResponse"
+      },
+      "VoiceReportInferredFields": {
+        "properties": {
+          "report_type": {
+            "type": "boolean",
+            "title": "Report Type",
+            "description": "True when report_type was suggested from the transcript"
+          },
+          "severity": {
+            "type": "boolean",
+            "title": "Severity",
+            "description": "True when severity was not given and defaulted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_type",
+          "severity"
+        ],
+        "title": "VoiceReportInferredFields"
+      },
+      "VoiceReportResponse": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "report_type": {
+            "type": "string",
+            "title": "Report Type"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "candidate_edge_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Edge Id"
+          },
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "transcribed_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcribed Text"
+          },
+          "translated_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translated Text"
+          },
+          "inferred_fields": {
+            "$ref": "#/components/schemas/VoiceReportInferredFields"
+          },
+          "replayed": {
+            "type": "boolean",
+            "title": "Replayed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_id",
+          "review_state",
+          "report_type",
+          "severity",
+          "description",
+          "candidate_edge_id",
+          "source_language",
+          "transcribed_text",
+          "translated_text",
+          "inferred_fields"
+        ],
+        "title": "VoiceReportResponse"
       }
     }
   }

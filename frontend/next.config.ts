@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 // The browser only ever talks to same-origin /api/v1. In development Next proxies
 // it to FastAPI; in deployment the reverse proxy owns this route instead.
-const backend = process.env.BACKEND_ORIGIN ?? "http://backend:8000";
+const backend = process.env.BACKEND_ORIGIN ?? "http://127.0.0.1:8000";
 
 const config: NextConfig = {
   output: "standalone",
@@ -21,7 +21,7 @@ const config: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "same-origin" },
-          { key: "Permissions-Policy", value: "geolocation=(self), camera=(self)" },
+          { key: "Permissions-Policy", value: "geolocation=(self), camera=(self), microphone=(self)" },
         ],
       },
     ];

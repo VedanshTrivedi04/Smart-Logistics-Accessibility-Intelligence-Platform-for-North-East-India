@@ -8,4 +8,5 @@ export { useFieldHomeData } from "./useFieldHomeData";
 export { runSync } from "./sync/engine";
 export type { SyncSummary } from "./sync/engine";
 export { purgeOwner } from "./store";
-
+export { VoiceReportSection } from "./VoiceReportSection";
+export { PhotoHazardPreview } from "./PhotoHazardPreview";

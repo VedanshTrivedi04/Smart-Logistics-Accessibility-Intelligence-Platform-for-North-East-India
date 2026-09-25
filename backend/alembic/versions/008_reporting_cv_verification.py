@@ -1,7 +1,7 @@
-"""010_reporting_cv_verification — CV Hazard-Verification Fields on Field Reports.
+"""008_reporting_cv_verification — CV Hazard-Verification Fields on Field Reports.
 
-Revision ID: 010_reporting_cv_verification
-Revises: 009_ai_feature_store
+Revision ID: 008_reporting_cv_verification
+Revises: 007_ai_feature_store
 Create Date: 2026-09-23
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "010_reporting_cv_verification"
-down_revision = "009_ai_feature_store"
+revision = "008_reporting_cv_verification"
+down_revision = "007_ai_feature_store"
 branch_labels = None
 depends_on = None
 

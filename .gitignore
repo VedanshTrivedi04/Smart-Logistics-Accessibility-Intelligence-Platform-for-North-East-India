@@ -84,3 +84,6 @@ data/
 ml-training/colab/*.zip
 ml-training/*.log
 ml-training/colab/cv_results/
+
+# CatBoost training scratch output
+catboost_info/

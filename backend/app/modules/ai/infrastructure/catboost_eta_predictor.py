@@ -65,9 +65,15 @@ class CatboostEtaPredictor(ETAPredictorPort):
         self.model.load_model(str(model_path))
 
         self.residual_std_seconds = 0.0
+        # Route-level relative spread measured on unseen corridors. Correlated errors (traffic,
+        # driver, road curvature) make a sum of edge errors wider than sqrt(n) independent ones.
+        self.route_relative_std = 0.0
+        self.training_data: str | None = None
         if metrics_path.exists():
             metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
             self.residual_std_seconds = float(metrics.get("residual_std_seconds", 0.0))
+            self.route_relative_std = float(metrics.get("route_relative_std", 0.0))
+            self.training_data = metrics.get("provenance")
         else:
             logger.warning(
                 "eta_model_metrics_missing_zero_confidence_band", metrics_path=str(metrics_path)
@@ -90,16 +96,19 @@ class CatboostEtaPredictor(ETAPredictorPort):
         predictions = self.model.predict(rows)
         total_seconds = float(sum(predictions))
 
-        # Naive independent-error assumption: combined std scales with sqrt(n).
-        # Real Phase-3+ work should replace this with CatBoost virtual-ensemble
-        # uncertainty estimation once trained on real data.
-        combined_std = self.residual_std_seconds * math.sqrt(len(edge_features))
+        # Independent per-edge errors add as sqrt(n); errors shared by a whole trip do not average
+        # out, so the band is at least the measured route-level relative spread of the total.
+        combined_std = max(
+            self.residual_std_seconds * math.sqrt(len(edge_features)),
+            self.route_relative_std * total_seconds,
+        )
 
         return ETAEstimate(
             total_seconds=total_seconds,
             lower_bound_seconds=max(0.0, total_seconds - combined_std),
             upper_bound_seconds=total_seconds + combined_std,
             model_status=ModelStatus.LOADED,
+            training_data=self.training_data,
         )
 
 

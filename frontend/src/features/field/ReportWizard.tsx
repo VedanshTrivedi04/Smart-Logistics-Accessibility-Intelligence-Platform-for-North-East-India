@@ -18,6 +18,8 @@ import { addMedia, getDraft, listMedia, newDraft, queueDraft, removeMedia, saveD
 import { prepareImage } from "./sync/media";
 import { useGeolocation } from "./useGeolocation";
 import { StorageFullError } from "./store";
+import { VoiceReportSection } from "./VoiceReportSection";
+import { PhotoHazardPreview } from "./PhotoHazardPreview";
 
 const STEPS = ["What happened", "Where", "Evidence", "How severe", "Review and save"] as const;
 
@@ -222,6 +224,7 @@ function EvidenceStep({ payload, set, draftId }: { payload: ReportPayload; set: 
   const [photos, setPhotos] = useState<Array<{ id: string; url: string; name: string; size: number }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [latestFile, setLatestFile] = useState<File | null>(null);
   const urls = useRef<string[]>([]);
 
   const reload = useCallback(async () => {
@@ -244,7 +247,9 @@ function EvidenceStep({ payload, set, draftId }: { payload: ReportPayload; set: 
     setError(null);
     setBusy(true);
     try {
-      for (const file of Array.from(files)) {
+      const arr = Array.from(files);
+      if (arr.length > 0) setLatestFile(arr[0] ?? null);
+      for (const file of arr) {
         if (photos.length >= MAX_PHOTOS) throw new Error(`At most ${MAX_PHOTOS} photos can be attached.`);
         const prepared = await prepareImage(file);
         await addMedia(db, { ownerId, orgId }, draftId, prepared.blob, prepared.fileName);
@@ -299,6 +304,17 @@ function EvidenceStep({ payload, set, draftId }: { payload: ReportPayload; set: 
           ))}
         </ul>
       ) : <p className="muted small">No photos yet. A photo is optional; an urgent text-only report can be sent without one.</p>}
+
+      <PhotoHazardPreview
+        photoFile={latestFile}
+        onSelectSample={(sampleFile) => void onFiles([sampleFile])}
+        onVerification={(v) => {
+          if (v.hazard_detected && v.hazard_class === "LANDSLIDE") {
+            set({ reportType: "LANDSLIDE", severity: v.is_roadway_blocked ? "CRITICAL" : "HIGH" });
+          }
+        }}
+      />
+
       <Field label="Describe what you see" htmlFor="ev-desc" hint="What, where along the road, whether vehicles can pass. At least 3 characters.">
         <textarea id="ev-desc" value={payload.description} onChange={(e) => set({ description: e.target.value })} maxLength={2000} />
       </Field>
@@ -417,17 +433,26 @@ export function ReportWizard() {
 
       <Card title={STEPS[step] ?? ""}>
         {step === 0 ? (
-          <fieldset>
-            <legend className="sr-only">What happened</legend>
-            <div className="choice-grid">
-              {REPORT_TYPES.map((t) => (
-                <label key={t} className="choice">
-                  <input type="radio" name="rtype" checked={payload.reportType === t} onChange={() => update({ reportType: t })} />
-                  <span>{humanize(t)}{TYPE_HINT[t] ? <span className="small muted"><br />{TYPE_HINT[t]}</span> : null}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <div className="stack" style={{ gap: "1.5rem" }}>
+            <VoiceReportSection
+              location={payload.location}
+              onSuccess={(reportId) => {
+                announce("Voice report created and submitted!");
+                router.push(`/field/reports/${reportId}`);
+              }}
+            />
+            <fieldset>
+              <legend>Or choose incident category manually</legend>
+              <div className="choice-grid">
+                {REPORT_TYPES.map((t) => (
+                  <label key={t} className="choice">
+                    <input type="radio" name="rtype" checked={payload.reportType === t} onChange={() => update({ reportType: t })} />
+                    <span>{humanize(t)}{TYPE_HINT[t] ? <span className="small muted"><br />{TYPE_HINT[t]}</span> : null}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
         ) : null}
         {step === 1 ? <LocationStep payload={payload} set={update} draftId={draftId} /> : null}
         {step === 2 ? <EvidenceStep payload={payload} set={update} draftId={draftId} /> : null}

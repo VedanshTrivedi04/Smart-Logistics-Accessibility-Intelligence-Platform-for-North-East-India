@@ -141,6 +141,8 @@ class ETAEstimate:
     lower_bound_seconds: float
     upper_bound_seconds: float
     model_status: ModelStatus
+    # What the model was trained on (e.g. "SYNTHETIC_NE_CALIBRATED"); None when unknown/stub.
+    training_data: str | None = None
 
     def __post_init__(self) -> None:
         if self.total_seconds < 0.0:

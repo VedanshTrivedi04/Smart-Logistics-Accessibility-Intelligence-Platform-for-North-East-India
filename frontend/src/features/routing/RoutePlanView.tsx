@@ -13,6 +13,8 @@ import { buildDirections, type DirectionStep } from "./directions";
 import { DirectionsList } from "./DirectionsList";
 import { exclusionSummary, lineStrings, planLines } from "./geometry";
 import { POLICY_LABEL, useDispatchDecision } from "./queries";
+import { DynamicEtaCard } from "./DynamicEtaCard";
+import { RiskExplainerDrawer } from "./RiskExplainerDrawer";
 
 /** The operator-configured escalation instruction. There is never an invented contact or an auto-generated detour. */
 function escalationInstructions(): string | null {
@@ -140,6 +142,7 @@ interface ViewProps {
 export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
   const [rank, setRank] = useState<number>(0);
   const [focusedStep, setFocusedStep] = useState<number | null>(null);
+  const [inspectingEdgeId, setInspectingEdgeId] = useState<string | null>(null);
   useEffect(() => setFocusedStep(null), [rank]);
   const lines = useMemo(() => planLines(plan, rank === 0 ? null : rank), [plan, rank]);
   const all = useMemo(() => [...lineStrings(plan.primary_geometry), ...plan.alternatives.flatMap((a) => lineStrings(a.geometry))].flat(), [plan]);
@@ -171,34 +174,52 @@ export function RoutePlanView({ plan, tripId, canDecide, label }: ViewProps) {
               <MapView ariaLabel="Route options, with landslide risk zones" height={360} lines={lines} hazardZones={hazard.data?.zones ?? []} fitBounds={mapFitBounds} fitKey={mapFitKey} />
               <MapLegend lines={lines} hazardZones={hazard.data?.zones ?? []} />
             </div>
-            <Card title="Options">
-              <div className="table-wrap">
-                <table>
-                  <caption className="sr-only">Route options with estimated time and distance</caption>
-                  <thead><tr><th scope="col">Choose</th><th scope="col">Route</th><th scope="col">Time</th><th scope="col">Distance</th></tr></thead>
-                  <tbody>
-                    <tr aria-selected={rank === 0}>
-                      <td><input type="radio" name="route-choice" aria-label="Choose the recommended route" checked={rank === 0} onChange={() => setRank(0)} /></td>
-                      <td>Recommended</td>
-                      <td>{formatDuration(primaryDuration)}</td>
-                      <td>{formatDistance(plan.total_distance_meters)}</td>
-                    </tr>
-                    {plan.alternatives.map((a) => (
-                      <tr key={a.rank} aria-selected={rank === a.rank}>
-                        <td><input type="radio" name="route-choice" aria-label={`Choose alternative ${a.rank}`} checked={rank === a.rank} onChange={() => setRank(a.rank)} /></td>
-                        <td>Alternative {a.rank}</td>
-                        <td>{formatDuration(a.total_duration_seconds)} <span className="small muted">({a.total_duration_seconds >= primaryDuration ? "+" : "−"}{formatDuration(Math.abs(a.total_duration_seconds - primaryDuration))})</span></td>
-                        <td>{formatDistance(a.total_distance_meters)}</td>
+            <div className="stack">
+              <Card title="Options">
+                <div className="table-wrap">
+                  <table>
+                    <caption className="sr-only">Route options with estimated time and distance</caption>
+                    <thead><tr><th scope="col">Choose</th><th scope="col">Route</th><th scope="col">Time</th><th scope="col">Distance</th></tr></thead>
+                    <tbody>
+                      <tr aria-selected={rank === 0}>
+                        <td><input type="radio" name="route-choice" aria-label="Choose the recommended route" checked={rank === 0} onChange={() => setRank(0)} /></td>
+                        <td>Recommended</td>
+                        <td>{formatDuration(primaryDuration)}</td>
+                        <td>{formatDistance(plan.total_distance_meters)}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {plan.alternatives.length === 0 ? <p className="small muted">No alternative route satisfies the hard constraints.</p> : null}
-              <p className="small muted">Times are estimates from the network snapshot, not live traffic.</p>
-            </Card>
+                      {plan.alternatives.map((a) => (
+                        <tr key={a.rank} aria-selected={rank === a.rank}>
+                          <td><input type="radio" name="route-choice" aria-label={`Choose alternative ${a.rank}`} checked={rank === a.rank} onChange={() => setRank(a.rank)} /></td>
+                          <td>Alternative {a.rank}</td>
+                          <td>{formatDuration(a.total_duration_seconds)} <span className="small muted">({a.total_duration_seconds >= primaryDuration ? "+" : "−"}{formatDuration(Math.abs(a.total_duration_seconds - primaryDuration))})</span></td>
+                          <td>{formatDistance(a.total_distance_meters)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {plan.alternatives.length === 0 ? <p className="small muted">No alternative route satisfies the hard constraints.</p> : null}
+                <p className="small muted">Times are estimates from the network snapshot, not live traffic.</p>
+              </Card>
+              <DynamicEtaCard plan={plan} selectedRank={rank} />
+            </div>
           </div>
           <DirectionsList steps={directions} activeIndex={focusedStep} onStepClick={(i) => setFocusedStep((cur) => (cur === i ? null : i))} />
+          <div className="card" style={{ padding: "0.75rem", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <span className="small muted">Need explainable AI analysis for a high-risk mountain sector?</span>
+              <Button size="small" onClick={() => setInspectingEdgeId("00000000-0000-4000-a000-000000000001")}>
+                ⛰️ Inspect Sector Disruption Risk (SHAP Explainer)
+              </Button>
+            </div>
+          </div>
+          {inspectingEdgeId ? (
+            <RiskExplainerDrawer
+              edgeId={inspectingEdgeId}
+              edgeLabel="NH-6 Mountain Corridor (High-Risk Sector)"
+              onClose={() => setInspectingEdgeId(null)}
+            />
+          ) : null}
         </>
       ) : null}
       <RouteExplanation plan={plan} />

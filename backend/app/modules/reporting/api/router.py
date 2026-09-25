@@ -12,6 +12,7 @@ from app.core.db import DbSession as AsyncSession
 from app.core.db import get_db
 from app.core.security import (
     PrincipalContext,
+    require_any_capability,
     require_capability,
 )
 from app.modules.identity.domain.enums import Capability
@@ -175,7 +176,9 @@ async def list_reports(
 async def get_report_detail(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_REPORT_DETAIL)),
+    principal: PrincipalContext = Depends(
+        require_any_capability(Capability.VIEW_REPORT_DETAIL, Capability.VIEW_REPORT_SUMMARY)
+    ),
 ) -> ReportResponse:
     repo = SqlAlchemyReportingRepository(db)
     report = await repo.get_report_by_id(report_id)
