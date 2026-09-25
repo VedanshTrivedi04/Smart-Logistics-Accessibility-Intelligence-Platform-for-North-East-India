@@ -22,6 +22,7 @@ from app.modules.ai.domain.entities import (
     LandslideEvent,
     RiskAssessment,
     TerrainFeatures,
+    TextTranslation,
     VoiceTranscript,
     WeatherFeatures,
 )
@@ -114,3 +115,13 @@ class SpeechTranslationPort(ABC):
         target_language: str = "en",
     ) -> VoiceTranscript:
         """Transcribe spoken audio and translate it into the target language."""
+        ...
+
+    @abstractmethod
+    async def translate_text(
+        self,
+        text: str,
+        source_language: str,
+        target_language: str = "en",
+    ) -> TextTranslation:
+        """Machine-translate typed text (no speech recognition involved)."""

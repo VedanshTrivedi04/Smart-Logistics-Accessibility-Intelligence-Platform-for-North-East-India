@@ -28,10 +28,20 @@ class RiskAssessment:
     model_status: ModelStatus
     top_contributions: list[FeatureContribution] = field(default_factory=list)
     predicted_at: datetime | None = None
+    # Uncalibrated model score, when `probability` was calibrated to an assumed prevalence.
+    # Decision rules (e.g. risk_refresh_worker) use this so their thresholds do not depend
+    # on the (unverifiable) prevalence assumption; None means `probability` is used as-is.
+    raw_score: float | None = None
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.probability <= 1.0):
             raise ValueError(f"probability must be in [0.0, 1.0], got {self.probability}")
+        if self.raw_score is not None and not (0.0 <= self.raw_score <= 1.0):
+            raise ValueError(f"raw_score must be in [0.0, 1.0], got {self.raw_score}")
+
+    @property
+    def decision_score(self) -> float:
+        return self.probability if self.raw_score is None else self.raw_score
 
 
 @dataclass(frozen=True)
@@ -43,6 +53,9 @@ class HazardVerification:
     is_roadway_blocked: bool
     confidence: float  # [0.0, 1.0]
     model_status: ModelStatus
+    # HazardClass values the model can actually recognise; empty = unknown. A model that cannot
+    # recognise CLEAR_ROAD must not be read as asserting the road is clear when it finds nothing.
+    detectable_classes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.severity_score <= 1.0):
@@ -200,5 +213,18 @@ class VoiceTranscript:
     source_language: str
     target_language: str
     transcribed_text: str
+    translated_text: str
+    model_status: ModelStatus
+
+
+@dataclass(frozen=True)
+class TextTranslation:
+    """
+    Machine translation of typed text (used where speech recognition is unavailable, e.g. Assamese,
+    Manipuri, Bodo, Nepali - Bhashini offers translation but no ASR for them).
+    """
+    source_language: str
+    target_language: str
+    source_text: str
     translated_text: str
     model_status: ModelStatus

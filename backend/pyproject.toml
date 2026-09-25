@@ -188,6 +188,11 @@ filterwarnings = [
     # violation crash rather than a normal Python exception. Reproduced and
     # confirmed via a minimal pytest repro outside this project entirely.
     "ignore:.*has no __module__ attribute.*:DeprecationWarning",
+    # Windows-only flake: an asyncpg/asyncio Proactor transport that a test left open is finalised by
+    # the garbage collector at a random later moment, and pytest turns that (with "error") into a
+    # failure of whichever unrelated test happens to be running. Matched narrowly by message so any
+    # other unraisable exception still fails the suite.
+    "ignore:Exception ignored in.*_ProactorBasePipeTransport.__del__.*:pytest.PytestUnraisableExceptionWarning",
 ]
 
 # ──────────────────────────────────────────

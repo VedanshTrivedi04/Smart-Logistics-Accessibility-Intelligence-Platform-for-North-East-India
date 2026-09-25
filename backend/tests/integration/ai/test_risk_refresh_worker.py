@@ -2,7 +2,7 @@
 tests/integration/ai/test_risk_refresh_worker.py — Integration tests for the Phase 4
 periodic risk-refresh worker (requires a live database with the pilot corridor seeded).
 
-NOTE: These tests need the real synthetic-trained risk model artifact present
+NOTE: These tests need a trained risk model artifact present
 at backend/app/modules/ai/infrastructure/models/risk_model_xgboost.pkl (copy
 from ml-training/models/, see that directory's README) — if it's missing,
 get_risk_predictor() falls back to the fixed-probability stub and the

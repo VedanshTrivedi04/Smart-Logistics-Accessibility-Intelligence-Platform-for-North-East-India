@@ -54,6 +54,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 ## shared
 - [shared/account](portals/shared/account.md) - Shared / Account and scope (`/account`)
 - [shared/api-client](portals/shared/api-client.md) - Shared / API client and types
+- [shared/backend-ai](portals/shared/backend-ai.md) - Shared / Backend: ai (AI/ML models, data provenance, status)
 - [shared/backend-coordination](portals/shared/backend-coordination.md) - Shared / Backend: coordination (new 2026-09-24)
 - [shared/backend-hazard](portals/shared/backend-hazard.md) - Shared / Backend: hazard
 - [shared/backend-identity](portals/shared/backend-identity.md) - Shared / Backend: identity

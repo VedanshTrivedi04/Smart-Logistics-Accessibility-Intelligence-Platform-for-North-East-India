@@ -79,3 +79,8 @@ backendenv
 env
 env.download
 data/
+
+# Colab dataset package (built by ml-training/scripts/make_colab_package.py)
+ml-training/colab/*.zip
+ml-training/*.log
+ml-training/colab/cv_results/

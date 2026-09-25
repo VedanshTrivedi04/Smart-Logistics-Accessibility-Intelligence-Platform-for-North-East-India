@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Form, UploadFile
 
 from app.core.db import DbSession as AsyncSession
 from app.core.db import get_db
-from app.core.security import require_authenticated
+from app.core.security import require_authenticated, require_capability
 from app.core.storage import get_storage_service
 from app.modules.ai.api.schemas import (
     AutoTriageReportRequest,
@@ -28,14 +28,24 @@ from app.modules.ai.api.schemas import (
     OptimizeDispatchResponse,
     PredictRiskRequest,
     PredictRiskResponse,
+    TextReportRequest,
     TranscribeVoiceResponse,
+    TranslateTextRequest,
+    TranslateTextResponse,
     VerifyPhotoResponse,
+    VoiceReportInferredFields,
+    VoiceReportResponse,
 )
 from app.modules.ai.application.auto_triage_report import AutoTriageFieldReportUseCase
 from app.modules.ai.application.estimate_eta import EstimateETAUseCase
 from app.modules.ai.application.optimize_dispatch import OptimizeDispatchUseCase
 from app.modules.ai.application.predict_edge_risk import PredictEdgeRiskUseCase
+from app.modules.ai.application.submit_voice_report import (
+    SubmitTextReportUseCase,
+    SubmitVoiceReportUseCase,
+)
 from app.modules.ai.application.transcribe_voice_report import TranscribeVoiceReportUseCase
+from app.modules.ai.application.translate_text import TranslateTextUseCase
 from app.modules.ai.application.verify_hazard_photo import VerifyHazardPhotoUseCase
 from app.modules.ai.domain.entities import DispatchStop, DispatchVehicle
 from app.modules.ai.domain.exceptions import InvalidFeatureVectorError
@@ -47,13 +57,15 @@ from app.modules.ai.infrastructure.feature_store_repository import (
 from app.modules.ai.infrastructure.onnx_hazard_verifier import get_hazard_verifier
 from app.modules.ai.infrastructure.ortools_dispatch_solver import OrToolsDispatchSolver
 from app.modules.ai.infrastructure.xgboost_risk_predictor import get_risk_predictor
+from app.modules.identity.domain.enums import Capability
 from app.modules.identity.domain.principal import PrincipalContext
+from app.modules.incidents.infrastructure.repository import SqlAlchemyIncidentRepository
 from app.modules.logistics.domain.enums import PriorityTier
 from app.modules.logistics.infrastructure.repository import SqlAlchemyLogisticsRepository
 from app.modules.network.infrastructure.repository import SqlAlchemyNetworkRepository
 from app.modules.network.public import FacilityNotFoundError
 from app.modules.reporting.infrastructure.repository import SqlAlchemyReportingRepository
-from app.modules.reporting.public import ReportingModule
+from app.modules.reporting.public import LocationPoint, ReportingModule, ReportSeverity, ReportType
 from app.modules.routing.public import VehicleConstraints
 
 # Maps a delivery commitment's priority tier onto the solver's drop-penalty
@@ -130,6 +142,7 @@ async def verify_photo(
         is_roadway_blocked=result.is_roadway_blocked,
         confidence=result.confidence,
         model_status=result.model_status,
+        detectable_classes=list(result.detectable_classes),
     )
 
 
@@ -161,6 +174,7 @@ async def auto_triage_report(
         is_roadway_blocked=result.is_roadway_blocked,
         confidence=result.confidence,
         model_status=result.model_status,
+        detectable_classes=list(result.detectable_classes),
     )
 
 
@@ -298,4 +312,136 @@ async def transcribe_voice(
         transcribed_text=result.transcribed_text,
         translated_text=result.translated_text,
         model_status=result.model_status,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# 7. Voice Note -> Field Report (Module 4 + Reporting)
+# ─────────────────────────────────────────────────────────────────
+@router.post(
+    "/voice-report",
+    summary="Create a field report from a spoken voice note (Bhashini ASR + translation)",
+    response_model=VoiceReportResponse,
+    status_code=201,
+)
+async def submit_voice_report(
+    file: UploadFile,
+    source_language: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    accuracy_m: float = Form(...),
+    report_type: ReportType | None = Form(None),
+    severity: ReportSeverity | None = Form(None),
+    observed_at: datetime | None = Form(None),
+    client_operation_id: str | None = Form(None, max_length=128),
+    db: AsyncSession = Depends(get_db),
+    principal: PrincipalContext = Depends(require_capability(Capability.SUBMIT_REPORT)),
+) -> VoiceReportResponse:
+    reporting = ReportingModule(
+        SqlAlchemyReportingRepository(db), incident_repo=SqlAlchemyIncidentRepository(db)
+    )
+    use_case = SubmitVoiceReportUseCase(
+        speech_translator=get_speech_translation_port(), reporting=reporting
+    )
+    result = await use_case.execute(
+        principal=principal,
+        audio_bytes=await file.read(),
+        source_language=source_language,
+        location=LocationPoint(longitude=longitude, latitude=latitude, accuracy_m=accuracy_m),
+        report_type=report_type,
+        severity=severity,
+        observed_at=observed_at,
+        client_operation_id=client_operation_id,
+    )
+    # get_db() never commits; routers that write must (see network/routing/hazard routers).
+    await db.commit()
+    report = result.report
+    return VoiceReportResponse(
+        report_id=report.id,
+        review_state=report.review_state.value,
+        report_type=report.report_type.value,
+        severity=report.severity.value,
+        description=report.description,
+        candidate_edge_id=report.candidate_edge_id,
+        source_language=source_language,
+        transcribed_text=result.transcript.transcribed_text if result.transcript else None,
+        translated_text=result.transcript.translated_text if result.transcript else None,
+        inferred_fields=VoiceReportInferredFields(
+            report_type=result.report_type_inferred, severity=result.severity_defaulted
+        ),
+        replayed=result.replayed,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# 8. Typed text translation + text report (languages without ASR)
+# ─────────────────────────────────────────────────────────────────
+@router.post(
+    "/translate-text",
+    summary="Machine-translate typed text (Bhashini); works for Assamese, Manipuri, Bodo, Nepali",
+    response_model=TranslateTextResponse,
+)
+async def translate_text(
+    body: TranslateTextRequest,
+    principal: PrincipalContext = Depends(require_authenticated),
+) -> TranslateTextResponse:
+    use_case = TranslateTextUseCase(translator=get_speech_translation_port())
+    result = await use_case.execute(
+        text=body.text, source_language=body.source_language, target_language=body.target_language
+    )
+    return TranslateTextResponse(
+        source_language=result.source_language,
+        target_language=result.target_language,
+        source_text=result.source_text,
+        translated_text=result.translated_text,
+        model_status=result.model_status,
+    )
+
+
+@router.post(
+    "/text-report",
+    summary="Create a field report from typed text in any Bhashini-translatable language",
+    response_model=VoiceReportResponse,
+    status_code=201,
+)
+async def submit_text_report(
+    body: TextReportRequest,
+    db: AsyncSession = Depends(get_db),
+    principal: PrincipalContext = Depends(require_capability(Capability.SUBMIT_REPORT)),
+) -> VoiceReportResponse:
+    reporting = ReportingModule(
+        SqlAlchemyReportingRepository(db), incident_repo=SqlAlchemyIncidentRepository(db)
+    )
+    use_case = SubmitTextReportUseCase(
+        speech_translator=get_speech_translation_port(), reporting=reporting
+    )
+    result = await use_case.execute(
+        principal=principal,
+        text=body.text,
+        source_language=body.source_language,
+        location=LocationPoint(
+            longitude=body.longitude, latitude=body.latitude, accuracy_m=body.accuracy_m
+        ),
+        report_type=body.report_type,
+        severity=body.severity,
+        observed_at=body.observed_at,
+        client_operation_id=body.client_operation_id,
+    )
+    # get_db() never commits; routers that write must (see network/routing/hazard routers).
+    await db.commit()
+    report = result.report
+    return VoiceReportResponse(
+        report_id=report.id,
+        review_state=report.review_state.value,
+        report_type=report.report_type.value,
+        severity=report.severity.value,
+        description=report.description,
+        candidate_edge_id=report.candidate_edge_id,
+        source_language=body.source_language,
+        transcribed_text=result.transcript.transcribed_text if result.transcript else None,
+        translated_text=result.transcript.translated_text if result.transcript else None,
+        inferred_fields=VoiceReportInferredFields(
+            report_type=result.report_type_inferred, severity=result.severity_defaulted
+        ),
+        replayed=result.replayed,
     )

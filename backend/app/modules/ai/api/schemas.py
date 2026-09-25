@@ -4,11 +4,13 @@ app/modules/ai/api/schemas.py — Pydantic Request/Response Schemas for AI/ML AP
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from app.modules.ai.domain.enums import HazardClass, ModelStatus, RiskHorizon
+from app.modules.reporting.public import ReportSeverity, ReportType
 
 
 class PredictRiskRequest(BaseModel):
@@ -41,6 +43,11 @@ class VerifyPhotoResponse(BaseModel):
     is_roadway_blocked: bool
     confidence: float
     model_status: ModelStatus
+    detectable_classes: list[str] = Field(
+        default_factory=list,
+        description="Hazard classes this model can recognise (empty = unknown). 'No hazard found' "
+        "only means 'road clear' when CLEAR_ROAD is listed.",
+    )
 
 
 class AutoTriageReportRequest(BaseModel):
@@ -87,3 +94,50 @@ class TranscribeVoiceResponse(BaseModel):
     transcribed_text: str
     translated_text: str
     model_status: ModelStatus
+
+
+class TranslateTextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    source_language: str = Field(min_length=2, max_length=8)
+    target_language: str = Field("en", min_length=2, max_length=8)
+
+
+class TranslateTextResponse(BaseModel):
+    source_language: str
+    target_language: str
+    source_text: str
+    translated_text: str
+    model_status: ModelStatus
+
+
+class TextReportRequest(BaseModel):
+    """Typed-text report for languages Bhashini can translate but not transcribe."""
+
+    text: str = Field(min_length=3, max_length=1500)
+    source_language: str = Field(min_length=2, max_length=8)
+    latitude: float
+    longitude: float
+    accuracy_m: float = Field(gt=0)
+    report_type: ReportType | None = Field(None, description="Auto-suggested when omitted")
+    severity: ReportSeverity | None = Field(None, description="Never inferred; defaults to MEDIUM")
+    observed_at: datetime | None = None
+    client_operation_id: str | None = Field(None, max_length=128)
+
+
+class VoiceReportInferredFields(BaseModel):
+    report_type: bool = Field(description="True when report_type was suggested from the transcript")
+    severity: bool = Field(description="True when severity was not given and defaulted")
+
+
+class VoiceReportResponse(BaseModel):
+    report_id: UUID
+    review_state: str
+    report_type: str
+    severity: str
+    description: str
+    candidate_edge_id: UUID | None
+    source_language: str
+    transcribed_text: str | None
+    translated_text: str | None
+    inferred_fields: VoiceReportInferredFields
+    replayed: bool = False

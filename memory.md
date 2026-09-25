@@ -878,3 +878,283 @@ This document dynamically records the lifecycle of interactions, design decision
 - `memory/README.md`
 - `memory.md`
 
+### 2026-09-24 20:39 Environment Configuration: Backend Neon Main
+
+**User Request**
+> save this file as neon-main.env in the backend folder
+
+**Work Done**
+- Saved root `env` configuration as `neon-main.env` in the `backend/` directory.
+- Preserved security constraints by keeping secret values excluded from project memory.
+
+**Files Changed**
+- `backend/neon-main.env`
+- `memory.md`
+
+### 2026-09-24 22:01 Rules Configuration: Memory Update Protocol
+
+**User Request**
+> add these rules in the rules so that the memory.md will update in this manner toh jab bhi changes karo ge sahi se memory bane gi
+
+**Work Done**
+- Configured and standardized the Memory Update Rules across rule roots:
+  - Updated [.agent/rules/memory-update.md](file:///c:/SIH%202026/Smart-Logistics-Accessibility-Intelligence-Platform-for-North-East-India/.agent/rules/memory-update.md).
+  - Created [.agents/rules/memory-update.md](file:///c:/SIH%202026/Smart-Logistics-Accessibility-Intelligence-Platform-for-North-East-India/.agents/rules/memory-update.md) conforming to the customization standard.
+  - Added repository-level [AGENTS.md](file:///c:/SIH%202026/Smart-Logistics-Accessibility-Intelligence-Platform-for-North-East-India/AGENTS.md) so any AI assistant instantly picks up and adheres to the memory guidelines.
+
+**Files Changed**
+- `.agent/rules/memory-update.md`
+- `.agents/rules/memory-update.md`
+- `AGENTS.md`
+- `memory.md`
+
+
+### 2026-09-24 22:50 AI/ML: Real-Data Risk Model, Read-Only Real-DB Tests, Migration Rebase
+
+**User Request**
+> yes proceed (real-data retrain of the risk model + real-time read-only tests; NO changes to the shared Neon DB until the user verifies results)
+
+**Work Done**
+- Read-only inventory of the team Neon DB (`BEGIN READ ONLY`, SELECT allow-list, secrets never printed): alembic head was `007_hazard_schema`; 47 edges, 21 facilities, 42 vehicles, 13 commitments; AI tables/`reports.cv_*` absent on main. Role has INSERT privilege → recommend a SELECT-only DB role.
+- Rebased AI migrations onto the team's chain: `009_ai_feature_store.py` (after `008_coordination_schema`) and `010_reporting_cv_verification.py`; Alembic single head verified offline. NOT applied to any real DB.
+- Real risk dataset: `ml-training/scripts/build_real_risk_dataset.py` — 320 real NASA GLC events + 298 background points (same bbox/season, ≥5 km/3 d from events), features from Open-Meteo (rain, soil moisture, 90 m DEM slope/curvature). Open-Meteo free-tier daily limit stopped the build at 618 rows; `CACHE_ONLY=1` builds from the cache. Presence-background labels → metrics are NOT SIH accuracy claims.
+- `train_risk_model_real.py` → `risk_model_xgboost_real.pkl` (6 features; no stream distance/susceptibility available). Temporal holdout (test 50 rows, year>2015): ROC-AUC 0.77 / PR-AUC 0.76 vs rain-only baseline ROC-AUC 0.65. Spatial 5-fold block CV: ROC-AUC 0.74. Signal is real but modest.
+- `xgboost_risk_predictor.py` now prefers the real model and is model-driven (`feature_columns` from `feature_names_in_`). 222 AI unit tests pass. Integration tests need a local DB (not run; they correctly refused to hit Neon).
+- Read-only real-DB tests (scratchpad scripts, no writes): OR-Tools dispatch on 13 open commitments / 42 vehicles → all assigned; shadow risk on the 47 real edges (SRTM DEM via OpenTopoData + NASA POWER rain to 2026-09-21, soil moisture neutral) → `ml-training/data/real/shadow_risk_47_edges.csv`; Sikkim/Kohima/Shillong mountain corridors rank highest.
+
+**Findings / Caveats**
+- Probabilities are NOT calibrated (training prevalence ~50%); `risk_refresh_worker` thresholds 0.75/0.40 must be recalibrated before any real use.
+- `elevation_mean_m` dominates SHAP → possible spatial-proxy risk; DB `gradient_percent` (seeded) correlates only 0.13 with DEM slope.
+- ETA (CatBoost) and CV (YOLOv8 ONNX) models are still synthetic-trained. Dispatch solver ignores `required_before` deadlines.
+- Pre-existing boundary violation in teammate's `network/application/seed_regional_network.py` (sqlalchemy import).
+
+**Files Changed**
+- `ml-training/scripts/{build_real_risk_dataset,train_risk_model_real}.py` (new)
+- `backend/app/modules/ai/infrastructure/xgboost_risk_predictor.py`
+- `backend/alembic/versions/009_ai_feature_store.py`, `010_reporting_cv_verification.py` (renamed/rebased)
+- `memory.md`
+
+### 2026-09-24 23:30 AI/ML: Risk Probability Calibration (COOLR merge blocked)
+
+**User Request**
+> okayy (proceed with calibration + COOLR data merge)
+
+**Work Done**
+- `ml-training/scripts/calibrate_risk_model.py`: Platt scaling on spatial-block out-of-fold scores (ECE 0.073 → 0.057, Brier 0.212 → 0.2115 in-distribution) + prior-shift to an ASSUMED real prevalence (default 5%, an assumption — no verified negatives exist). Saved `risk_calibration.json`.
+- `xgboost_risk_predictor.py`: applies calibration (real model only); raw model still feeds SHAP. 348 unit tests pass.
+- COOLR merge NOT done: the ArcGIS REST endpoints (`gis.earthdata.nasa.gov/gis05/rest/services/Landslides/COOLR_*`) return 404; the viewer (landslides.nasa.gov/viewer) is a JS app → needs a manual CSV download by the user.
+
+**Findings / Caveats**
+- After calibration, max probability for extreme inputs ≈ 0.10, so `risk_refresh_worker` thresholds (0.75/0.40) will NEVER fire → must be re-derived (e.g. cost-based or percentile) before the worker is used.
+
+**Files Changed**
+- `ml-training/scripts/calibrate_risk_model.py` (new), `backend/app/modules/ai/infrastructure/xgboost_risk_predictor.py`, `memory.md`
+
+### 2026-09-24 23:55 AI/ML: COOLR Reports Merged into NER Landslide Catalog
+
+**User Request**
+> (COOLR viewer had no download button — asked what to do)
+
+**Work Done**
+- Found the live COOLR REST endpoint from the NASA Landslide Viewer web-map config (`/portal/rest/services/Landslides/COOLR_*`; the earlier `/gis05/` paths are dead).
+- `ml-training/scripts/fetch_coolr_reports.py`: India records in the NER bbox from `COOLR_Reports_Points` → 446 events (2007–2021), of which 320 duplicate the NASA GLC → **126 new unique events**; merged file `data/landslide_catalog/ner_landslide_events_merged.csv` (446 rows, provenance column).
+- `COOLR_Events_Points` has no India rows in NER (only Myanmar 6823 auto-mapped + Bangladesh 1811) → not used.
+- 64 reports carry a `photo_link` (news/web pages; licence unclear) → possible CV source, not yet examined.
+
+**Findings / Caveats**
+- Merged catalog is +39% events but still dominated by GLC-era (2007–2018); the risk model has NOT been retrained on it yet (Open-Meteo free daily limit; resets next day).
+- Idea: NASA LHASA Global Landslide Susceptibility ImageServer (`.../Landslides/Global_Landslide_Susceptibility/ImageServer`) could supply the missing susceptibility feature.
+
+**Files Changed**
+- `ml-training/scripts/fetch_coolr_reports.py` (new), `data/landslide_catalog/ner_landslide_events_{coolr_reports,merged}.csv` (new), `memory.md`
+
+### 2026-09-25 13:50 AI/ML: Real CV Data Pipeline (Roboflow + Wikimedia), De-dup Leak Found
+
+**User Request**
+> Downloaded more Roboflow zips into ml-training/data/real_cv; check them
+
+**Work Done**
+- Wikimedia Commons negatives (`fetch_wikimedia_negatives.py`): 300 NE-India road/hill photos (CC BY / CC BY-SA, attribution.csv); first keyword-search attempt returned temples/people, replaced by category-based fetch.
+- v1 CV model (246 imgs): val mAP50 0.70, test 0.61; on a test set WITH negatives the same model dropped to precision 0.35 / mAP50 0.44 (false alarms on clear roads).
+- v2 (with negatives) run was cut short by early stopping (patience 10 on noisy val, best epoch 1) -> invalid, ignore.
+- Found dataset overlap: `drone_roads_landslide` contains all 98 raghava images; near-duplicate augmented copies inside each dataset. `build_real_cv_dataset_v3.py` pools 479 positives -> 356 unique, cluster-splits 70/15/15 (test now 67 boxes vs 17); v1 metrics were leak-inflated.
+- Training v3 (`train_cv_real.py --data merged_v3 --name cv_real_v3 --epochs 50`, patience disabled) started on CPU (~85 min).
+- Created `memory/portals/shared/backend-ai.md` (+ README index).
+
+**Files Changed**
+- `ml-training/scripts/{fetch_wikimedia_negatives,build_real_cv_dataset,build_real_cv_dataset_v3,train_cv_real}.py`
+- `memory/portals/shared/backend-ai.md`, `memory/README.md`, `memory.md`
+
+### 2026-09-25 15:10 AI/ML: Risk Model Retrained on Merged Catalog (446 events)
+
+**User Request**
+> risk retrain wala kaam bhi abhi kar sakte hai kya jab tak CV training chal rahi hai?
+
+**Work Done**
+- `ml-training/scripts/extend_real_risk_dataset.py`: fetched features only for the 126 new COOLR events + 150 new background points (Open-Meteo limit had reset) -> `real_risk_dataset_v2.csv` 894 rows (446 pos / 448 neg).
+- Retrained (`RISK_DATA=real_risk_dataset_v2.csv train_risk_model_real.py`): spatial-block CV ROC-AUC 0.744 -> 0.771, PR-AUC 0.737 -> 0.753. Temporal holdout only 25 rows (prevalence 0.76) -> ignore. Rain-only baseline is clearly worse, so terrain adds signal.
+- Recalibrated (Platt ECE 0.077 -> 0.033; prior shift to assumed 5%); deployed pkl + calibration json to backend; 348 unit tests pass. v1 artifacts backed up as `*_v1`.
+
+**Files Changed**
+- `ml-training/scripts/{extend_real_risk_dataset,train_risk_model_real}.py`, backend model artifacts (gitignored), `memory/portals/shared/backend-ai.md`, `memory.md`
+
+### 2026-09-25 17:30 AI/ML: End-to-End Testing on Local PostGIS, Bugs Fixed
+
+**User Request**
+> yes proceed with accuracy and also perform the end to end testing ... until all errors are solved
+
+**Work Done**
+- Accuracy: LHASA susceptibility and extra rainfall features gave no spatial-CV gain (0.769 -> 0.768/0.766); LHASA also circular with NASA labels + 50% NoData -> not used. Risk model stays at v2 (ROC-AUC ~0.77).
+- Local test stack via Docker (Postgres+PostGIS+pgRouting with SSL, Redis); asserted localhost before every DB command; shared Neon DB untouched. Migrations 002->010 clean, 009/010 round-trip OK; seeded with the project's seed scripts.
+- Full pytest: initially 28 failures = missing seed data (not bugs); after seeding 1 real failure: `test_risk_refresh_worker` - calibrated probabilities never reached raw thresholds. Fix: `RiskAssessment.raw_score`/`decision_score`; worker decides on the raw score. Added `tests/unit/ai/test_risk_calibration.py`.
+- HTTP E2E (`backend/tests/e2e/e2e_ai_http.py`): 22/22 after fixing 2 real bugs found there: auto-triage 500 on missing storage object -> 422 MEDIA_OBJECT_UNAVAILABLE; missing report 400 -> 404 REPORT_NOT_FOUND (+ unit tests).
+- Final: 459 pytest passed, ruff+mypy clean on AI code (remaining ruff findings are teammates' files / repo-wide B008), boundary violations only in teammates' `seed_regional_network.py`.
+
+**Files Changed**
+- `backend/app/modules/ai/{domain/entities.py,domain/exceptions.py,application/auto_triage_report.py,infrastructure/xgboost_risk_predictor.py}`, `backend/app/workers/risk_refresh_worker.py`
+- `backend/tests/unit/ai/{test_risk_calibration,test_auto_triage_report}.py`, `backend/tests/e2e/e2e_ai_http.py`
+- `ml-training/scripts/add_lhasa_susceptibility.py` (experiment), `memory/portals/shared/backend-ai.md`, `memory.md`
+
+### 2026-09-25 15:35 Configuration: Bhashini Environment File
+
+**User Request**
+> backend folder mein ek nayi file banao: backend/bhashini.env
+
+**Work Done**
+- Created `backend/bhashini.env` with standard environment variables required by the Bhashini ULCA client (`BHASHINI_USER_ID`, `BHASHINI_API_KEY`, `BHASHINI_PIPELINE_ID`, `BHASHINI_CONFIG_URL`).
+- Complied with security policy by leaving secret credentials empty and excluding tokens/keys from memory.
+- Updated `memory/portals/shared/backend-ai.md` with cross-reference to the new config file.
+
+**Files Changed**
+- `backend/bhashini.env`
+- `memory/portals/shared/backend-ai.md`
+- `memory.md`
+
+### 2026-09-25 15:50 Configuration: Bhashini Udyat and Inference Key Mapping
+
+**User Request**
+> mujhe to bhashini me do keys mili hai ek inference key or ek udyat key....kon si kaha paste karu?
+
+**Work Done**
+- Clarified the mapping between Bhashini credentials and project environment variables:
+  - `BHASHINI_USER_ID`: User ID from profile.
+  - `BHASHINI_API_KEY`: Udyat Key (`ulcaApiKey`) used to authenticate the pipeline configuration call.
+  - `BHASHINI_INFERENCE_KEY`: Inference Key used for authenticating downstream model compute/translation requests.
+- Updated `backend/app/core/config.py` and `backend/app/modules/ai/infrastructure/bhashini_client.py` to seamlessly accept and prioritize/fallback `BHASHINI_INFERENCE_KEY`.
+- Updated `backend/bhashini.env` comments with clear instructions on which key goes where.
+- Added unit test in `backend/tests/unit/ai/test_bhashini_client.py` verifying inference key fallback (9/9 unit tests passing).
+
+**Files Changed**
+- `backend/bhashini.env`
+- `backend/app/core/config.py`
+- `backend/app/modules/ai/infrastructure/bhashini_client.py`
+- `backend/tests/unit/ai/test_bhashini_client.py`
+- `memory/portals/shared/backend-ai.md`
+- `memory.md`
+
+### 2026-09-25 16:01 Configuration: Bhashini Udyat User ID Investigation & Optional Support
+
+**User Request**
+> user id ka to option hi nahi aa raha ki kaha se dikhegi? user id email hoti hai kya?
+
+**Work Done**
+- Investigated Bhashini Udyat portal authentication: Udyat developers authenticate solely via the Udyat Key (`ulcaApiKey`) and Inference Key (`Authorization`), with no separate User ID parameter required.
+- Verified live against Bhashini API: `getModelsPipeline` succeeds directly with `ulcaApiKey` when `userID` is omitted.
+- Updated `BhashiniClient` in `backend/app/modules/ai/infrastructure/bhashini_client.py` to make `user_id` optional, only attaching the `userID` header if explicitly provided.
+- Defaulted the inference callback URL to `https://dhruva-api.bhashini.gov.in/services/inference/pipeline` when not returned dynamically.
+- Verified test suite: 9/9 unit tests passing in `tests/unit/ai/test_bhashini_client.py`.
+- Preserved security constraints by keeping actual secret keys strictly excluded from memory files.
+
+**Files Changed**
+- `backend/app/modules/ai/infrastructure/bhashini_client.py`
+- `backend/tests/unit/ai/test_bhashini_client.py`
+- `memory/portals/shared/backend-ai.md`
+- `memory.md`
+
+
+
+
+### 2026-09-25 19:20 AI/ML: CV v3 Result + Colab GPU Package
+
+**User Request**
+> CV training status; build the Colab-ready package
+
+**Work Done**
+- CV v3 (YOLOv8n, 416px, CPU, 50 epochs, leak-free merged_v3 with negatives): val mAP50 0.44 (P 0.63 / R 0.40); held-out test (54 pos + 45 neg images, 67 boxes) mAP50 0.35 (P 0.42 / R 0.42). Too weak to swap into the backend (needs ~0.6+ test mAP50 first).
+- Built `ml-training/colab/{train_cv_colab.py,train_cv_colab.ipynb}` (YOLOv8s vs m, 640px, 100 epochs, winner picked on VAL only, test metrics + image-level confidence sweep, ONNX export) and `scripts/make_colab_package.py` -> `colab/landslide_cv_colab_package.zip` (137 MB: merged_v3 + attribution.csv + SOURCES.txt; gitignored).
+
+**Files Changed**
+- `ml-training/colab/*`, `ml-training/scripts/make_colab_package.py`, `.gitignore`, `memory.md`
+
+### 2026-09-25 21:00 AI/ML: Bhashini Live Verification + Client Fixes
+
+**User Request**
+> Bhashini keys added (backend/bhashini.env) - test them
+
+**Work Done**
+- Real ULCA key works (config call needs only the API key; inference key from bhashini.env). Hindi TTS -> real `BhashiniClient` ASR -> translation gave exact Hindi transcript and correct English; `/api/v1/ai/transcribe-voice` returned 200 LOADED.
+- Live probe of language support (this key/pipeline): ASR hi/bn/en only; as/mni/brx/ne text-translation only; kha/lus none.
+- Bugs found + fixed in `bhashini_client.py`: config call sent no languages (Bhashini then returns Bengali defaults and the client used them blindly); provider errors surfaced as 500 (now 422 UNSUPPORTED_LANGUAGE / 502 SPEECH_SERVICE_UNAVAILABLE via new domain exceptions); same-language requests skip translation. During the edit a slicing mistake deleted the client class - reconstructed and re-verified (17 Bhashini tests + live run).
+- Full suite 465 passed x6; added narrow pyproject filter for the Windows asyncio unclosed-transport flake.
+
+**Files Changed**
+- `backend/app/modules/ai/{infrastructure/bhashini_client.py,domain/exceptions.py}`, `backend/tests/unit/ai/test_bhashini_client.py`, `backend/pyproject.toml`, `memory/portals/shared/backend-ai.md`, `memory.md`
+- (secrets stay only in the gitignored `backend/bhashini.env`; none written to memory)
+
+### 2026-09-25 23:10 AI/ML: Voice-to-Report Flow + Pre-existing Missing-Commit Bug Found
+
+**User Request**
+> start the voice-to-report flow
+
+**Work Done**
+- New `POST /api/v1/ai/voice-report`: Bhashini ASR+translation -> field report through Reporting's public facade (added `submit_report` / `find_report_by_operation_id`, exported LocationPoint/ReportType/ReportSeverity). Conservative rules: severity never inferred (MEDIUM, flagged), type keyword-suggested + flagged, HIGH/CRITICAL needs explicit type (blocks a mis-heard keyword from triggering Policy 21), provenance tag in description, validation before ASR, empty/STUB transcripts create nothing, idempotent replay skips ASR.
+- Tests: 27 unit + 4 integration (real DB: snapping, Policy 21, idempotency) + HTTP E2E 17/17 with real Bhashini.
+- **Found a pre-existing critical bug (not fixed, needs team decision):** `get_db()` never commits and reporting/incidents/logistics/telemetry/impact routers have no `commit()`: `POST /api/v1/reports` returns 201 but nothing is saved (verified: count unchanged). My route commits explicitly. Recorded in `memory/portals/shared/known-issues.md`.
+- Final: 496 pytest passed x3; ruff/mypy clean on the new code; boundary violations only in teammates' seed_regional_network.py.
+
+**Files Changed**
+- `backend/app/modules/ai/{domain/voice_report.py,domain/exceptions.py,application/submit_voice_report.py,api/routes.py,api/schemas.py}`, `backend/app/modules/reporting/public.py`
+- `backend/tests/unit/ai/test_voice_report.py`, `backend/tests/integration/ai/test_voice_report.py`, `backend/tests/e2e/e2e_voice_report_http.py`
+- `memory/portals/shared/{backend-ai,backend-reporting-incidents,known-issues}.md`, `memory.md`
+
+### 2026-09-25 23:59 AI/ML: Colab CV Model Evaluated and Deployed (with honesty fixes)
+
+**User Request**
+> uploaded cv_results.zip from Colab
+
+**Work Done**
+- Colab winner YOLOv8m: val mAP50 0.43 (s: 0.38); test box mAP50 0.29 / P 0.35 / R 0.45 (box localisation weak). Image-level view is far better and matches how the verifier is used.
+- Found 3 verifier problems before swapping: squashing resize instead of letterbox, constant confidence 1.0 for "no detection", any detection => roadway blocked; plus a single-class model reported CLEAR_ROAD. Fixed (letterbox, 1-max_score, blocked only >=0.5, `detectable_classes`, auto-triage skips CLEAR_ROAD for partial-coverage models).
+- Threshold chosen on VAL only (max F2 -> 0.10) via `ml-training/scripts/eval_onnx_verifier.py`; TEST @0.10: P 0.914, R 0.981, FA 11.1%; the backend pipeline reproduced Colab's numbers exactly, and HTTP E2E over all 99 test images gave the same tp/fp/fn/tn (53/5/1/40).
+- Installed as `hazard_model.onnx` (synthetic one kept as `_synthetic`, both gitignored). New `tests/unit/ai/test_hazard_verifier.py` (fake ONNX session); suite 511 passed x3; ruff/mypy clean on AI code.
+
+**Files Changed**
+- `backend/app/modules/ai/{domain/entities.py,infrastructure/onnx_hazard_verifier.py,application/auto_triage_report.py,api/{routes,schemas}.py}`, `backend/tests/unit/ai/test_hazard_verifier.py`, `backend/tests/e2e/e2e_ai_http.py`
+- `ml-training/scripts/eval_onnx_verifier.py`, `memory/portals/shared/backend-ai.md`, `memory.md`
+
+### 2026-09-25 (late) AI/ML: Typed-Text Translation + Text Report for NE Languages
+
+**User Request**
+> Bhashini has no NE-language ASR - build the typed-text translation path
+
+**Work Done**
+- Probed Bhashini again (with script codes): no ASR for as/mni/brx/ne/kha/lus regardless; TTS for as/mni/brx, translation for as/mni/brx/ne, nothing for kha/lus/grt.
+- New `POST /api/v1/ai/translate-text` and `POST /api/v1/ai/text-report` (port `translate_text`, `TextTranslation`, `TranslateTextUseCase`, `SubmitTextReportUseCase`; shared helpers with the voice use case; prefix param in description builder; bridge phrasing keywords).
+- Tests: 24 unit + 1 integration; HTTP E2E 19/19 with real Bhashini (Assamese/Nepali translation, provenance tag, Policy 21 only via explicit type+severity, replay, unsupported Khasi saves nothing, auth/CSRF/capability); voice E2E 17/17 regression; suite 525 passed (one intermittent run with 2 failures = the known outbox/Windows flake, 7 clean runs otherwise); ruff/mypy clean.
+
+**Files Changed**
+- `backend/app/modules/ai/{domain/entities.py,domain/voice_report.py,application/{ports,submit_voice_report,translate_text}.py,infrastructure/bhashini_client.py,api/{routes,schemas}.py}`
+- `backend/tests/{unit/ai/test_text_translation.py,integration/ai/test_voice_report.py,e2e/e2e_text_report_http.py}`, `memory/portals/shared/backend-ai.md`, `memory.md`
+
+### 2026-09-25 (late) AI/ML: Integration Plan Saved for the Team
+
+**User Request**
+> create an implementation plan to integrate the AI/ML modules with backend + frontend for a real-user demo; save it where teammates can see it
+
+**Work Done**
+- Read-only survey of the frontend (Next.js 15, React Query, openapi-fetch typed client, CSRF middleware, `features/<module>/` pattern, `/api/v1` proxy) and wrote `docs/ai-integration-plan.md`: current state, decisions D1-D7 for the team, phases A-G (repo hygiene, backend readiness, demo data/ETA, frontend screens, integrated testing, demo prep, shared-Neon rollout), risks, timeline (~6-7 working days before Neon).
+- Key points recorded there: missing-commit bug, schema coupling of `cv_*` columns to Neon (migrations 008-010), ONNX 103 MB vs GitHub 100 MB limit, browser audio must be converted to 16 kHz WAV for Bhashini, MinIO conflict between compose.yaml and memory.md, repo-root files that may hold secrets (`cookies.txt`, `env`, `env.download`, `backendenv`).
+- No code changed; nothing committed or pushed.
+
+**Files Changed**
+- `docs/ai-integration-plan.md` (new), `memory.md`

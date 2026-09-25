@@ -126,6 +126,7 @@ class Settings(BaseSettings):
     # ────────────────────────────────────────────────────
     BHASHINI_USER_ID: str = ""
     BHASHINI_API_KEY: str = ""
+    BHASHINI_INFERENCE_KEY: str = ""
     BHASHINI_PIPELINE_ID: str = "64392f96daac500b55c543cd"
     BHASHINI_CONFIG_URL: str = "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
 

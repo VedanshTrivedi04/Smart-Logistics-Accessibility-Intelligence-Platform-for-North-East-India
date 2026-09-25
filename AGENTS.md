@@ -1,7 +1,6 @@
----
-trigger: always_on
-description: Keep the memory/ folder (portal-wise, page-wise) and memory.md in sync with every code change.
----
+# Project Rules & Instructions for AI Agents
+
+All AI assistants working on this repository must follow these rules.
 
 # Memory Update Rules
 

@@ -6,16 +6,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.core.exceptions import NotFoundError
 from app.core.storage import ObjectStoragePort
 from app.modules.ai.application.auto_triage_report import AutoTriageFieldReportUseCase
 from app.modules.ai.application.ports import HazardVerifierPort
 from app.modules.ai.domain.entities import HazardVerification
 from app.modules.ai.domain.enums import HazardClass, ModelStatus
-from app.modules.ai.domain.exceptions import InvalidFeatureVectorError
+from app.modules.ai.domain.exceptions import MediaObjectUnavailableError
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint, MediaObject
 from app.modules.reporting.domain.enums import ReportSeverity, ReportType, ScanStatus
 from app.modules.reporting.public import ReportingModulePort
@@ -108,10 +109,27 @@ class TestAutoTriageFieldReportUseCase:
         object_storage = AsyncMock(spec=ObjectStoragePort)
 
         use_case = AutoTriageFieldReportUseCase(hazard_verifier, reporting, object_storage)
-        with pytest.raises(InvalidFeatureVectorError):
+        with pytest.raises(NotFoundError) as excinfo:
+            await use_case.execute(uuid.uuid4())
+
+        assert excinfo.value.code == "REPORT_NOT_FOUND"
+        hazard_verifier.verify.assert_not_awaited()
+
+    async def test_media_object_missing_in_storage_is_clean_error(self) -> None:
+        media = MagicMock(bucket="b", object_key="k")
+        reporting = AsyncMock(spec=ReportingModulePort)
+        reporting.get_report.return_value = MagicMock()
+        reporting.get_verifiable_media.return_value = media
+        hazard_verifier = AsyncMock(spec=HazardVerifierPort)
+        object_storage = AsyncMock(spec=ObjectStoragePort)
+        object_storage.get_object.side_effect = FileNotFoundError("gone")
+
+        use_case = AutoTriageFieldReportUseCase(hazard_verifier, reporting, object_storage)
+        with pytest.raises(MediaObjectUnavailableError):
             await use_case.execute(uuid.uuid4())
 
         hazard_verifier.verify.assert_not_awaited()
+        reporting.apply_cv_verification.assert_not_awaited()
 
     async def test_missing_verifiable_media_rejected(self) -> None:
         report_id = uuid.uuid4()
@@ -122,7 +140,7 @@ class TestAutoTriageFieldReportUseCase:
         object_storage = AsyncMock(spec=ObjectStoragePort)
 
         use_case = AutoTriageFieldReportUseCase(hazard_verifier, reporting, object_storage)
-        with pytest.raises(InvalidFeatureVectorError):
+        with pytest.raises(MediaObjectUnavailableError):
             await use_case.execute(report_id)
 
         hazard_verifier.verify.assert_not_awaited()

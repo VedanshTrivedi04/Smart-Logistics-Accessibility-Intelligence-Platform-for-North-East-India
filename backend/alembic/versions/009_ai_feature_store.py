@@ -1,7 +1,7 @@
-"""007_ai_feature_store — AI/ML Terrain, Weather Feature Store & Landslide Catalog.
+"""009_ai_feature_store — AI/ML Terrain, Weather Feature Store & Landslide Catalog.
 
-Revision ID: 007_ai_feature_store
-Revises: 006_routing_impact_schema
+Revision ID: 009_ai_feature_store
+Revises: 008_coordination_schema
 Create Date: 2026-09-22
 """
 
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "007_ai_feature_store"
-down_revision = "006_routing_impact_schema"
+revision = "009_ai_feature_store"
+down_revision = "008_coordination_schema"
 branch_labels = None
 depends_on = None
 
