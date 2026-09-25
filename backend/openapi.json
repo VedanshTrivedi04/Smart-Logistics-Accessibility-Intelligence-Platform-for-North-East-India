@@ -6689,6 +6689,16 @@
             ],
             "title": "Candidate Bridge Id"
           },
+          "road_side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoadSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lane_status": {
             "anyOf": [
               {
@@ -6851,6 +6861,17 @@
             "title": "Life Safety Risk",
             "description": "Reporter flags an acute risk to life",
             "default": false
+          },
+          "road_side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoadSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mountain slope side: HILLSIDE, VALLEY_SIDE, BOTH, or UNKNOWN"
           }
         },
         "type": "object",
@@ -7014,6 +7035,16 @@
             "title": "Life Safety Risk",
             "default": false
           },
+          "road_side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoadSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observed_at": {
             "type": "string",
             "format": "date-time",
@@ -7088,6 +7119,7 @@
           "WEATHER_HAZARD",
           "SECURITY_INCIDENT",
           "OBSTRUCTION",
+          "ROAD_CONDITION_UPDATE",
           "OTHER"
         ],
         "title": "ReportType",
@@ -7317,6 +7349,17 @@
         ],
         "title": "RiskZoneSeedResponse",
         "description": "Response DTO for the terrain-derived risk-zone seeding endpoint."
+      },
+      "RoadSide": {
+        "type": "string",
+        "enum": [
+          "HILLSIDE",
+          "VALLEY_SIDE",
+          "BOTH",
+          "UNKNOWN"
+        ],
+        "title": "RoadSide",
+        "description": "Mountain carriageway side relative to slope topography."
       },
       "RouteEdgeResponse": {
         "properties": {

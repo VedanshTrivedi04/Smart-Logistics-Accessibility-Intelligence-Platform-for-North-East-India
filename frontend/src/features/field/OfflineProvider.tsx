@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/shared/auth";
+import { preloadMap } from "@/shared/map";
 import { getOfflineDb, QUEUE_CHANGED, queueEvents, readStorageStatus, requestPersistentStorage, type OfflineDb, type StorageStatus } from "@/shared/offline";
 import { readSnapshot, type QueueSnapshot } from "./store";
 import { runSync, type SyncSummary } from "./sync/engine";
@@ -22,6 +23,8 @@ interface OfflineValue {
   persisted: boolean | null;
   simulatedOffline: boolean;
   toggleSimulatedOffline: () => void;
+  /** True once the field screens and their code are saved on this device for offline use. */
+  offlineReady: boolean;
   /** Explicit sync now: ignores backoff delays. */
   syncNow: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -132,6 +135,31 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
     void navigator.storage?.persisted?.().then(setPersisted);
   }, []);
 
+  // Make the field screens available offline: after a verified sign-in, and again when the connection returns.
+  const [offlineReady, setOfflineReady] = useState(false);
+  useEffect(() => {
+    if (!verified || !("serviceWorker" in navigator)) return;
+    let cancelled = false;
+    const waitUntilReady = async () => {
+      for (let i = 0; i < 60 && !cancelled; i++) {
+        if (await caches.match("/__field-shell-ready")) return setOfflineReady(true);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    };
+    const warm = () => {
+      void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "warm-field-shell" })).catch(() => undefined);
+      // The map code is loaded on demand, so fetch it now (online) for the worker to keep for offline use.
+      void preloadMap();
+      void waitUntilReady();
+    };
+    warm();
+    window.addEventListener("online", warm);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", warm);
+    };
+  }, [verified]);
+
   const askPersist = useCallback(async () => {
     setPersisted(await requestPersistentStorage());
   }, []);
@@ -148,8 +176,8 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
   }, [sync]);
 
   const value = useMemo<OfflineValue>(
-    () => ({ ready: db !== null && snapshot !== null, error, db, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, syncNow, refresh, askPersist }),
-    [db, error, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, syncNow, refresh, askPersist],
+    () => ({ ready: db !== null && snapshot !== null, error, db, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, offlineReady, syncNow, refresh, askPersist }),
+    [db, error, ownerId, orgId, snapshot, syncing, lastSummary, lastSyncAt, storage, persisted, simulatedOffline, toggleSimulatedOffline, offlineReady, syncNow, refresh, askPersist],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

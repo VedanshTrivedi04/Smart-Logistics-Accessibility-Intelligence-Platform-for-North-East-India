@@ -28,6 +28,7 @@ export interface ReportPayload {
   laneStatus?: "BOTH_BLOCKED" | "SINGLE_LANE_OPEN" | "SHOULDER_ONLY" | "CLEAR" | null;
   passableClasses?: Array<"HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE">;
   lifeSafetyRisk?: boolean;
+  roadSide?: "HILLSIDE" | "VALLEY_SIDE" | "BOTH" | "UNKNOWN" | null;
   /** True while any attached photo came from the dev-only simulated camera. */
   simulatedEvidence?: boolean;
 }
@@ -44,6 +45,7 @@ export function emptyPayload(now: Date): ReportPayload {
     laneStatus: null,
     passableClasses: [],
     lifeSafetyRisk: false,
+    roadSide: null,
   };
 }
 
@@ -108,6 +110,18 @@ export function formatStructuredDescription(payload: ReportPayload): string {
   if (payload.lifeSafetyRisk) {
     tags.push("🚨 LIFE-SAFETY RISK: ACTIVE");
   }
+  if (payload.roadSide) {
+    const sideMap: Record<string, string> = {
+      HILLSIDE: "Hillside Cutting",
+      VALLEY_SIDE: "Valley / Gorge Side",
+      BOTH: "Both Carriageway Sides",
+      UNKNOWN: "Unknown Side",
+    };
+    tags.push(`SIDE: ${sideMap[payload.roadSide] ?? payload.roadSide}`);
+  }
+  if (payload.location?.altitude_m != null) {
+    tags.push(`ALTITUDE: ~${Math.round(payload.location.altitude_m)}m (GPS approx.)`);
+  }
 
   const cleanDesc = payload.description.trim().replace(HEADER_RE, "");
   if (!tags.length) return cleanDesc;
@@ -136,5 +150,6 @@ export function toBatchItem(op: Pick<OperationRecord, "id">, payload: ReportPayl
     ...(payload.laneStatus ? { lane_status: payload.laneStatus } : {}),
     ...(payload.passableClasses && payload.passableClasses.length > 0 ? { passable_classes: payload.passableClasses } : {}),
     ...(payload.lifeSafetyRisk !== undefined ? { life_safety_risk: payload.lifeSafetyRisk } : {}),
+    ...(payload.roadSide ? { road_side: payload.roadSide } : {}),
   };
 }

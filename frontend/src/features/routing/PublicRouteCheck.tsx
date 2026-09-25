@@ -6,7 +6,7 @@ import { formatCoords, humanize } from "@/shared/lib/format";
 import { bboxOfCoordinates, formatDistance, NER_BBOX, type BBox } from "@/shared/lib/geo";
 import { formatDuration } from "@/shared/lib/time";
 import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
-import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
+import { Banner, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
 import { routeCrossesHighRisk } from "@/features/hazard";
 import { edgeLines } from "@/features/network";
 import { AddressSearch, type GeocodeResult } from "./AddressSearch";
@@ -23,7 +23,6 @@ import {
   Navigation,
   Clock,
   ShieldCheck,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 

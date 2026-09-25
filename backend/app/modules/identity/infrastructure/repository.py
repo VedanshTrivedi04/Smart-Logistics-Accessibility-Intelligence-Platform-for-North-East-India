@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.modules.identity.application.ports import IdentityRepositoryPort
+from app.modules.identity.domain.principal import JurisdictionScope
 from app.modules.identity.domain.audit_events import IdentityAuditEvent
 from app.modules.identity.domain.entities import (
     AuthTransaction,
@@ -280,6 +281,35 @@ class SqlAlchemyIdentityRepository(IdentityRepositoryPort):
         )
         res = await self.session.execute(stmt)
         return [self._to_grant_entity(m) for m in res.scalars().all()]
+
+    async def resolve_jurisdiction_scope(self, granted_ids: set[UUID]) -> JurisdictionScope:
+        if not granted_ids:
+            return JurisdictionScope()
+        # Walk down the hierarchy from each granted jurisdiction.
+        tree = (
+            select(
+                JurisdictionModel.id.label("id"),
+                JurisdictionModel.level.label("level"),
+                JurisdictionModel.id.label("root"),
+            )
+            .where(JurisdictionModel.id.in_(granted_ids))
+            .cte("tree", recursive=True)
+        )
+        child = select(JurisdictionModel.id, JurisdictionModel.level, tree.c.root).join(
+            tree, JurisdictionModel.parent_id == tree.c.id
+        )
+        tree = tree.union_all(child)
+        rows = (await self.session.execute(select(tree.c.id, tree.c.level, tree.c.root))).all()
+        all_ids = {r.id for r in rows}
+        granted = {r.id: r.level for r in rows if r.id == r.root}
+        depth = {"REGION": 1, "STATE": 2, "DISTRICT": 3}
+        # Most specific granted jurisdiction; ties broken by id so the choice is stable.
+        home = max(granted, key=lambda j: (depth.get(granted[j], 0), str(j))) if granted else None
+        return JurisdictionScope(
+            all_ids=frozenset(all_ids),
+            home_id=home,
+            region_wide=any(level == "REGION" for level in granted.values()),
+        )
 
     async def get_grant_by_id(self, grant_id: UUID) -> Grant | None:
         stmt = select(GrantModel).where(GrantModel.id == grant_id)

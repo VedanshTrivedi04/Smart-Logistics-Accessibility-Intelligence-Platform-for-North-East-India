@@ -17,6 +17,9 @@ class ReportType(str, Enum):
     WEATHER_HAZARD = "WEATHER_HAZARD"
     SECURITY_INCIDENT = "SECURITY_INCIDENT"
     OBSTRUCTION = "OBSTRUCTION"
+    # Observed condition of a road segment (reopened, restricted, still blocked). An observation only:
+    # it never changes road status by itself and never triggers automatic caution.
+    ROAD_CONDITION_UPDATE = "ROAD_CONDITION_UPDATE"
     OTHER = "OTHER"
 
 
@@ -77,3 +80,12 @@ class RejectionReason(str, Enum):
     UNVERIFIABLE = "UNVERIFIABLE"
     RESOLVED_PRIOR_TO_REVIEW = "RESOLVED_PRIOR_TO_REVIEW"
     OTHER = "OTHER"
+
+
+class RoadSide(str, Enum):
+    """Mountain carriageway side relative to slope topography."""
+    HILLSIDE = "HILLSIDE"       # Mountain cutting / slope side (landslide hazard)
+    VALLEY_SIDE = "VALLEY_SIDE" # Gorge / drop-off side (erosion / subsidence hazard)
+    BOTH = "BOTH"               # Both carriageway sides affected
+    UNKNOWN = "UNKNOWN"
+

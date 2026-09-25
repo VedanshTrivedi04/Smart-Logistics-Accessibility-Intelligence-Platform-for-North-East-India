@@ -99,7 +99,8 @@ async def get_facility_impacts(
 )
 async def evaluate_disruption_impact(
     payload: EvaluateImpactRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    # Writes impact records, so it needs more than a login (a field officer or driver must not trigger it).
+    principal: PrincipalContext = Depends(require_capability(Capability.COORDINATE_RESPONSE)),
     session: DbSession = Depends(get_db_session),
 ) -> EvaluateImpactSummaryResponse:
     """
@@ -119,6 +120,8 @@ async def evaluate_disruption_impact(
         delay_estimated_seconds=payload.delay_estimated_seconds,
     )
 
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return EvaluateImpactSummaryResponse(
         edge_id=result["edge_id"],
         trips_evaluated=result["trips_evaluated"],

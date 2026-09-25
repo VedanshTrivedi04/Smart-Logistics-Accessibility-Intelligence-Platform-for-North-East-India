@@ -74,6 +74,8 @@ async def triage_report(
     reporting_repo = SqlAlchemyReportingRepository(db)
     use_case = TriageReportUseCase(reporting_repo)
     report = await use_case.execute(principal=principal, report_id=report_id)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_response_dto(report)
 
 
@@ -123,6 +125,8 @@ async def review_report(
         incident_title=req.incident_title,
         if_match_version=if_match_ver,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
 
     return ReviewDecisionResponse(
         report_id=UUID(result["report_id"]),
@@ -197,6 +201,8 @@ async def resolve_incident(
         notes=req.notes,
         affected_edge_ids=req.affected_edge_ids,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_incident_dto(resolved)
 
 
@@ -220,4 +226,6 @@ async def merge_incidents(
         target_incident_id=req.target_incident_id,
         notes=req.notes,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_incident_dto(target)

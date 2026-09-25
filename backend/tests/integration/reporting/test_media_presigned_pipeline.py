@@ -4,10 +4,13 @@ tests/integration/reporting/test_media_presigned_pipeline.py — Integration tes
 
 from __future__ import annotations
 
+import hashlib
+import io
 import uuid
 from uuid import UUID
 
 import pytest
+from PIL import Image
 
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenError
@@ -48,6 +51,9 @@ def unauthorized_principal() -> PrincipalContext:
     )
 
 
+BUCKET_QUARANTINE_FOR_TEST = "ner-media-quarantine"
+
+
 class TestMediaPresignedPipeline:
     async def test_presigned_upload_and_confirmation(
         self,
@@ -57,13 +63,16 @@ class TestMediaPresignedPipeline:
             repo = SqlAlchemyReportingRepository(session)
             service = MediaUploadService(repo)
 
-            # 1. Request upload ticket
+            # 1. Request upload ticket for a real image (confirm now reads and validates the stored bytes)
+            buf = io.BytesIO()
+            Image.new("RGB", (192, 108), (90, 90, 90)).save(buf, format="JPEG")
+            data = buf.getvalue()
             ticket = await service.request_upload_ticket(
                 principal=field_officer_principal,
                 file_name="rockfall_site_01.jpg",
-                file_size_bytes=1024 * 500,  # 500 KB
+                file_size_bytes=len(data),
                 mime_type="image/jpeg",
-                checksum_sha256="b1c2d3e4f5a60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+                checksum_sha256=hashlib.sha256(data).hexdigest(),
             )
             await session.commit()
 
@@ -71,18 +80,13 @@ class TestMediaPresignedPipeline:
             assert "upload_url" in ticket
             assert ticket["expires_in_seconds"] == 900
 
-            # 2. Confirm upload
-            confirmed = await service.confirm_upload(
-                media_id=media_id,
-                width_px=1920,
-                height_px=1080,
-                exif_lat=26.05,
-                exif_lon=91.98,
-            )
+            # 2. The client uploads straight to storage, then confirms
+            await service.storage.put_object(BUCKET_QUARANTINE_FOR_TEST, str(ticket["object_key"]), data, "image/jpeg")
+            confirmed = await service.confirm_upload(media_id=media_id)
             await session.commit()
 
             assert confirmed.scan_status == ScanStatus.CLEAN
-            assert confirmed.width_px == 1920
+            assert (confirmed.width_px, confirmed.height_px) == (192, 108)
 
             # 3. Authorized download URL generation
             download_url = await service.generate_download_url(media_id, field_officer_principal)

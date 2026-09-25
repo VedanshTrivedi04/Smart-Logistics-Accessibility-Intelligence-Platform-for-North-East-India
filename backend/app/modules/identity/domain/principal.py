@@ -26,6 +26,15 @@ class SharingGrantContext:
 
 
 @dataclass(frozen=True)
+class JurisdictionScope:
+    """A principal's granted jurisdictions, expanded down the hierarchy (STATE covers its DISTRICTs)."""
+
+    all_ids: frozenset[UUID] = field(default_factory=frozenset)
+    home_id: UUID | None = None
+    region_wide: bool = False
+
+
+@dataclass(frozen=True)
 class PrincipalContext:
     """
     Immutable identity and authorization context for the current request.
@@ -46,6 +55,10 @@ class PrincipalContext:
     email: str | None = None
     display_name: str | None = None
     dev_mode: bool = False
+    # Most specific jurisdiction the principal was directly granted (used to tag their reports).
+    home_jurisdiction_id: UUID | None = None
+    # True when a REGION-level grant covers the whole region, including unassigned reports.
+    region_wide: bool = False
 
     def can(self, capability: Capability) -> bool:
         """

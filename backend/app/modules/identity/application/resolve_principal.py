@@ -107,6 +107,9 @@ class ResolvePrincipalUseCase:
                     for j_id in grant.jurisdiction_ids:
                         jurisdiction_ids.add(UUID(str(j_id)) if not isinstance(j_id, UUID) else j_id)
 
+        # Expand granted jurisdictions down the hierarchy (a STATE grant covers its DISTRICTs).
+        scope = await self.repo.resolve_jurisdiction_scope(jurisdiction_ids)
+
         # 11. Aggregate sharing grants available to this org
         sharing_grants_list = await self.repo.get_active_sharing_grants_for_org(session.org_id)
         sharing_contexts = {
@@ -126,7 +129,9 @@ class ResolvePrincipalUseCase:
             org_kind=OrgKind(org.kind),
             role=role,
             capabilities=frozenset(capabilities),
-            jurisdiction_ids=frozenset(jurisdiction_ids),
+            jurisdiction_ids=scope.all_ids,
+            home_jurisdiction_id=scope.home_id,
+            region_wide=scope.region_wide,
             sharing_grants=frozenset(sharing_contexts),
             assignment=AssignmentContext(),
             session_id=session.id,

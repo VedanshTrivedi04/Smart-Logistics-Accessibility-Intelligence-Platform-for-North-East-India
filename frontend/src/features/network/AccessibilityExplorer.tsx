@@ -3,36 +3,18 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  BarChart3,
-  CheckSquare,
-  ChevronRight,
-  Compass,
-  Crosshair,
-  Filter,
   Layers,
-  MapPin,
-  Mountain,
-  Navigation,
-  Radio,
-  RefreshCw,
-  ShieldAlert,
-  ShieldCheck,
   Truck,
-  WifiOff,
   X,
 } from "lucide-react";
-import { humanize } from "@/shared/lib/format";
-import { formatDistance, type BBox } from "@/shared/lib/geo";
+import { type BBox } from "@/shared/lib/geo";
 import { useScopeFilter } from "@/shared/auth";
 import { MapLegend, MapView, type MapLine, type MapPoint, type Viewport } from "@/shared/map";
-import { Banner, Button, Card, CoverageBanner, ErrorNotice, Stat, StatusBadge } from "@/shared/ui";
+import { Banner, Card, CoverageBanner, ErrorNotice, StatusBadge } from "@/shared/ui";
 import { useIncidents, useReports } from "@/features/incidents";
 import { useVehicles, useFleetPositions, useTrips } from "@/features/fleet";
 import { useRiskZones } from "@/features/hazard";
-import { edgeLabel, edgeLines, sortBySeverity, summarizeEdges } from "./edges";
+import { edgeLines, sortBySeverity, summarizeEdges } from "./edges";
 import { EdgePanel, FacilityPanel } from "./panels";
 import { EDGE_LIMIT, useEdges, useFacilities } from "./queries";
 
@@ -100,7 +82,6 @@ export function AccessibilityExplorer({
   showSummary = true,
   routeBase = "/gov/routes",
   extraPoints,
-  renderPointDetail,
   toolbar,
 }: Props) {
   const [viewport, setViewport] = useState<Viewport | null>(null);
@@ -123,7 +104,6 @@ export function AccessibilityExplorer({
 
   // Default roadFilter to 'attention' so only disrupted/blocked/restricted roads are highlighted as overlays
   const [roadFilter, setRoadFilter] = useState<RoadFilter>("attention");
-  const [search, setSearch] = useState("");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("incidents");
   const [mapError, setMapError] = useState<string | null>(null);
 
@@ -133,8 +113,6 @@ export function AccessibilityExplorer({
     isDistrictOfficer,
     assignedState,
     assignedDistrict,
-    stateBBox,
-    districtBBox,
     activeBBox,
     isWithinAssignedScope,
   } = useScopeFilter();
@@ -1162,10 +1140,10 @@ export function AccessibilityExplorer({
                     <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>No road segments found in active network.</p>
                   ) : (
                     sortBySeverity(features).map((feat) => {
-                      const p = feat.properties;
+                      const p = feat.props;
                       const isSelected = selectedEdge === feat.id;
-                      const isBlocked = p.status === "BLOCKED";
-                      const isRestricted = p.status === "RESTRICTED";
+                      const isBlocked = p.accessibility_status === "BLOCKED";
+                      const isRestricted = p.accessibility_status === "RESTRICTED";
                       const statusColor = isBlocked ? "#dc2626" : isRestricted ? "#d97706" : "#16a34a";
                       const statusBg = isBlocked ? "#fee2e2" : isRestricted ? "#fef3c7" : "#dcfce7";
                       const statusIcon = isBlocked ? "🔴" : isRestricted ? "🟡" : "🟢";
@@ -1206,7 +1184,7 @@ export function AccessibilityExplorer({
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {p.status}
+                              {p.accessibility_status}
                             </span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", color: "#64748b", marginTop: "0.3rem" }}>

@@ -22,6 +22,7 @@ from app.modules.reporting.domain.enums import (
     PassableVehicleClass,
     ReportSeverity,
     ReportType,
+    RoadSide,
 )
 from app.modules.reporting.domain.exceptions import BatchSizeExceededError
 
@@ -92,6 +93,8 @@ class SyncReportsBatchUseCase:
                     lane_status = LaneStatus(raw_lane) if raw_lane else None
                     passable_classes = [PassableVehicleClass(c) for c in item.get("passable_classes") or []]
                     life_safety_risk = bool(item.get("life_safety_risk", False))
+                    raw_side = item.get("road_side")
+                    road_side = RoadSide(raw_side) if raw_side else None
 
                     report = await self.submit_use_case.execute(
                         principal=principal,
@@ -109,6 +112,7 @@ class SyncReportsBatchUseCase:
                         lane_status=lane_status,
                         passable_classes=passable_classes,
                         life_safety_risk=life_safety_risk,
+                        road_side=road_side,
                     )
 
                     res_payload = {

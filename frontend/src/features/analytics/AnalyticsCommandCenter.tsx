@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useSession, useScopeFilter } from "@/shared/auth";
+import { useScopeFilter } from "@/shared/auth";
 import { downloadText, toCsv } from "@/shared/lib/format";
 
 export interface StateOperationalRecord {
@@ -62,7 +62,6 @@ const HAZARD_TYPE_BREAKDOWN = [
 ];
 
 export function AnalyticsCommandCenter() {
-  const { can } = useSession();
   const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict } = useScopeFilter();
   const [scopeActive, setScopeActive] = useState<boolean>(isDistrictOfficer || isStateAuthority);
   const [period, setPeriod] = useState<"30D" | "QUARTER" | "YTD" | "ANNUAL">("QUARTER");

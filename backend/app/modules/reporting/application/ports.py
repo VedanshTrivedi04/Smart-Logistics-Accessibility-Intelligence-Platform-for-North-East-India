@@ -5,9 +5,11 @@ app/modules/reporting/application/ports.py — Reporting Repository Port.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from app.modules.reporting.application.access import ReportScope
 from app.modules.reporting.domain.entities import (
     FieldReport,
     MediaObject,
@@ -15,6 +17,47 @@ from app.modules.reporting.domain.entities import (
     SyncResult,
 )
 from app.modules.reporting.domain.enums import ReviewState, ScanStatus
+
+
+@dataclass(frozen=True)
+class MediaInspection:
+    """What was found when the stored bytes of a photo were actually opened."""
+
+    width_px: int
+    height_px: int
+    sha256: str
+    format: str
+
+
+class MediaRejectedError(Exception):
+    """The stored file is not an acceptable photo. `code` is machine-readable, `message` is for the officer."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class MediaInspectorPort(ABC):
+    """Opens the real bytes of an uploaded photo and checks them against what the client declared."""
+
+    @abstractmethod
+    def inspect(self, data: bytes, *, declared_mime: str, declared_size: int, declared_sha256: str) -> MediaInspection:
+        """Raise MediaRejectedError if the file is not what was declared or not a valid image."""
+        ...
+
+
+@dataclass(frozen=True)
+class ScanVerdict:
+    clean: bool
+    signature: str | None = None
+
+
+class MalwareScannerPort(ABC):
+    @abstractmethod
+    async def scan(self, data: bytes) -> ScanVerdict:
+        """Antivirus verdict. Raises if the scanner cannot be reached."""
+        ...
 
 
 class ReportingRepositoryPort(ABC):
@@ -86,8 +129,14 @@ class ReportingRepositoryPort(ABC):
         jurisdiction_id: UUID | None = None,
         limit: int = 50,
         offset: int = 0,
+        scope: ReportScope | None = None,
     ) -> list[FieldReport]:
-        """List reports filtered by status and jurisdiction scope."""
+        """List reports filtered by status and jurisdiction; `scope` limits what the caller may see."""
+        ...
+
+    @abstractmethod
+    async def list_reports_for_media(self, media_id: UUID) -> list[FieldReport]:
+        """Reports that a media object is attached to."""
         ...
 
     @abstractmethod

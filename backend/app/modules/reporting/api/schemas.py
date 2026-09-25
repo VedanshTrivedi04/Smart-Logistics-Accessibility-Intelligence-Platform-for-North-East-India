@@ -16,6 +16,7 @@ from app.modules.reporting.domain.enums import (
     PassableVehicleClass,
     ReportSeverity,
     ReportType,
+    RoadSide,
 )
 
 
@@ -47,6 +48,7 @@ class ReportCreateRequest(BaseModel):
     lane_status: LaneStatus | None = Field(None, description="Observed lane availability")
     passable_classes: list[PassableVehicleClass] = Field(default_factory=list, max_length=4, description="Vehicle classes observed passing")
     life_safety_risk: bool = Field(False, description="Reporter flags an acute risk to life")
+    road_side: RoadSide | None = Field(None, description="Mountain slope side: HILLSIDE, VALLEY_SIDE, BOTH, or UNKNOWN")
 
 
 class ReportResponse(BaseModel):
@@ -70,6 +72,7 @@ class ReportResponse(BaseModel):
     lane_status: LaneStatus | None = None
     passable_classes: list[PassableVehicleClass] = Field(default_factory=list)
     life_safety_risk: bool = False
+    road_side: RoadSide | None = None
     observed_at: datetime
     received_at: datetime
     created_at: datetime
@@ -88,6 +91,7 @@ class ReportAmendmentRequest(BaseModel):
     media_ids: list[UUID] = Field(default_factory=list)
     candidate_edge_id: UUID | None = None
     candidate_bridge_id: UUID | None = None
+    road_side: RoadSide | None = None
     lane_status: LaneStatus | None = None
     passable_classes: list[PassableVehicleClass] = Field(default_factory=list, max_length=4)
     life_safety_risk: bool = False

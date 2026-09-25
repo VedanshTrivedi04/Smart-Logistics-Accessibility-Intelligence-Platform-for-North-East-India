@@ -5,21 +5,18 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   ArrowRight,
   Building2,
   CheckCircle2,
   Clock,
   Compass,
   FileText,
-  Filter,
   Layers,
   MapPin,
   Mountain,
   Package,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
   Truck,
   X,
@@ -27,11 +24,9 @@ import {
 
 import { useSession, useScopeFilter } from "@/shared/auth";
 import { humanize, shortId } from "@/shared/lib/format";
-import { formatDateTime } from "@/shared/lib/time";
-import { Banner, Button, Card, ErrorNotice, QueryState, StatusBadge } from "@/shared/ui";
+import { Button, StatusBadge } from "@/shared/ui";
 import { useImpactData } from "@/features/impact";
-import { useEdges, useFacilities } from "@/features/network";
-import { useTrips } from "@/features/fleet";
+import { useEdges } from "@/features/network";
 import { useIncidents, useReport, useResolveIncident } from "./queries";
 import type { IncidentLifecycle, ResolutionReason } from "@/shared/api";
 
@@ -233,8 +228,6 @@ function IncidentCommandCenterInner() {
   const incidentsQ = useIncidents(lifecycleTab === "ALL" ? undefined : (lifecycleTab as IncidentLifecycle));
   const impactData = useImpactData();
   const edgesQ = useEdges(null, null);
-  const facilitiesQ = useFacilities();
-  const tripsQ = useTrips(undefined, true);
   const resolveMutation = useResolveIncident();
 
   const allIncidents = useMemo(() => incidentsQ.data ?? [], [incidentsQ.data]);
@@ -364,8 +357,8 @@ function IncidentCommandCenterInner() {
     return (
       allEdges.find(
         (e) =>
-          e.properties.road_name?.toLowerCase().includes("nh-6") ||
-          (activeIncident.title.toLowerCase().includes("bridge") && e.properties.is_bridge),
+          e.props.road_name?.toLowerCase().includes("nh-6") ||
+          (activeIncident.title.toLowerCase().includes("bridge") && e.props.is_bridge),
       ) ?? allEdges[0]
     );
   }, [activeIncident, edgesQ.data]);
@@ -634,7 +627,7 @@ function IncidentCommandCenterInner() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Button size="small" variant="ghost" onClick={() => void incidentsQ.refetch()}>
+            <Button size="small" onClick={() => void incidentsQ.refetch()}>
               <RefreshCw size={14} className={incidentsQ.isFetching ? "animate-spin" : ""} style={{ marginRight: "0.35rem" }} />
               Sync Incident Feed
             </Button>
@@ -982,7 +975,7 @@ function IncidentCommandCenterInner() {
 
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <StatusBadge kind="lifecycle" value={activeIncident.lifecycle} />
-                  {activeIncident.lifecycle !== "RESOLVED" && can("MANAGE_INCIDENTS") && (
+                  {activeIncident.lifecycle !== "RESOLVED" && can("VERIFY_REPORT") && (
                     <button
                       type="button"
                       onClick={() => setShowResolveModal(true)}

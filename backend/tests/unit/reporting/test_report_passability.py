@@ -21,6 +21,7 @@ from app.modules.reporting.domain.enums import (
     PassableVehicleClass,
     ReportSeverity,
     ReportType,
+    RoadSide,
 )
 
 
@@ -67,6 +68,7 @@ def _principal() -> Any:
         user_id=uuid.uuid4(),
         org_id=uuid.uuid4(),
         jurisdiction_ids=frozenset(),
+        home_jurisdiction_id=None,
         role=SimpleNamespace(name="FIELD_OFFICER"),
     )
 
@@ -107,6 +109,7 @@ class TestPassabilityDefaults:
         assert report.lane_status is None
         assert report.passable_classes == []
         assert report.life_safety_risk is False
+        assert report.road_side is None
 
 
 class TestBatchSyncPassability:
@@ -152,3 +155,16 @@ class TestBatchSyncPassability:
         result = await _use_case(repo).execute(_principal(), [_item(report_type="OBSTRUCTION")])
         assert result["succeeded_count"] == 1
         assert repo.reports[0].report_type is ReportType.OBSTRUCTION
+
+    async def test_road_side_and_altitude_are_stored(self) -> None:
+        repo = FakeReportingRepo()
+        loc = {"longitude": 91.75, "latitude": 26.15, "accuracy_m": 12.0, "location_provider": "GPS_HARDWARE", "altitude_m": 1420.5}
+        result = await _use_case(repo).execute(
+            _principal(),
+            [_item(location=loc, road_side="HILLSIDE")],
+        )
+        assert result["succeeded_count"] == 1
+        stored = repo.reports[0]
+        assert stored.road_side is RoadSide.HILLSIDE
+        assert stored.location.altitude_m == 1420.5
+

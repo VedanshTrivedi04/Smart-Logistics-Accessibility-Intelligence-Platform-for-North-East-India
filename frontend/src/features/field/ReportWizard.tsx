@@ -9,7 +9,8 @@ import {
   api,
   unwrap,
   REPORT_SEVERITIES,
-  REPORT_TYPES,
+  INCIDENT_REPORT_TYPES,
+  type IncidentReportType,
   type ReportSeverity,
   type ReportType,
   type LaneStatus,
@@ -33,7 +34,8 @@ import { emptyPayload, MAX_PHOTOS, validatePayload, type ReportPayload } from ".
 import { requestBackgroundSync, useOffline } from "./OfflineProvider";
 import { addMedia, getDraft, listMedia, newDraft, queueDraft, removeMedia, saveDraft } from "./store";
 import { prepareImage } from "./sync/media";
-import { useGeolocation } from "./useGeolocation";
+import { useBoundedGeolocation } from "./useBoundedGeolocation";
+import { classifyProvider, formatAltitude, formatFixAge, getAccuracyTier } from "./locationLogic";
 import { StorageFullError } from "./store";
 import { VoiceReportSection } from "./VoiceReportSection";
 import { PhotoHazardPreview } from "./PhotoHazardPreview";
@@ -49,7 +51,7 @@ interface TypeConfig {
   badge: string;
 }
 
-const TYPE_CONFIG: Record<ReportType, TypeConfig> = {
+const TYPE_CONFIG: Record<IncidentReportType, TypeConfig> = {
   LANDSLIDE: {
     label: "Landslide",
     icon: "🪨",
@@ -195,6 +197,13 @@ const VEHICLE_CLASS_OPTIONS = [
   { id: "NONE" as const, label: "No Vehicles (Zero Passage)", icon: "🚫" },
 ];
 
+const ROAD_SIDE_OPTIONS = [
+  { id: "HILLSIDE" as const, label: "Hillside Cutting", icon: "⛰️", hint: "Slope / hill cut side (landslide risk)" },
+  { id: "VALLEY_SIDE" as const, label: "Valley / Gorge Side", icon: "🏞️", hint: "Cliff drop-off / river side (subsidence risk)" },
+  { id: "BOTH" as const, label: "Both Carriageway Sides", icon: "↔️", hint: "Entire road cross-section impacted" },
+  { id: "UNKNOWN" as const, label: "Unknown / Unspecified", icon: "❓", hint: "Not determined or not on mountain slope" },
+];
+
 function LocationStep({
   payload,
   set,
@@ -204,12 +213,20 @@ function LocationStep({
   set: (p: Partial<ReportPayload>) => void;
   draftId: string;
 }) {
-  const geo = useGeolocation();
+  const geo = useBoundedGeolocation({ active: true, targetAccuracyM: 15, maxWatchMs: 15_000 });
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
-  const [acc, setAcc] = useState("100");
+  const [acc, setAcc] = useState("50");
   const [manualError, setManualError] = useState<string | null>(null);
   const [showMilestonePicker, setShowMilestonePicker] = useState(false);
+  const [fixTimeMs, setFixTimeMs] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState<number>(Date.now());
+
+  // Periodically refresh elapsed fix age display every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loc = payload.location;
   const bbox = useMemo(() => (loc ? bboxAround(loc.latitude, loc.longitude, 400) : null), [loc]);
@@ -254,15 +271,18 @@ function LocationStep({
       .slice(0, 8);
   }, [edges.data, loc]);
 
+  // When bounded GPS fix arrives or improves, commit to payload with honest provider classification
   useEffect(() => {
     if (geo.state.status === "ok") {
       const f = geo.state.fix;
+      setFixTimeMs(f.timestampMs);
+      const provider = classifyProvider(f.accuracy_m, false);
       set({
         location: {
           latitude: f.latitude,
           longitude: f.longitude,
           accuracy_m: f.accuracy_m,
-          location_provider: "GPS_HARDWARE",
+          location_provider: provider,
           altitude_m: f.altitude_m,
         },
       });
@@ -281,27 +301,34 @@ function LocationStep({
       return setManualError("Accuracy must be between 1 and 5000 metres.");
     }
     setManualError(null);
+    setFixTimeMs(Date.now());
     set({
       location: {
         latitude: la,
         longitude: lo,
         accuracy_m: ac,
         location_provider: "MANUAL_MAP_PICK",
+        altitude_m: null,
       },
     });
   };
 
   const selectMilestone = (m: CorridorMilestone) => {
+    setFixTimeMs(Date.now());
     set({
       location: {
         latitude: m.lat,
         longitude: m.lon,
         accuracy_m: 500, // Honest accuracy rating for manual milestone reference
         location_provider: "MANUAL_MAP_PICK",
+        altitude_m: null,
       },
     });
     setShowMilestonePicker(false);
   };
+
+  const tier = loc ? getAccuracyTier(loc.accuracy_m) : null;
+  const isGpsDenied = geo.state.status === "denied" || geo.state.status === "unavailable" || geo.state.status === "timeout";
 
   const locationPoints = loc
     ? [{ id: draftId, kind: "report" as const, lon: loc.longitude, lat: loc.latitude, label: "Report location", tone: "warn" as const }]
@@ -309,76 +336,206 @@ function LocationStep({
 
   return (
     <div className="stack" style={{ gap: "1.2rem" }}>
-      {/* Primary GPS Hardware Button */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <Button
-          size="large"
-          variant="primary"
-          onClick={geo.locate}
-          busy={geo.state.status === "locating"}
-          style={{ padding: "0.85rem 1.25rem", fontSize: "0.95rem", fontWeight: 700 }}
+      {/* 1. GPS Acquiring State banner (if searching and no location locked yet) */}
+      {!loc && geo.state.status === "locating" && (
+        <div
+          style={{
+            background: "#f0f9ff",
+            border: "1.5px solid #bae6fd",
+            borderRadius: "12px",
+            padding: "1.25rem",
+            textAlign: "center",
+          }}
         >
-          📍 Acquire Hardware GPS Position
-        </Button>
-        {geo.state.status === "denied" || geo.state.status === "unavailable" || geo.state.status === "timeout" ? (
-          <Banner tone="warn" title="Could not get GPS fix">
-            <p className="small">{geo.state.message}. Use the milestone fallback picker or manual coordinates below.</p>
-          </Banner>
-        ) : null}
-      </div>
+          <div style={{ fontSize: "1.8rem" }}>🛰️</div>
+          <div style={{ fontWeight: 800, color: "#0369a1", marginTop: "0.4rem", fontSize: "0.95rem" }}>
+            Acquiring Hardware GPS Satellite Lock...
+          </div>
+          <div style={{ fontSize: "0.76rem", color: "#0284c7", marginTop: "0.2rem" }}>
+            {geo.state.bestAccuracyM
+              ? `Current best reading: ±${geo.state.bestAccuracyM}m (locking to target ≤15m)`
+              : "Querying device GNSS receiver with high accuracy under open sky"}
+          </div>
+          <div style={{ marginTop: "0.85rem" }}>
+            <Button
+              size="small"
+              variant="default"
+              onClick={() => setShowMilestonePicker(true)}
+              style={{ fontSize: "0.76rem" }}
+            >
+              Skip GPS & Pick Mountain Milestone
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Corridor Chainage Card */}
-      {loc && (
+      {/* 2. GPS Error Banner (denied or timeout) */}
+      {isGpsDenied && (
+        <Banner tone="warn" title="Could not acquire GPS position">
+          <p className="small">
+            {geo.state.status === "denied"
+              ? "Location permission was denied. Tap a verified milestone below or enter coordinates manually."
+              : geo.state.status === "timeout"
+              ? "Acquiring satellite fix timed out in deep canyon / cloud cover. Use milestone fallback or enter coordinates."
+              : "message" in geo.state
+              ? geo.state.message
+              : "This device could not determine its position. Use the milestone fallback or enter coordinates."}
+          </p>
+        </Banner>
+      )}
+
+      {/* 3. Tactical Location HUD Card (when location is locked) */}
+      {loc && tier && (
         <div
           style={{
             background: "#f8fafc",
             border: "1.5px solid #cbd5e1",
             borderRadius: "12px",
-            padding: "0.9rem 1rem",
+            padding: "1rem",
             boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
-            <div>
-              <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Verified Corridor Snapping
-              </div>
-              <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "#0f172a", marginTop: "0.15rem" }}>
-                {snappedCorridor ? snappedCorridor.formattedChainage : "Off Designated Lifeline Corridor"}
-              </div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0369a1", marginTop: "0.2rem" }}>
-                Near {snappedCorridor?.nearestMilestone}
-              </div>
+          {/* Top Bar: Status Tier Badge + Re-acquire Fix Button */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.6rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span
+                style={{
+                  fontSize: "0.74rem",
+                  fontWeight: 800,
+                  padding: "0.25rem 0.65rem",
+                  borderRadius: "6px",
+                  background: tier.badgeBg,
+                  color: tier.badgeColor,
+                  border: `1px solid ${tier.badgeBorder}`,
+                }}
+              >
+                ● {tier.label} (±{Math.round(loc.accuracy_m)}m)
+              </span>
+              {geo.isWatching && (
+                <span style={{ fontSize: "0.72rem", color: "#0284c7", fontWeight: 700 }}>
+                  🛰️ Polling satellites...
+                </span>
+              )}
             </div>
-            <span
-              style={{
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                padding: "0.25rem 0.6rem",
-                borderRadius: "6px",
-                background: loc.accuracy_m <= 15 ? "#dcfce7" : loc.accuracy_m <= 100 ? "#fef3c7" : "#fee2e2",
-                color: loc.accuracy_m <= 15 ? "#15803d" : loc.accuracy_m <= 100 ? "#b45309" : "#b91c1c",
-                border: `1px solid ${loc.accuracy_m <= 15 ? "#86efac" : loc.accuracy_m <= 100 ? "#fde047" : "#fca5a5"}`,
-              }}
+            <Button
+              size="small"
+              variant="default"
+              onClick={geo.restartWatch}
+              busy={geo.isWatching}
+              style={{ fontSize: "0.74rem", fontWeight: 700 }}
             >
-              ±{Math.round(loc.accuracy_m)}m Accuracy · {humanize(loc.location_provider)}
-            </span>
+              🔄 Re-acquire Fix
+            </Button>
           </div>
 
-          <div style={{ fontSize: "0.76rem", color: "#64748b", marginTop: "0.5rem", borderTop: "1px dashed #e2e8f0", paddingTop: "0.45rem" }}>
-            <span>{formatCoords(loc.latitude, loc.longitude)}</span>
-            {snappedCorridor && (
-              <span style={{ marginLeft: "0.6rem", color: snappedCorridor.isWithinCorridor ? "#16a34a" : "#b45309", fontWeight: 600 }}>
-                {snappedCorridor.isWithinCorridor
-                  ? `✓ On corridor centerline (±${Math.round(snappedCorridor.offCorridorM)}m offset)`
-                  : `⚠️ ${Math.round(snappedCorridor.offCorridorM)}m offset from corridor axis`}
-              </span>
-            )}
+          {/* Metric Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.8rem", marginTop: "0.8rem" }}>
+            <div>
+              <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Road Corridor
+              </div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#0f172a", marginTop: "0.15rem" }}>
+                {snappedCorridor ? snappedCorridor.formattedChainage : "Off Designated Lifeline Corridor"}
+              </div>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#0369a1", marginTop: "0.15rem" }}>
+                Near {snappedCorridor?.nearestMilestone ?? "Highway Landmark"}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Coordinates & Altitude
+              </div>
+              <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#1e293b", fontFamily: "monospace", marginTop: "0.15rem" }}>
+                {formatCoords(loc.latitude, loc.longitude)}
+              </div>
+              <div style={{ fontSize: "0.76rem", color: "#475569", marginTop: "0.15rem", fontWeight: 600 }}>
+                {formatAltitude(loc.altitude_m) ?? "Elevation data not reported"}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Metas: Sensor Origin & Elapsed Age */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", fontSize: "0.74rem", color: "#64748b", marginTop: "0.75rem", paddingTop: "0.5rem", borderTop: "1px dashed #e2e8f0" }}>
+            <span>±{Math.round(loc.accuracy_m)}m Accuracy · {humanize(loc.location_provider)} ({tier.description})</span>
+            <span>Fixed {fixTimeMs ? formatFixAge(fixTimeMs, nowMs) : "recently"}</span>
           </div>
         </div>
       )}
 
-      {/* Duplicate Incident Warning Banner */}
+      {/* 4. Off-Corridor Warning (Warning only, never block) */}
+      {snappedCorridor && !snappedCorridor.isWithinCorridor && (
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1.5px solid #fcd34d",
+            borderRadius: "10px",
+            padding: "0.75rem 1rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.6rem",
+          }}
+        >
+          <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>⚠️</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.85rem", color: "#92400e" }}>
+              Off Designated Lifeline Corridor ({Math.round(snappedCorridor.offCorridorM)}m offset)
+            </div>
+            <div style={{ fontSize: "0.76rem", color: "#b45309", marginTop: "0.2rem" }}>
+              This point is outside the standard NH-6 / NH-27 centerline axis. You can still submit this report;
+              government triage and logistics routing will assess feeder connectivity.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Mountain Carriageway Side Selector */}
+      <fieldset style={{ border: "1.5px solid #cbd5e1", borderRadius: "10px", padding: "0.85rem 1rem", background: "#f8fafc" }}>
+        <legend style={{ fontSize: "0.78rem", fontWeight: 800, color: "#334155", padding: "0 0.4rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          Mountain Carriageway Side (Road Slope Orientation)
+        </legend>
+        <p className="small muted" style={{ marginTop: "0.1rem", marginBottom: "0.5rem" }}>
+          Identify which side of the mountain cross-section is blocked:
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.5rem" }}>
+          {ROAD_SIDE_OPTIONS.map((s) => {
+            const active = (payload.roadSide ?? "UNKNOWN") === s.id;
+            return (
+              <label
+                key={s.id}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.5rem",
+                  padding: "0.55rem 0.75rem",
+                  background: active ? "#e0f2fe" : "#ffffff",
+                  border: `1.5px solid ${active ? "#0284c7" : "#cbd5e1"}`,
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="roadSide"
+                  value={s.id}
+                  checked={active}
+                  onChange={() => set({ roadSide: s.id })}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0f172a" }}>
+                    {s.icon} {s.label}
+                  </div>
+                  <div style={{ fontSize: "0.71rem", color: "#64748b", marginTop: "0.15rem" }}>
+                    {s.hint}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      {/* 6. Duplicate Incident Warning Banner */}
       {nearbyDuplicate && (
         <div
           style={{
@@ -398,25 +555,25 @@ function LocationStep({
             </div>
             <div style={{ fontSize: "0.78rem", color: "#b45309", marginTop: "0.2rem" }}>
               A {humanize(nearbyDuplicate.rep.report_type ?? "Hazard")} is already logged near this highway sector.
-              If this is the same event, add photos or clarify in notes to prevent duplicate alerts in Government Triage.
+              If this is the same event, clarify in notes to prevent redundant dispatching.
             </div>
           </div>
         </div>
       )}
 
-      {/* Milestone Fallback Picker */}
+      {/* 7. Milestone Fallback Picker (Authentic CORRIDOR_MILESTONES from corridors.ts) */}
       <div style={{ background: "#f8fafc", padding: "0.85rem 1rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#1e293b" }}>Mountain Valley / Tunnel Fallback</div>
-            <div style={{ fontSize: "0.74rem", color: "#64748b" }}>If GPS is blocked by mountain ridges, snap directly to a verified highway landmark</div>
+            <div style={{ fontSize: "0.74rem", color: "#64748b" }}>If GPS drops under rock cuts, tap a verified highway landmark from NH-6 / NH-27</div>
           </div>
           <Button size="small" variant="default" onClick={() => setShowMilestonePicker(!showMilestonePicker)}>
             {showMilestonePicker ? "Close List" : "Select Milestone"}
           </Button>
         </div>
 
-        {showMilestonePicker && (
+        {(showMilestonePicker || isGpsDenied) && (
           <div style={{ marginTop: "0.8rem", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.45rem", maxHeight: "240px", overflowY: "auto", borderTop: "1px solid #e2e8f0", paddingTop: "0.6rem" }}>
             {CORRIDOR_MILESTONES.map((m) => (
               <button
@@ -441,50 +598,75 @@ function LocationStep({
         )}
       </div>
 
-      {/* Interactive Map & Coordinate Entry */}
+      {/* 8. Interactive Map */}
       <div>
         <p className="small muted" style={{ marginBottom: "0.4rem" }}>
-          Tap on the mountain map to pinpoint the exact obstruction point:
+          Tap on the mountain map to pinpoint or adjust the exact obstruction point:
         </p>
         <MapView
           ariaLabel="Pick the report location"
           height={260}
           points={locationPoints}
-          onMapClick={(lo, la) =>
+          onMapClick={(lo, la) => {
+            setFixTimeMs(Date.now());
             set({
               location: {
                 latitude: la,
                 longitude: lo,
                 accuracy_m: Math.max(loc?.accuracy_m ?? 50, 50),
                 location_provider: "MANUAL_MAP_PICK",
+                altitude_m: null,
               },
-            })
-          }
+            });
+          }}
           fitBounds={bbox}
           fitKey={loc ? `${loc.latitude.toFixed(4)}${loc.longitude.toFixed(4)}` : "none"}
         />
         <MapLegend points={locationPoints} />
       </div>
 
-      {/* Manual Coordinate Form */}
-      <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.85rem 1rem" }}>
-        <legend style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", padding: "0 0.4rem" }}>Or enter coordinates manually</legend>
-        <div className="grid cols-3" style={{ gap: "0.6rem" }}>
-          <Field label="Latitude" htmlFor="m-lat">
-            <input id="m-lat" inputMode="decimal" placeholder="e.g. 26.085" value={lat} onChange={(e) => setLat(e.target.value)} />
-          </Field>
-          <Field label="Longitude" htmlFor="m-lon">
-            <input id="m-lon" inputMode="decimal" placeholder="e.g. 91.865" value={lon} onChange={(e) => setLon(e.target.value)} />
-          </Field>
-          <Field label="Accuracy (m)" htmlFor="m-acc" hint="Estimated error margin">
-            <input id="m-acc" inputMode="numeric" value={acc} onChange={(e) => setAcc(e.target.value)} />
-          </Field>
-        </div>
-        {manualError ? <p className="error" role="alert" style={{ marginTop: "0.4rem" }}>{manualError}</p> : null}
-        <Button size="small" onClick={applyManual} style={{ marginTop: "0.5rem" }}>Apply Coordinates</Button>
-      </fieldset>
+      {/* 9. Manual Coordinate Form (Kept directly visible when no fix/denied, inside details when fix is locked) */}
+      {!loc || isGpsDenied ? (
+        <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.85rem 1rem" }}>
+          <legend style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", padding: "0 0.4rem" }}>Or enter coordinates manually</legend>
+          <div className="grid cols-3" style={{ gap: "0.6rem" }}>
+            <Field label="Latitude" htmlFor="m-lat">
+              <input id="m-lat" inputMode="decimal" placeholder="e.g. 26.085" value={lat} onChange={(e) => setLat(e.target.value)} />
+            </Field>
+            <Field label="Longitude" htmlFor="m-lon">
+              <input id="m-lon" inputMode="decimal" placeholder="e.g. 91.865" value={lon} onChange={(e) => setLon(e.target.value)} />
+            </Field>
+            <Field label="Accuracy (m)" htmlFor="m-acc" hint="Estimated error margin">
+              <input id="m-acc" inputMode="numeric" value={acc} onChange={(e) => setAcc(e.target.value)} />
+            </Field>
+          </div>
+          {manualError ? <p className="error" role="alert" style={{ marginTop: "0.4rem" }}>{manualError}</p> : null}
+          <Button size="small" onClick={applyManual} style={{ marginTop: "0.5rem" }}>Apply Coordinates</Button>
+        </fieldset>
+      ) : (
+        <details style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.65rem 0.9rem", background: "#fafafa" }}>
+          <summary style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", cursor: "pointer" }}>
+            Need manual coordinate override?
+          </summary>
+          <div style={{ marginTop: "0.65rem" }}>
+            <div className="grid cols-3" style={{ gap: "0.6rem" }}>
+              <Field label="Latitude" htmlFor="m-lat">
+                <input id="m-lat" inputMode="decimal" placeholder="e.g. 26.085" value={lat} onChange={(e) => setLat(e.target.value)} />
+              </Field>
+              <Field label="Longitude" htmlFor="m-lon">
+                <input id="m-lon" inputMode="decimal" placeholder="e.g. 91.865" value={lon} onChange={(e) => setLon(e.target.value)} />
+              </Field>
+              <Field label="Accuracy (m)" htmlFor="m-acc" hint="Estimated error margin">
+                <input id="m-acc" inputMode="numeric" value={acc} onChange={(e) => setAcc(e.target.value)} />
+              </Field>
+            </div>
+            {manualError ? <p className="error" role="alert" style={{ marginTop: "0.4rem" }}>{manualError}</p> : null}
+            <Button size="small" onClick={applyManual} style={{ marginTop: "0.5rem" }}>Apply Coordinates</Button>
+          </div>
+        </details>
+      )}
 
-      {/* Nearest Road Edges */}
+      {/* 10. Nearest Road Edges from Topological Network */}
       {loc && (nearby.length > 0 || edges.isError) ? (
         <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.85rem 1rem" }}>
           <legend style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", padding: "0 0.4rem" }}>Candidate Road Edge</legend>
@@ -745,17 +927,26 @@ function EvidenceStep({
       {busy ? <p role="status" className="muted">Saving photo securely on device storage…</p> : null}
       {error ? <p className="error" role="alert">{error}</p> : null}
 
-      {/* Photo Gallery Grid */}
+      {/* Photo Gallery Grid with Metadata Dossier */}
       {photos.length ? (
         <ul className="grid cols-3" style={{ listStyle: "none", padding: 0, margin: 0, gap: "0.75rem" }}>
-          {photos.map((p) => (
-            <li key={p.id} className="card" style={{ padding: "0.5rem", borderRadius: "10px", overflow: "hidden" }}>
+          {photos.map((p, idx) => (
+            <li key={p.id} className="card" style={{ padding: "0.5rem", borderRadius: "10px", overflow: "hidden", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
               {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
               <img src={p.url} alt={`Attached photo ${p.name}`} style={{ width: "100%", height: "130px", objectFit: "cover", borderRadius: 6 }} />
+              
+              {/* Photo Metadata Pill */}
+              <div style={{ fontSize: "0.68rem", color: "#475569", marginTop: "0.4rem", lineHeight: 1.3, background: "#ffffff", padding: "0.35rem 0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                <div><strong>Ref:</strong> #{draftId ? draftId.slice(-6) : "DRAFT"}-{idx + 1}</div>
+                <div><strong>GPS:</strong> {payload.location ? `${payload.location.latitude.toFixed(4)}, ${payload.location.longitude.toFixed(4)}` : "Pending GPS"}</div>
+                <div><strong>Storage:</strong> IndexedDB local blob ({(p.size / 1024).toFixed(0)} KB)</div>
+                <div style={{ color: "#0369a1", fontWeight: 600 }}>Status: Unsent Evidence</div>
+              </div>
+
               <div className="row small" style={{ marginTop: "0.4rem" }}>
-                <span>{(p.size / 1024).toFixed(0)} KB</span>
                 <Button
                   size="small"
+                  variant="danger"
                   className="right"
                   onClick={async () => {
                     if (db && ownerId) {
@@ -771,7 +962,7 @@ function EvidenceStep({
           ))}
         </ul>
       ) : (
-        <p className="muted small">No photos attached yet ({photos.length} of {MAX_PHOTOS} max). A photo is optional; an urgent text-only report can be sent without one.</p>
+        <p className="muted small">No photos attached yet ({photos.length} of {MAX_PHOTOS} max). Photo is optional; an urgent text-only report can be sent without one.</p>
       )}
 
       <PhotoHazardPreview
@@ -784,8 +975,63 @@ function EvidenceStep({
         }}
       />
 
+      {/* Objective Ground Observation Guidelines */}
+      <div
+        style={{
+          background: "#f8fafc",
+          border: "1px solid #cbd5e1",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          fontSize: "0.8rem",
+          color: "#334155",
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span>📝</span> Objective Observation vs Prediction
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.5rem" }}>
+          <div style={{ background: "#f0fdf4", border: "1px solid #86efac", padding: "0.45rem 0.6rem", borderRadius: "6px", color: "#15803d" }}>
+            <strong>✅ Record physical facts:</strong> &ldquo;Road completely blocked by mud &amp; boulders covering ~40m carriageway.&rdquo;
+          </div>
+          <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", padding: "0.45rem 0.6rem", borderRadius: "6px", color: "#be123c" }}>
+            <strong>❌ Avoid predictions:</strong> &ldquo;Road will remain blocked for 3 days.&rdquo; (Engineers decide clearance duration).
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Observation Chips */}
+      <div>
+        <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.35rem" }}>
+          Quick Observation Presets
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+          {[
+            "Heavy landslide blocking both carriageways",
+            "Debris covering ~40m of road section",
+            "Large boulders actively rolling from hillside",
+            "River / culvert overflowing across tarmac",
+            "Fallen tree obstructing one lane",
+            "Debris clearance underway; single lane passable",
+          ].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className="btn small"
+              onClick={() => {
+                const cur = payload.description.trim();
+                const next = cur ? `${cur}. ${chip}.` : `${chip}.`;
+                set({ description: next });
+              }}
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem", background: "#ffffff", border: "1px solid #cbd5e1" }}
+            >
+              + {chip}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Field Description */}
-      <Field label="Describe what you see on the ground" htmlFor="ev-desc" hint="Provide physical context, width of damage, mud depth, or obstacles. (Min 3 chars)">
+      <Field label="Describe what you see on the ground" htmlFor="ev-desc" hint={`Provide physical context, width of damage, mud depth, or obstacles. (Min 3 chars) · ${payload.description.length}/2000 chars`}>
         <textarea
           id="ev-desc"
           value={payload.description}
@@ -999,7 +1245,7 @@ export function ReportWizard() {
   const router = useRouter();
   const me = usePrincipal();
   const announce = useAnnounce();
-  const { db, ownerId, orgId, ready, error: dbError, syncNow, refresh } = useOffline();
+  const { db, ownerId, orgId, ready, error: dbError, syncNow, refresh, snapshot } = useOffline();
 
   const draftParam = params.get("draft");
   const typeParam = params.get("type"); // Read ?type= query param from home shortcut chips
@@ -1047,7 +1293,7 @@ export function ReportWizard() {
       const initial = emptyPayload(new Date());
 
       // If ?type= was specified in URL, pre-select that hazard type!
-      if (typeParam && (REPORT_TYPES as readonly string[]).includes(typeParam)) {
+      if (typeParam && (INCIDENT_REPORT_TYPES as readonly string[]).includes(typeParam)) {
         initial.reportType = typeParam as ReportType;
       }
 
@@ -1106,14 +1352,38 @@ export function ReportWizard() {
   if (!ready || !payload || !draftId) return <p role="status" className="muted">Opening your report draft…</p>;
 
   if (queued) {
+    const pendingCount = snapshot ? snapshot.operations.filter((o) => o.state !== "SYNCED").length : 1;
     return (
       <Card title="Saved in Device Outbox">
         <div className="stack" style={{ gap: "1rem" }}>
+          {/* E2E Playwright compatibility banner */}
           <Banner tone="ok" title="Saved on device — queued for synchronization">
             <p className="small">
               Your field observation is safely stored in local IndexedDB. It counts as officially submitted once central handshake succeeds. Background sync will transmit automatically as soon as network signal is detected.
             </p>
           </Banner>
+
+          {/* Tactical Offline Workflow Card */}
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "2px solid #86efac",
+              borderRadius: "14px",
+              padding: "1.25rem",
+              boxShadow: "0 4px 15px rgba(22, 163, 74, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontWeight: 800, color: "#15803d", fontSize: "1.15rem" }}>
+              <span>✓</span> Report Saved Offline
+            </div>
+            <p style={{ margin: "0.5rem 0 0.8rem", fontSize: "0.88rem", color: "#166534" }}>
+              Will sync automatically when network becomes available.
+            </p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "#dcfce7", color: "#15803d", fontWeight: 700, fontSize: "0.82rem", padding: "0.35rem 0.75rem", borderRadius: "999px", border: "1px solid #bbf7d0" }}>
+              <span>🟠</span> Local Queue: {pendingCount} report{pendingCount === 1 ? "" : "s"} pending sync
+            </div>
+          </div>
+
           <div className="row" style={{ flexWrap: "wrap", gap: "0.6rem" }}>
             <Link className="btn primary" href="/field/queue">See send queue</Link>
             <Link className="btn" href="/field/report/new" onClick={() => window.location.assign("/field/report/new")}>Report another incident</Link>
@@ -1191,7 +1461,7 @@ export function ReportWizard() {
                   gap: "0.75rem",
                 }}
               >
-                {REPORT_TYPES.map((t) => {
+                {INCIDENT_REPORT_TYPES.map((t) => {
                   const conf = TYPE_CONFIG[t];
                   const isSelected = payload.reportType === t;
                   return (
@@ -1399,6 +1669,23 @@ export function ReportWizard() {
                     formatCoords(payload.location.latitude, payload.location.longitude)
                   ) : (
                     "—"
+                  )}
+                  {payload.location?.altitude_m != null && (
+                    <span className="small muted" style={{ marginLeft: "0.5rem" }}>
+                      · {formatAltitude(payload.location.altitude_m)}
+                    </span>
+                  )}
+                </dd>
+
+                <dt>Road Side</dt>
+                <dd>
+                  {payload.roadSide ? (
+                    <span>
+                      {ROAD_SIDE_OPTIONS.find((s) => s.id === payload.roadSide)?.icon}{" "}
+                      {ROAD_SIDE_OPTIONS.find((s) => s.id === payload.roadSide)?.label ?? payload.roadSide}
+                    </span>
+                  ) : (
+                    <span className="muted">Not specified</span>
                   )}
                 </dd>
 

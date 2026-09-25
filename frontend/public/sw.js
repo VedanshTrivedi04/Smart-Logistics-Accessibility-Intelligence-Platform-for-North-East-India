@@ -9,10 +9,16 @@
  * the old one are closed (no skipWaiting), so an open form is never swapped mid-entry. Schema
  * changes to IndexedDB must ship with a tested migration (see tests/unit/offline-db.test.ts).
  */
-const VERSION = "v1";
+const VERSION = "v3";
 const SHELL_CACHE = `ner-shell-${VERSION}`;
 const STATIC_CACHE = `ner-static-${VERSION}`;
 const SYNC_TAG = "ner-report-sync";
+
+// Field screens that must open with no connection. The app asks the worker to fetch these right after a
+// verified sign-in ("warm-field-shell"), so they work even if the officer never visited them online first.
+// Written after every field screen and its assets were saved; the app reads it to show "ready for offline use".
+const READY_KEY = "/__field-shell-ready";
+const FIELD_ROUTES = ["/field", "/field/report/new", "/field/road-update", "/field/queue", "/field/nearby", "/field/reports", "/field/profile"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.add("/offline")));
@@ -65,12 +71,18 @@ self.addEventListener("fetch", (event) => {
           const res = await fetch(req);
           if (res.ok && isFieldNavigation(url) && !res.redirected) {
             const cache = await caches.open(SHELL_CACHE);
-            cache.put(req, res.clone());
+            // Keyed by path only: /field/report/new?type=FLOODING and ?draft=... share one cached shell.
+            cache.put(url.pathname, res.clone());
           }
           return res;
         } catch {
           const cache = await caches.open(SHELL_CACHE);
-          return (await cache.match(req)) || (await cache.match("/offline")) || new Response("Offline", { status: 503 });
+          return (
+            (await cache.match(url.pathname)) ||
+            (await cache.match(req, { ignoreSearch: true })) ||
+            (await cache.match("/offline")) ||
+            new Response("Offline", { status: 503 })
+          );
         }
       })(),
     );
@@ -85,4 +97,40 @@ self.addEventListener("sync", (event) => {
       for (const c of clients) c.postMessage({ type: "ner-sync" });
     }),
   );
+});
+
+// Fetch the field screens and the scripts/styles they need while there is a connection.
+async function warmFieldShell() {
+  const shell = await caches.open(SHELL_CACHE);
+  const assets = await caches.open(STATIC_CACHE);
+  let saved = 0;
+  for (const path of FIELD_ROUTES) {
+    try {
+      const res = await fetch(path, { credentials: "same-origin" });
+      // A redirect means "not signed in": caching the login page under a field path would be wrong.
+      if (!res.ok || res.redirected) continue;
+      await shell.put(path, res.clone());
+      saved += 1;
+      const html = await res.text();
+      // Asset paths end at a quote, whitespace, angle bracket or backslash. They may contain parentheses:
+      // Next names route-group chunks like /_next/static/chunks/app/(protected)/field/queue/page-....js.
+      const urls = new Set(html.match(/\/_next\/static\/[^"'\s<>\\]+/g) || []);
+      for (const asset of urls) {
+        if (await assets.match(asset)) continue;
+        try {
+          const r = await fetch(asset);
+          if (r.ok) await assets.put(asset, r);
+        } catch {
+          /* fetched on demand later */
+        }
+      }
+    } catch {
+      /* offline or blocked right now: it is tried again on the next sign-in or reconnect */
+    }
+  }
+  if (saved === FIELD_ROUTES.length) await shell.put(READY_KEY, new Response(String(Date.now())));
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "warm-field-shell") event.waitUntil(warmFieldShell());
 });

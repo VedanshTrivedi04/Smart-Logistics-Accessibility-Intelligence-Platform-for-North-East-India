@@ -76,7 +76,7 @@ function StateDetail({ row, fleetVisible, onClose }: { row: StateRow; fleetVisib
  */
 export function RegionalBreakdown() {
   const { can } = useSession();
-  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, districtCircles, activeCircle, setActiveCircle } = useScopeFilter();
+  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict } = useScopeFilter();
   const index = useJurisdictionIndex();
   const edges = useEdges(NER_BBOX, 6);
   const facilities = useFacilities();

@@ -51,7 +51,6 @@ export function NavigationProgress() {
   // Route transition completed (pathname or searchParams changed)
   useEffect(() => {
     completeProgress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams]);
 
   // Intercept all internal navigation link clicks for instant 0ms feedback

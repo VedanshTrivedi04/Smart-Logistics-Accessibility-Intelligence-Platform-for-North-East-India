@@ -20,6 +20,7 @@ import {
 import { CORRIDOR_MILESTONES, type CorridorMilestone } from "@/shared/lib/corridors";
 import { formatCoords } from "@/shared/lib/format";
 import { formatDistance } from "@/shared/lib/geo";
+import { StaleDataBanner } from "./StaleDataBanner";
 import { useFieldHomeData } from "./useFieldHomeData";
 
 /** Control-room hotline is deployment config; the button is hidden rather than wired to a guessed number. */
@@ -43,6 +44,7 @@ export function FieldHomeMobile() {
     activeDraft,
     sensorHealth,
     weatherNotice,
+    cachedDataAsOf,
   } = useFieldHomeData();
 
   const [showMilestonePicker, setShowMilestonePicker] = useState(false);
@@ -433,6 +435,8 @@ export function FieldHomeMobile() {
               <span>{weatherNotice}</span>
             </div>
           )}
+
+          {cachedDataAsOf ? <StaleDataBanner asOf={cachedDataAsOf} /> : null}
 
           {/* Attention & Resume Draft Banners */}
           {activeDraft && (

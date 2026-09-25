@@ -10,7 +10,6 @@ import { formatDistance } from "@/shared/lib/geo";
 import { Banner, Button, Card, ErrorNotice, Field, KeyValue, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { AlertTriangle, BarChart3, Navigation, ShieldCheck, X } from "lucide-react";
 import { useIncidents } from "@/features/incidents";
-import { edgeLabel } from "./edges";
 import { useDeclareEdgeStatus, useEdge, useFacilityImpacts, useReachability } from "./queries";
 
 const DECLARABLE: readonly AccessibilityStatus[] = ACCESSIBILITY_STATUSES.filter((s) => s !== "UNKNOWN");
@@ -125,7 +124,7 @@ function inferLocation(roadName: string | null): string {
 export function EdgePanel({ edgeId, onClose }: { edgeId: string; onClose?: () => void }) {
   const { can } = useSession();
   const query = useEdge(edgeId);
-  const incidents = useIncidents({ status: "OPEN" });
+  const incidents = useIncidents("ACTIVE");
   const [showTechDetails, setShowTechDetails] = useState(false);
   const [showDeclareForm, setShowDeclareForm] = useState(false);
 
@@ -139,8 +138,6 @@ export function EdgePanel({ edgeId, onClose }: { edgeId: string; onClose?: () =>
         // Correlate with active incidents in the area
         const matchedIncident = (incidents.data ?? []).find(
           (inc) =>
-            (inc as any).road_edge_id === e.id ||
-            (inc as any).candidate_edge_id === e.id ||
             (e.road_name && inc.title.toLowerCase().includes("bridge") && e.is_bridge) ||
             (isBlocked && inc.severity === "CRITICAL") ||
             (isBlocked && inc.title.toLowerCase().includes("landslide")),

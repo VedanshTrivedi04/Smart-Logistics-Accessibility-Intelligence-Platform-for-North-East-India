@@ -4,7 +4,7 @@
 - **Source:** frontend/src/app/(protected)/field/page.tsx, `frontend/src/features/field/FieldHomeMobile.tsx`
 - **Roles / capabilities:** Field surface: FIELD_OFFICER, LOCAL_AUTHORITY, ROAD_INSPECTION. Gated by `SUBMIT_REPORT` & `VIEW_ROAD_STATUS`.
 - **Status:** done
-- **Last updated:** 2026-09-25
+- **Last updated:** 2026-09-26
 
 ## Purpose
 Mobile-first, action-first operational command screen for Senior Field Officer (Elangbam Meitei) answering the 5-second question: *"Where am I + what is happening in my corridor + what action do I take right now?"*
@@ -33,7 +33,7 @@ Mobile-first, action-first operational command screen for Senior Field Officer (
 - Responsive Across All Devices: On desktop screens ($\ge 990\text{px}$), renders a balanced 2-column command center (Action & Location Desk on the left, Situational Intelligence & Progress Bar on the right); on mobile screens ($< 990\text{px}$), smoothly collapses to a single-column thumb-friendly interface.
 - Single-thumb ergonomics on mobile with $\ge 52\text{px}$ touch targets.
 - Distance formatting via `formatDistance` cleanly formats meters and kilometers (e.g. `1,646.1 km`).
-- Works 100% offline; counts and chainage calculate locally from bundle geometry without network roundtrips.
+- Offline: chainage, pending/attention counts and drafts come from the device. Nearby alerts, corridor health and report counts use the last saved server data (with an "as of" banner) or show nothing if none was ever saved.
 - Control Room SOS link uses `NEXT_PUBLIC_FIELD_SOS_NUMBER`; the button is hidden when unset (no guessed number).
 - Incidents have no coordinates, so alerts are scoped to the corridor through the primary report's location (`snapToCorridor`). Reports outside 1.5 km of the corridor are excluded from notices.
 
@@ -45,3 +45,5 @@ Mobile-first, action-first operational command screen for Senior Field Officer (
 - Only corridor snapping is unit-tested; the mobile UI has not been checked in a browser at 390px.
 - Set `NEXT_PUBLIC_FIELD_SOS_NUMBER` per deployment.
 
+## Update 2026-09-26
+- `useFieldHomeData` reads reports/incidents/edges/risk zones through `useOfflineSnapshot`; `cachedDataAsOf` drives a `StaleDataBanner` on the home screen.

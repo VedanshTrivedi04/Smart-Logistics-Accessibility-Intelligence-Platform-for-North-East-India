@@ -7,52 +7,33 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
-  ArrowUpRight,
   Building2,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
-  Clock,
   Compass,
-  CornerDownRight,
-  ExternalLink,
   Eye,
-  FileCheck,
-  FileText,
-  Filter,
-  Layers,
-  MapPin,
-  Maximize2,
-  Milestone,
-  Mountain,
-  Navigation,
   Package,
   RefreshCw,
-  RotateCcw,
-  Search,
-  Shield,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
-  TrendingUp,
   Truck,
   X,
   Zap,
 } from "lucide-react";
 
-import { useSession, useScopeFilter } from "@/shared/auth";
-import { humanize, shortId } from "@/shared/lib/format";
+import { useScopeFilter } from "@/shared/auth";
+import { humanize } from "@/shared/lib/format";
 import { formatDateTime, formatDuration } from "@/shared/lib/time";
 import { bboxOfCoordinates, type BBox } from "@/shared/lib/geo";
-import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
-import { Banner, Button, Card, ErrorNotice, QueryState, StatusBadge } from "@/shared/ui";
+import { MapView, type MapLine, type MapPoint } from "@/shared/map";
+import { Button, StatusBadge } from "@/shared/ui";
 import { useIncidents } from "@/features/incidents";
 import { useFacilities } from "@/features/network";
-import { useCommitments, useTrips } from "@/features/fleet";
-import { useDispatchDecision, useEvaluateRoute } from "@/features/routing";
-import { useImpactData, type ImpactData } from "./useImpactData";
-import type { Commitment, Facility, FacilityImpact, Trip, TripImpact } from "@/shared/api";
+import { useCommitments } from "@/features/fleet";
+import { useDispatchDecision } from "@/features/routing";
+import { useImpactData } from "./useImpactData";
+import type { Commitment, Trip, TripImpact } from "@/shared/api";
 
 type TabId = "OVERVIEW" | "TRIPS" | "DELIVERIES" | "FACILITIES";
 
@@ -239,8 +220,6 @@ function SlaRiskDonut({
 // 🧠 Embedded Route Intelligence Studio Component
 function EmbeddedRouteIntelligenceStudio({
   trip,
-  impact,
-  commitments,
   onClose,
 }: {
   trip: Trip;
@@ -248,7 +227,6 @@ function EmbeddedRouteIntelligenceStudio({
   commitments: Commitment[];
   onClose: () => void;
 }) {
-  const { can } = useSession();
   const dispatchDecisionMutation = useDispatchDecision();
   const [selectedAlt, setSelectedAlt] = useState<"A" | "B">("A");
   const [decisionNotes, setDecisionNotes] = useState("");
@@ -258,7 +236,6 @@ function EmbeddedRouteIntelligenceStudio({
   const routeComparison = useMemo(() => {
     // Distance base
     const baseKm = 88.5;
-    const isLandslide = true;
 
     return {
       original: {
@@ -456,7 +433,7 @@ function EmbeddedRouteIntelligenceStudio({
       {
         tripId: trip.id,
         routePlanId: trip.current_route_snapshot_id || trip.id,
-        action: selectedAlt === "A" ? "ACCEPT_ALTERNATIVE" : "ACCEPT_ALTERNATIVE",
+        action: "ACCEPTED",
         selectedAlternativeRank: selectedAlt === "A" ? 1 : 2,
         reason:
           decisionNotes.trim() ||
@@ -941,7 +918,8 @@ function EmbeddedRouteIntelligenceStudio({
 }
 
 // Inner Impact Command Center
-function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?: string }) {
+// tripBase is accepted for the route wrapper but this view links with fixed paths.
+function ImpactCommandCenterInner(_props: { tripBase?: string }) {
   const searchParams = useSearchParams();
   const initialTrip = searchParams.get("trip");
   const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, stateBBox, districtBBox } = useScopeFilter();
@@ -950,7 +928,6 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
   // Real backend queries
   const impactData = useImpactData();
   const incidentsQ = useIncidents();
-  const tripsQ = useTrips();
   const commitmentsQ = useCommitments();
   const facilitiesQ = useFacilities();
 
@@ -958,10 +935,8 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
   const [activeTab, setActiveTab] = useState<TabId>("OVERVIEW");
   const [selectedTripId, setSelectedTripId] = useState<string | null>(initialTrip || "tr-208");
   const [expandedImpactTripId, setExpandedImpactTripId] = useState<string | null>("tr-208");
-  const [searchFilter, setSearchFilter] = useState("");
 
   const allIncidents = useMemo(() => incidentsQ.data || [], [incidentsQ.data]);
-  const allTrips = useMemo(() => tripsQ.data || [], [tripsQ.data]);
   const allCommitments = useMemo(() => commitmentsQ.data || [], [commitmentsQ.data]);
   const allFacilities = useMemo(() => facilitiesQ.data || [], [facilitiesQ.data]);
 
@@ -972,14 +947,14 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
       trip_code: "TR-208",
       organization_id: "org-ner-logistics",
       vehicle_id: "AS01XX1234",
-      driver_id: null,
+      driver_id: "",
       status: "IN_TRANSIT",
-      current_route_snapshot_id: null,
+      current_route_snapshot_id: "",
       scheduled_departure: new Date(Date.now() - 3600000).toISOString(),
       actual_departure: new Date(Date.now() - 3600000).toISOString(),
       actual_arrival: null,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      stops: [],
       commitment_ids: ["cm-402"],
     };
     const impact: TripImpact = {
@@ -987,7 +962,7 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
       trip_id: "tr-208",
       incident_id: "inc-1024",
       edge_id: "edge-sonapur",
-      source_event_id: null,
+      source_event_id: "",
       source_status_version: 1,
       assessment_version: 1,
       impact_type: "BLOCKED_ROUTE",
@@ -1002,20 +977,21 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
     const commitments: Commitment[] = [
       {
         id: "cm-402",
-        order_reference: "ORD-NER-8891",
-        cargo_category: "COLD_CHAIN_MEDICAL",
+        consignment_reference: "ORD-NER-8891",
+        cargo_category: "COLD_CHAIN_VACCINES",
         priority_tier: "TIER_1_LIFE_SAVING",
-        weight_kg: 850,
-        volume_m3: 3.2,
-        special_handling_notes: "Insulin & Antivenom (2°C - 8°C)",
-        origin_facility_id: "fac-1",
-        dropoff_facility_id: "fac-2",
-        sla_deadline: new Date(Date.now() + 7200000).toISOString(),
-        status: "IN_TRANSIT",
-        current_trip_id: "tr-208",
         organization_id: "org-ner-logistics",
+        consigned_weight_kg: 850,
+        consigned_volume_m3: 3.2,
+        consigned_quantity_units: 40,
+        delivered_quantity_units: 0,
+        origin_facility_id: "fac-1",
+        destination_facility_id: "fac-2",
+        required_before: new Date(Date.now() + 7200000).toISOString(),
+        status: "IN_TRANSIT",
+        sla_status: "AT_RISK",
+        shortage_reason: null,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       },
     ];
     return {
@@ -1092,7 +1068,7 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
         impact,
         commitments,
         incidentTitle: inc?.title || "Corridor Disruption",
-        distanceKm: (impact.distance_to_disruption_meters / 1000).toFixed(1),
+        distanceKm: ((impact.distance_to_disruption_meters ?? 0) / 1000).toFixed(1),
         corridor: getCorridorForLocation(inc?.title),
       };
     });
@@ -1149,12 +1125,12 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
   const enrichedFacilityImpacts = useMemo(() => {
     const raw = impactData.facilityImpacts.map(({ impact, facility }) => {
       // Find incoming commitments to this facility
-      const inboundCommitments = allCommitments.filter((c) => c.dropoff_facility_id === facility.id);
+      const inboundCommitments = allCommitments.filter((c) => c.destination_facility_id === facility.id);
       return {
         facility,
         impact,
         inboundSuppliesCount: inboundCommitments.length,
-        isIsolated: impact.isolated || impact.reachability_state === "UNREACHABLE",
+        isIsolated: impact.isolated || impact.reachability_state === "NO_FEASIBLE_PATH",
         corridor: getCorridorForLocation(facility.name),
       };
     });
@@ -1195,7 +1171,7 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
   const enrichedDeliveries = useMemo(() => {
     const raw = allCommitments.map((c) => {
       const orig = allFacilities.find((f) => f.id === c.origin_facility_id);
-      const dest = allFacilities.find((f) => f.id === c.dropoff_facility_id);
+      const dest = allFacilities.find((f) => f.id === c.destination_facility_id);
       const isCriticalTier = c.priority_tier === "TIER_1_LIFE_SAVING";
       const isBreached = isCriticalTier; // Simulated SLA impact from real corridor closure
 
@@ -1250,7 +1226,7 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
         lat: f.facility.lat,
         kind: "facility",
         label: `${f.facility.name} (${f.isIsolated ? "ISOLATED" : humanize(f.impact.reachability_state)})`,
-        tone: f.isIsolated ? "danger" : f.impact.reachability_state === "RESTRICTED" ? "warn" : "ok",
+        tone: f.isIsolated ? "danger" : f.impact.reachability_state === "RESTRICTED_REACHABLE" ? "warn" : "ok",
         glyph: "🏥",
       });
     }
@@ -1972,13 +1948,13 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
                   </div>
 
                   <div style={{ fontSize: "0.75rem", color: "#475569" }}>
-                    Consignments: <strong>{commitments.length ? commitments.map((c) => c.order_reference + " (" + humanize(c.cargo_category) + ")").join(", ") : "DL-402 (Insulin · Tier-1 Critical Cold-Chain)"}</strong>
+                    Consignments: <strong>{commitments.length ? commitments.map((c) => c.consignment_reference + " (" + humanize(c.cargo_category) + ")").join(", ") : "DL-402 (Insulin · Tier-1 Critical Cold-Chain)"}</strong>
                   </div>
 
                   {/* Action Buttons: 1. View Impact, 2. Route Intelligence */}
                   <div style={{ display: "flex", gap: "0.6rem" }}>
                     <Button
-                      variant={isExpanded ? "secondary" : "outline"}
+                      variant={isExpanded ? "primary" : "default"}
                       style={{ flex: 1 }}
                       onClick={() => setExpandedImpactTripId(isExpanded ? null : trip.id)}
                     >
@@ -2315,7 +2291,7 @@ function ImpactCommandCenterInner({ tripBase = "/gov/fleet/trips" }: { tripBase?
             </div>
 
             {/* Other facility impacts */}
-            {enrichedFacilityImpacts.map(({ facility, impact, inboundSuppliesCount, isIsolated, corridor }) => (
+            {enrichedFacilityImpacts.map(({ facility, impact, inboundSuppliesCount, isIsolated }) => (
               <div
                 key={facility.id}
                 style={{

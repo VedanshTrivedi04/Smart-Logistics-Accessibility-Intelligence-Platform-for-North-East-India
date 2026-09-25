@@ -4,30 +4,21 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import {
-  AlertCircle,
   AlertTriangle,
   ArrowRight,
   Camera,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Compass,
   Download,
   ExternalLink,
-  Eye,
   FileCheck,
   FileText,
-  Filter,
-  Info,
-  Layers,
   MapPin,
   Maximize2,
-  Mountain,
-  Radio,
   RefreshCw,
   Search,
   Shield,
-  ShieldAlert,
   ShieldCheck,
   User,
   X,
@@ -36,9 +27,9 @@ import {
 import { useSession, useScopeFilter } from "@/shared/auth";
 import { humanize, shortId } from "@/shared/lib/format";
 import { formatDateTime } from "@/shared/lib/time";
-import { Banner, Button, Card, ErrorNotice, QueryState, StatusBadge } from "@/shared/ui";
-import { REJECTION_REASONS, type RejectionReason, type Report, type ReviewState } from "@/shared/api";
-import { useIncidents, useMediaUrl, useReport, useReports, useReview, useTriage } from "./queries";
+import { Button, StatusBadge } from "@/shared/ui";
+import { REJECTION_REASONS, type RejectionReason, type Report } from "@/shared/api";
+import { useIncidents, useMediaUrl, useReports, useReview, useTriage } from "./queries";
 
 // Helper for inferring geographical corridor context from lat/lon and description
 function getCorridorDetails(lat: number, lon: number, text?: string): {
@@ -481,7 +472,6 @@ function VerifierAdjudicationDesk({
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const isUnderReview = report.review_state === "UNDER_REVIEW";
   const isAwaitingTriage = report.review_state === "SUBMITTED" || report.review_state === "PROVISIONAL_CAUTION";
   const isDecided = report.review_state === "VERIFIED" || report.review_state === "REJECTED";
 
@@ -826,7 +816,8 @@ function VerifierAdjudicationDesk({
 }
 
 // Inner Reports Command Center Component
-function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: string }) {
+// basePath is accepted for the route wrapper but this view links with fixed paths.
+function ReportsCommandCenterInner(_props: { basePath?: string }) {
   const searchParams = useSearchParams();
   const selectedParam = searchParams.get("selected");
   const { can } = useSession();
@@ -839,7 +830,7 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
 
   // Local filter states
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [severityFilter, setSeverityFilter] = useState<string>("ALL");
+  const [severityFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(selectedParam);
   const [lightboxState, setLightboxState] = useState<{ url: string; id: string } | null>(null);
@@ -1373,7 +1364,7 @@ function ReportsCommandCenterInner({ basePath = "/gov/reports" }: { basePath?: s
               ].map(([key, label]) => (
                 <button
                   key={key}
-                  onClick={() => setStatusFilter(key)}
+                  onClick={() => setStatusFilter(key ?? "ALL")}
                   style={{
                     border: "none",
                     borderRadius: "20px",

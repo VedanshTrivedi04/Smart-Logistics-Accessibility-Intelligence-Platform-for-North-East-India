@@ -96,6 +96,8 @@ async def create_vehicle(
         is_hazmat_capable=payload.is_hazmat_capable,
         is_refrigerated=payload.is_refrigerated,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return VehicleResponse(
         id=vehicle.id,
         organization_id=vehicle.organization_id,
@@ -167,6 +169,8 @@ async def create_driver(
         user_id=payload.user_id,
     )
     can_view_pii = principal.can(Capability.VIEW_DRIVER_PII)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return DriverResponse.from_entity(driver, can_view_pii=can_view_pii)
 
 
@@ -206,6 +210,8 @@ async def create_commitment(
         required_before=payload.required_before,
         consigned_volume_m3=payload.consigned_volume_m3,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return CommitmentResponse.from_entity(comm)
 
 
@@ -242,6 +248,8 @@ async def dispatch_trip(
         commitment_ids=payload.commitment_ids,
         current_route_snapshot_id=payload.current_route_snapshot_id,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return _to_trip_response(trip)
 
 
@@ -279,4 +287,6 @@ async def transition_trip(
     repo = SqlAlchemyLogisticsRepository(session)
     use_case = UpdateTripStatusUseCase(repo)
     trip = await use_case.execute(trip_id, payload.target_status)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return _to_trip_response(trip)

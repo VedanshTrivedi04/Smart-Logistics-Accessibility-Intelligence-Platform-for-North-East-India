@@ -1,6 +1,6 @@
 # Shared / Infra and deployment
 
-- **Last updated:** 2026-09-24
+- **Last updated:** 2026-09-26
 
 - **Source:** compose.yaml, infra/compose.yaml, infra/Makefile, backend/Dockerfile, frontend/Dockerfile
 - **Status:** done
@@ -17,3 +17,9 @@
 - Unit tests use mocked HTTP (signature matches Cloudinary's documented example). Live check on 2026-09-25 with the project's own account, adapter called directly: signed browser-style upload, `authenticated` type, signed download returns the same bytes as an inline image, tampered signature and unsigned/public-type URLs are refused, `get_object` and `delete_object` work, deleted asset is gone. NOT yet checked end-to-end through the app (wizard upload, then reviewer screen) because `.env` still had `STORAGE_BACKEND=s3` at test time.
 - The upload response the officer's browser receives contains a permanent signed delivery URL for their own photo. It is not stored or shown elsewhere.
 - Frontend: `sync/transport.ts` `putObject(ticket, ...)` does PUT for S3 tickets and multipart POST for Cloudinary tickets. `public/sw.js` ignores cross-origin and non-GET requests, so uploads are not intercepted.
+
+## Build and test servers (2026-09-26)
+- `pnpm build` (`next build`) now passes: TypeScript 0 errors, ESLint clean (removed ~120 unused imports/variables and fixed real mismatches in the gov Impact, Incident, Network and Account screens).
+- `next.config.ts` reads `NEXT_DIST_DIR` (default `.next`) so an end-to-end build can run without overwriting a running `next dev`. The e2e output folder is git-ignored.
+- To run e2e: start the backend with `ALLOWED_ORIGINS` including the test origin, build with `BACKEND_ORIGIN=<backend> NEXT_DIST_DIR=.next-e2e`, `next start -p 3100`, then `E2E_BASE_URL=http://localhost:3100 playwright test`.
+- New optional settings: `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_REQUIRED`. Not deployed anywhere: backend and frontend still run on the developer machine; no CI.

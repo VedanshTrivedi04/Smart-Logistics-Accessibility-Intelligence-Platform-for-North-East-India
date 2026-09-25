@@ -43,8 +43,8 @@ test.describe("three role surfaces with scoped users", () => {
   test("account page states identity, scope and capabilities", async ({ page }) => {
     await signIn(page, USERS.officer);
     await page.goto("/account");
-    await expect(page.getByText(/What your role allows/i)).toBeVisible();
-    await expect(page.getByText(/submit report/i)).toBeVisible();
+    await expect(page.getByText(/Granted Role Capabilities/i)).toBeVisible();
+    await expect(page.getByText(/submit[ _]report/i).first()).toBeVisible();
   });
 
   test("keyboard-only: skip link and focus reach the main content", async ({ page }) => {

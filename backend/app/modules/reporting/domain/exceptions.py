@@ -61,3 +61,9 @@ class MediaScanNotCleanError(ConflictError):
 class BatchSizeExceededError(ValidationError):
     """Raised when a sync batch contains more than the maximum permitted items."""
     code = "BATCH_SIZE_EXCEEDED"
+
+
+class MediaStorageUnavailableError(AppError):
+    """The uploaded file could not be read back from storage yet. The client should retry."""
+    http_status = 503
+    code = "MEDIA_STORAGE_UNAVAILABLE"

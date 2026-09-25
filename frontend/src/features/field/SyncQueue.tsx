@@ -8,8 +8,10 @@ import { formatAge, formatDateTime } from "@/shared/lib/time";
 import { useNow } from "@/shared/lib/useNow";
 import { formatBytes, STATE_REMEDY, type OperationRecord } from "@/shared/offline";
 import { Banner, Button, Card, StatusBadge, useAnnounce } from "@/shared/ui";
+import { snapToCorridor } from "@/shared/lib/corridors";
 import { isReportPayload } from "./model";
 import { useOffline } from "./OfflineProvider";
+import { buildSmsReport, fieldSmsNumber, smsHref } from "./sms";
 import { cleanupSyncedMedia, discardDraft, discardOperation, reopenAsDraft, updateOperation } from "./store";
 
 export function StorageStatusPanel() {
@@ -63,6 +65,12 @@ function OperationRow({ op }: { op: OperationRecord }) {
   const title = payload ? `${humanize(payload.reportType)} · ${humanize(payload.severity)}` : "Unreadable report";
   const canRetry = op.state === "QUEUED" || op.state === "RETRY_WAIT";
   const hasPhotos = (payload?.mediaLocalIds.length ?? 0) > 0 && !op.textOnly;
+  // SMS is a last resort for when there is no data connection. Hidden unless a control-room number is configured.
+  const smsNumber = fieldSmsNumber();
+  const smsLink =
+    smsNumber && payload && op.state !== "SYNCED"
+      ? smsHref(smsNumber, buildSmsReport(payload, { ref: op.id.replace(/-/g, "").slice(0, 6).toUpperCase(), chainage: payload.location ? snapToCorridor(payload.location.latitude, payload.location.longitude).formattedChainage : null }))
+      : null;
 
   return (
     <li className="card" style={{ padding: "0.8rem" }}>
@@ -81,10 +89,12 @@ function OperationRow({ op }: { op: OperationRecord }) {
         </p>
       ) : null}
       {op.state === "RETRY_WAIT" && op.nextAttemptAt ? <p className="small muted">Next automatic attempt {new Date(op.nextAttemptAt).getTime() <= now.getTime() ? "is due" : `in about ${Math.max(1, Math.round((new Date(op.nextAttemptAt).getTime() - now.getTime()) / 1000))} s`} · attempt {op.attempts}</p> : null}
+      {smsLink ? <p className="small muted">No data signal? &ldquo;Send by SMS&rdquo; opens your SMS app with a short message for the control room. Staff read it by hand; the report here is still not sent until it syncs.</p> : null}
       {op.serverResult ? <p className="small">Server review state: <strong>{humanize(op.serverResult.reviewState)}</strong></p> : null}
       <div className="row">
         {canRetry ? <Button size="small" onClick={() => void syncNow()} disabled={syncing}>Sync now</Button> : null}
         {op.state === "NEEDS_LOGIN" ? <Link className="btn small" href="/login?reason=expired">Sign in</Link> : null}
+        {smsLink ? <a className="btn small" href={smsLink} title="Opens your SMS app with a short message to the control room">Send by SMS</a> : null}
         {hasPhotos && (op.state === "RETRY_WAIT" || op.state === "NEEDS_REVIEW" || op.state === "FAILED_WITH_REASON") ? (
           <Button size="small" onClick={async () => { if (db && ownerId) { await updateOperation(db, ownerId, op.id, { textOnly: true, state: "QUEUED", lastError: null, attempts: 0, nextAttemptAt: null }); void syncNow(); } }}>
             Send without photos

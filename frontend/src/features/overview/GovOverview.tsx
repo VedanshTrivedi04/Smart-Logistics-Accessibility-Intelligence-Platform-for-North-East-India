@@ -18,7 +18,7 @@ import { GlobalSearch } from "./GlobalSearch";
 /** Command overview: every figure is computed from records the server returned for this user's scope. */
 export function GovOverview() {
   const { principal, can } = useSession();
-  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, stateBBox, districtBBox, activeBBox } = useScopeFilter();
+  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, activeBBox } = useScopeFilter();
   const effectiveBBox = activeBBox || NER_BBOX;
 
   const edges = useEdges(effectiveBBox, 6);

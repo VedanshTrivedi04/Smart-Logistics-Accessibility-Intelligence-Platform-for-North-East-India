@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     OBJECT_STORAGE_BUCKET_CLEAN: str = "ner-media-clean"
     OBJECT_STORAGE_REGION: str = "us-east-1"
 
+    # Optional ClamAV daemon (clamd) for antivirus scanning of uploaded photos. Empty host = disabled.
+    CLAMAV_HOST: str = ""
+    CLAMAV_PORT: int = 3310
+    # When true, an unreachable scanner rejects the upload (retryable) instead of skipping the scan.
+    CLAMAV_REQUIRED: bool = False
+
     # Cloudinary (used when STORAGE_BACKEND=cloudinary). Uploads are private ("authenticated" delivery).
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""

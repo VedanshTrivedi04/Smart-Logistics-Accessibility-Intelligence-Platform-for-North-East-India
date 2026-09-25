@@ -19,6 +19,7 @@ from app.modules.reporting.domain.enums import (
     ReportSeverity,
     ReportType,
     ReviewState,
+    RoadSide,
 )
 from app.modules.reporting.domain.exceptions import (
     ReportAlreadyAdjudicatedError,
@@ -53,6 +54,7 @@ class AmendReportUseCase:
         lane_status: LaneStatus | None = None,
         passable_classes: list[PassableVehicleClass] | None = None,
         life_safety_risk: bool = False,
+        road_side: RoadSide | None = None,
     ) -> FieldReport:
         if not reason or not reason.strip():
             raise ValidationError("An explicit explanation reason is required for amendments.")
@@ -88,6 +90,7 @@ class AmendReportUseCase:
             lane_status=lane_status,
             passable_classes=passable_classes,
             life_safety_risk=life_safety_risk,
+            road_side=road_side,
         )
 
         # Link as amendment

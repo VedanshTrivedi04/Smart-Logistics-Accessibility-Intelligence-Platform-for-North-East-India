@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, unwrap, sessionEvents, SESSION_EXPIRED_EVENT, clearCsrfToken, isApiError, type ApiError } from "@/shared/api";
 import type { Capability, Principal } from "@/shared/api/types";
 import { clearCachedPrincipal, readCachedPrincipal, saveCachedPrincipal } from "@/shared/offline/identity-cache";
+import { clearSnapshots } from "@/shared/offline/snapshots";
 import { hasAny, surfaceForRole, type Surface } from "./roles";
 
 export type SessionStatus = "loading" | "authenticated" | "unauthenticated" | "service_error";
@@ -108,6 +109,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       clearCsrfToken();
       await clearCachedPrincipal();
+      // Saved server data (nearby reports, road status) must not outlive the sign-out on a shared device.
+      await clearSnapshots();
       queryClient.clear();
       setExpired(false);
       window.location.assign("/login");

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { SURFACE_HOME, useSession } from "@/shared/auth";
-import { Activity, Compass, Layers, ShieldCheck, Zap, ArrowRight, ShieldAlert, Radio } from "lucide-react";
 
 export default function LandingPage() {
   const session = useSession();

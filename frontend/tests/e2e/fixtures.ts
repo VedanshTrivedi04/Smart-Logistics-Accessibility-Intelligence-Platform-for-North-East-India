@@ -24,10 +24,12 @@ export type TestUser = (typeof USERS)[keyof typeof USERS];
 /** Sign in through the real login form (development sign-in is enabled only in the e2e server). */
 export async function signIn(page: Page, user: TestUser): Promise<void> {
   await page.goto("/login");
-  await page.getByLabel("User ID").fill(user.id);
-  await page.getByLabel("Organization ID").fill(user.org);
+  // The login screen offers demo personas; the custom form takes any seeded user id.
+  await page.getByRole("tab", { name: /custom/i }).click();
+  await page.getByLabel("User UUID").fill(user.id);
+  await page.getByLabel("Organization UUID").fill(user.org);
   await page.getByLabel("Role").selectOption(user.role);
-  await page.getByRole("button", { name: /start development session/i }).click();
+  await page.getByRole("button", { name: /start custom session/i }).first().click();
   await page.waitForURL(`**${user.home}`);
 }
 

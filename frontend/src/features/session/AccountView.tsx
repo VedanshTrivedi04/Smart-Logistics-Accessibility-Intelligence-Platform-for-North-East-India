@@ -234,9 +234,9 @@ export function AccountView() {
               Administrative Circles & Sub-Divisions ({assignedDistrict})
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.6rem" }}>
-              {districtCircles.map((circle) => (
+              {districtCircles.filter((c) => c.id !== "all").map((circle) => (
                 <div
-                  key={circle}
+                  key={circle.id}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -249,7 +249,7 @@ export function AccountView() {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <span style={{ color: "#059669", fontWeight: 800, fontSize: "0.85rem" }}>✓</span>
-                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#065f46" }}>{circle}</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#065f46" }}>{circle.name}</span>
                   </div>
                   <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#047857", background: "#d1fae5", padding: "0.15rem 0.35rem", borderRadius: "4px" }}>
                     PRIMARY CIRCLE
@@ -496,8 +496,10 @@ export function ServiceStatusView() {
     queryFn: async () => {
       const res = await api.GET("/health/ready");
       if (res.data) return res.data;
-      if (res.error && typeof res.error === "object" && "checks" in (res.error as Record<string, unknown>)) {
-        return res.error;
+      // A degraded /health/ready answers with an error status but still carries the per-check report.
+      const failure = (res as { error?: unknown }).error;
+      if (failure && typeof failure === "object" && "checks" in (failure as Record<string, unknown>)) {
+        return failure as NonNullable<typeof res.data>;
       }
       return unwrap(() => Promise.resolve(res));
     },

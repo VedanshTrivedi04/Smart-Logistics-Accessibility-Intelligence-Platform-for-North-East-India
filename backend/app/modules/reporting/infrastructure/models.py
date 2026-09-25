@@ -140,7 +140,9 @@ class ReportModel(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     geom = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     accuracy_m: Mapped[float] = mapped_column(Float, nullable=False)
+    altitude_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     location_provider: Mapped[str] = mapped_column(String(32), nullable=False, default="GPS_HARDWARE")
+    road_side: Mapped[str | None] = mapped_column(String(24), nullable=True)
     candidate_edge_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("road_edges.id", ondelete="SET NULL"),

@@ -9,11 +9,12 @@ from uuid import UUID
 
 from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import Point
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.modules.reporting.application.ports import ReportingRepositoryPort
+from app.modules.reporting.application.access import ReportScope
 from app.modules.reporting.domain.entities import (
     FieldReport,
     LocationPoint,
@@ -29,6 +30,7 @@ from app.modules.reporting.domain.enums import (
     ReportSeverity,
     ReportType,
     ReviewState,
+    RoadSide,
     ScanStatus,
 )
 from app.modules.reporting.infrastructure.models import (
@@ -66,6 +68,7 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
                 latitude=pt.y,
                 accuracy_m=m.accuracy_m,
                 location_provider=LocationProvider(m.location_provider),
+                altitude_m=m.altitude_m,
             ),
             candidate_edge_id=m.candidate_edge_id,
             candidate_bridge_id=m.candidate_bridge_id,
@@ -86,6 +89,7 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             lane_status=LaneStatus(m.lane_status) if m.lane_status else None,
             passable_classes=[PassableVehicleClass(c) for c in (m.passable_classes or [])],
             life_safety_risk=m.life_safety_risk,
+            road_side=RoadSide(m.road_side) if m.road_side else None,
         )
 
     def _media_to_domain(self, m: MediaObjectModel) -> MediaObject:
@@ -125,6 +129,7 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             description=report.description,
             geom=geom,
             accuracy_m=report.location.accuracy_m,
+            altitude_m=report.location.altitude_m,
             location_provider=report.location.location_provider.value,
             candidate_edge_id=report.candidate_edge_id,
             candidate_bridge_id=report.candidate_bridge_id,
@@ -139,6 +144,7 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             lane_status=report.lane_status.value if report.lane_status else None,
             passable_classes=[c.value for c in report.passable_classes],
             life_safety_risk=report.life_safety_risk,
+            road_side=report.road_side.value if report.road_side else None,
         )
         self.session.add(m)
         await self.session.flush()
@@ -306,8 +312,16 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
         jurisdiction_id: UUID | None = None,
         limit: int = 50,
         offset: int = 0,
+        scope: ReportScope | None = None,
     ) -> list[FieldReport]:
         stmt = select(ReportModel).options(selectinload(ReportModel.media))
+        if scope is not None and not scope.unrestricted:
+            visible = [ReportModel.reporter_id == scope.user_id]
+            if scope.jurisdiction_ids:
+                visible.append(ReportModel.jurisdiction_id.in_(scope.jurisdiction_ids))
+            if scope.include_unassigned:
+                visible.append(ReportModel.jurisdiction_id.is_(None))
+            stmt = stmt.where(or_(*visible))
         if review_state:
             stmt = stmt.where(ReportModel.review_state == review_state.value)
         if jurisdiction_id:
@@ -316,6 +330,16 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
         res = await self.session.execute(stmt)
         models = res.scalars().all()
         return [self._to_domain(m) for m in models]
+
+    async def list_reports_for_media(self, media_id: UUID) -> list[FieldReport]:
+        stmt = (
+            select(ReportModel)
+            .options(selectinload(ReportModel.media))
+            .join(ReportMediaModel, ReportMediaModel.report_id == ReportModel.id)
+            .where(ReportMediaModel.media_id == media_id)
+        )
+        res = await self.session.execute(stmt)
+        return [self._to_domain(m) for m in res.scalars().all()]
 
     async def find_candidate_edges(
         self,

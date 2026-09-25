@@ -31,6 +31,39 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 ## Interaction History
 
+### 2026-09-25 22:15
+
+**User Request**
+> Step 2 — Location Overhaul: GPS auto-lock, Tactical Location HUD, gapless accuracy tiers, elevation persistence (Migration 011), mountain carriageway side (`RoadSide`), authentic corridor milestones, honest provider classification, and e2e test preservation.
+
+**Diagnosis & Architecture**
+- Phone GPS altitude was previously dropped on server ingestion because `reports` table had no `altitude_m` column and repository did not persist it. Created Alembic Migration `011_report_location_altitude_road_side.py` to add `altitude_m` (Float) and `road_side` (String(24)).
+- Formatted altitude as `~X m (GPS approx.)` to accurately reflect ellipsoidal GNSS elevation rather than claiming true MSL.
+- Distinguished travel direction from mountain road slope cross-section: added `RoadSide` enum (`HILLSIDE`, `VALLEY_SIDE`, `BOTH`, `UNKNOWN`) to model cutting vs gorge hazards.
+- Replaced one-shot button click with bounded GPS watch (`useBoundedGeolocation`): automatically samples position upon entering Step 2, immediately locks when accuracy $\le 15\text{m}$ is reached, or settles after $15\text{s}$ timeout to save battery.
+- Honest sensor provider classification (`classifyProvider`): horizontal accuracy $> 100\text{m}$ classified as `NETWORK_COARSE`, $\le 100\text{m}$ as `GPS_HARDWARE`, and manual/milestone picks as `MANUAL_MAP_PICK`.
+- Gapless accuracy tiering: $\le 15\text{m}$ Green (High-Precision), $16\text{m}–50\text{m}$ Amber (Mountain Canyon multipath), $> 50\text{m}$ Red (Degraded fix).
+- Fixed milestone numbers to strictly source authentic `CORRIDOR_MILESTONES` from `corridors.ts` (e.g. `Jorabat Strategic Fork KM 21.5`, `Nongpoh Valley Command Post KM 52.4`, `Umiam Lake Barapani KM 88.0`).
+- Off-corridor status is advisory only (amber warning banner, never blocks report submission).
+- When GPS permission is denied or times out, the authentic milestone grid is shown directly. Manual coordinate inputs (`m-lat`, `m-lon`, `m-acc`) remain rendered with proper accessibility labels so `offline-report-journey.spec.ts` passes seamlessly.
+
+**Work Done**
+- `backend/app/modules/reporting/domain/enums.py`: Added `RoadSide` enum. Exported in `domain/__init__.py`.
+- `backend/app/modules/reporting/domain/entities.py`: Added `road_side: RoadSide | None = None` to `FieldReport`.
+- `backend/app/modules/reporting/infrastructure/models.py`: Added `altitude_m` (Float) and `road_side` (String(24)) to `ReportModel`.
+- `backend/alembic/versions/011_report_location_altitude_road_side.py`: Created migration adding `altitude_m` and `road_side` columns.
+- `backend/app/modules/reporting/infrastructure/repository.py`: Mapped `altitude_m` into `LocationPoint` and `road_side` into `FieldReport` in `_to_domain` and stored in `create_report`.
+- `backend/app/modules/reporting/application/submit_report.py`, `sync_reports.py`, `amend_report.py`: Accepted and passed `road_side`.
+- `backend/app/modules/reporting/api/schemas.py`, `router.py`: Added `road_side` to `ReportCreateRequest`, `ReportResponse`, `ReportAmendmentRequest`.
+- `backend/tests/unit/reporting/test_report_passability.py`: Added tests asserting `road_side` and `altitude_m` persist through batch sync.
+- `frontend/src/shared/api/types.ts`: Added `RoadSide` type and `ROAD_SIDES` list.
+- `frontend/src/features/field/model.ts`: Added `roadSide` to `ReportPayload`, updated `formatStructuredDescription()` and `toBatchItem()`.
+- `frontend/src/features/field/locationLogic.ts`: Created pure functions for `classifyProvider`, `getAccuracyTier`, `formatAltitude`, `formatFixAge`.
+- `frontend/src/features/field/useBoundedGeolocation.ts`: Created bounded GPS hook with 15s max watch and $\le 15\text{m}$ auto-settle lock.
+- `frontend/src/features/field/ReportWizard.tsx`: Overhauled `LocationStep` with auto-GPS sampling, Tactical Location HUD, `roadSide` selector, fix age counter, milestone fallback, and e2e test compatibility.
+- `frontend/tests/unit/location-logic.test.ts`: Created unit tests covering provider classification, gapless accuracy tiers, altitude formatting, and fix age.
+- Memory updated: `memory/portals/field/report-new.md`, `memory/portals/shared/backend-reporting-incidents.md`, `memory.md`.
+
 ### 2026-09-25 21:00
 
 **User Request**
@@ -1815,3 +1848,49 @@ This document dynamically records the lifecycle of interactions, design decision
 **Notes**
 - `.env` still has `STORAGE_BACKEND=s3`, so the running app does not use Cloudinary yet.
 - Files touched: `memory/portals/shared/infra-deploy.md`, `memory.md`.
+
+### 2026-09-25 Reports not persisting (missing commits)
+
+**User Request**
+> Screenshot: report shows Rejected, "Media record ... not found (HTTP 404)". Why?
+
+**Exploration**
+- Earlier "Failed to fetch" was photos being sent to MinIO (localhost:9000, not running) because `STORAGE_BACKEND` was unset; `STORAGE_BACKEND="cloudinary"` was added to `backend/.env`.
+- The 404 was a separate, older bug: `get_db()` does not commit and the reporting/incidents handlers never called `commit()`, so the media row created by upload-ticket was rolled back before confirm. A read-only DB query showed no reports or media newer than the 24 Sept seed data despite many submissions today.
+
+**Work Done**
+- Added `await db.commit()` to 5 reporting and 4 incidents write handlers; added `test_router_commits.py` (fails without the fix, passes with it).
+
+**Files Changed**
+- `backend/app/modules/reporting/api/router.py`, `backend/app/modules/incidents/api/router.py`, `backend/tests/unit/reporting/test_router_commits.py`
+- `memory/portals/shared/backend-reporting-incidents.md`, `memory/portals/shared/known-issues.md`, `memory.md`
+
+**Verification**
+- Backend unit: 365 pass, 1 pre-existing failure (DISTRICT_VERIFIER coordination test). Not verified against the running app or a real database yet.
+
+**Notes**
+- logistics, telemetry and impact write endpoints have the same missing-commit problem (not fixed).
+- Reports already stuck as Rejected on the device must be edited and re-saved, or discarded; they will not retry on their own.
+
+### 2026-09-26 Security, offline and deploy-readiness pass
+
+**User Request**
+> Add everything from the "Secure data management" and "Offline support" gaps, properly working.
+
+**Findings that changed the plan**
+- RLS is not applied (no policies, app DB role has BYPASSRLS); nobody had jurisdiction grants, so verifiers could not triage or review any report; the Neon database lacked columns the code expected (migrations 010/011 unapplied), so report reads/writes were failing; production build failed on 124 lint and 25 type errors; offline pages did not open on first use and the map chunk crash took down the wizard's Where step.
+
+**Work Done**
+- Backend: report visibility policy + jurisdiction hierarchy + demo grants; media ownership; real media validation (Pillow) and optional ClamAV; commits in all remaining write endpoints; `impact/evaluate` and AI auto-triage now need capabilities; `ROAD_CONDITION_UPDATE`; migrations 010 and 011 applied to Neon.
+- Frontend: offline snapshots + stale banner, road-condition form (offline queue), SMS fallback link, service-worker warm-up with ready marker and profile card, map chunk fallback and preload; removed ~120 unused symbols and fixed real screen bugs (wrong API field names and enum values in Impact, invalid capability in Incident screen, District Officer account page crash); `next build` passes.
+- Verified live: photo upload through Cloudinary -> confirm -> sync -> reviewer view; access scope for 9 roles; offline journey in Chromium (desktop and Pixel 5) on a production build. Test rows removed (reports back to 80).
+
+**Not done / caveats**
+- IndexedDB encryption, gov offline mode, real ClamAV daemon test, RLS enablement, deployment/CI, accessibility contrast fixes, rewrite of the stale reviewer e2e test.
+- My first `next build` overwrote `.next`, which a running `next dev` also uses: restart the dev server.
+- Files by other contributors touched minimally: `ReportWizard.tsx` (3 edits), migration 011 revision id.
+
+**Files Changed**
+- Backend: reporting (access, media service, media_inspector, clamav_scanner, router, repository, ports, submit), identity (principal, ports, repository, resolve_principal), ai routes, impact/logistics/telemetry/incidents routers, config, `seed_jurisdiction_grants.py`, migration 011 id, pyproject (pillow), tests.
+- Frontend: `public/sw.js` (v3), `next.config.ts`, offline provider/snapshots/useOfflineSnapshot, RoadConditionForm, roadCondition, sms, StaleDataBanner, MapViewLazy, views, SyncQueue, gov screens (lint/type fixes), e2e specs and fixtures, tests.
+- Memory: shared/{offline-sync,backend-reporting-incidents,backend-identity,infra-deploy,testing,known-issues}.md, field/{home,queue,nearby,road-update,profile,report-new}.md, memory.md.

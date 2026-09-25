@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Menu, ShieldAlert, UserCircle2, WifiOff, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState, Suspense, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, unwrap } from "@/shared/api";
 import type { Capability } from "@/shared/api/types";
 import { ROLE_LABEL, useSession } from "@/shared/auth";

@@ -13,6 +13,7 @@ from app.core.db import get_db
 from app.core.security import (
     PrincipalContext,
     require_any_capability,
+    require_authenticated,
     require_capability,
 )
 from app.modules.identity.domain.enums import Capability
@@ -30,13 +31,14 @@ from app.modules.reporting.api.schemas import (
     UploadTicketRequest,
     UploadTicketResponse,
 )
+from app.modules.reporting.application.access import can_view_report, scope_for
 from app.modules.reporting.application.amend_report import AmendReportUseCase
 from app.modules.reporting.application.media_service import MediaUploadService
 from app.modules.reporting.application.submit_report import SubmitFieldReportUseCase
 from app.modules.reporting.application.sync_reports import SyncReportsBatchUseCase
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint
-from app.modules.reporting.domain.enums import ReviewState
-from app.modules.reporting.domain.exceptions import ReportNotFoundError
+from app.modules.reporting.domain.enums import ReviewState, ScanStatus
+from app.modules.reporting.domain.exceptions import MediaValidationError, ReportNotFoundError
 from app.modules.reporting.infrastructure.repository import SqlAlchemyReportingRepository
 
 router = APIRouter(tags=["Field Incident Reporting & Media"])
@@ -69,6 +71,7 @@ def _to_response_dto(r: FieldReport) -> ReportResponse:
         lane_status=r.lane_status,
         passable_classes=r.passable_classes,
         life_safety_risk=r.life_safety_risk,
+        road_side=r.road_side,
         observed_at=r.observed_at,
         received_at=r.received_at,
         created_at=r.created_at,
@@ -120,7 +123,10 @@ async def submit_report(
         lane_status=req.lane_status,
         passable_classes=req.passable_classes,
         life_safety_risk=req.life_safety_risk,
+        road_side=req.road_side,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_response_dto(report)
 
 
@@ -145,6 +151,8 @@ async def sync_reports_batch(
         device_id=req.device_id,
         app_instance_id=req.app_instance_id,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return BatchSyncResponse(**result)
 
 
@@ -170,6 +178,7 @@ async def list_reports(
         jurisdiction_id=jurisdiction_id,
         limit=limit,
         offset=offset,
+        scope=scope_for(principal),
     )
     return [_to_response_dto(r) for r in reports]
 
@@ -188,7 +197,16 @@ async def get_report_detail(
 ) -> ReportResponse:
     repo = SqlAlchemyReportingRepository(db)
     report = await repo.get_report_by_id(report_id)
-    if not report:
+    # Not found and not permitted look the same, so a report's existence is not revealed.
+    is_owner = report is not None and report.reporter_id == principal.user_id
+    may_view = report is not None and (
+        is_owner
+        or (
+            principal.can(Capability.VIEW_REPORT_DETAIL)
+            and can_view_report(scope_for(principal), report.reporter_id, report.jurisdiction_id)
+        )
+    )
+    if report is None or not may_view:
         raise ReportNotFoundError(f"Report {report_id} not found.")
     return _to_response_dto(report)
 
@@ -234,6 +252,8 @@ async def amend_report(
         passable_classes=req.passable_classes,
         life_safety_risk=req.life_safety_risk,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_response_dto(amended)
 
 
@@ -260,6 +280,8 @@ async def request_upload_ticket(
         mime_type=req.mime_type,
         checksum_sha256=req.checksum_sha256,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return UploadTicketResponse(
         media_id=UUID(str(res["media_id"])),
         upload_url=str(res["upload_url"]),
@@ -291,7 +313,13 @@ async def confirm_media_upload(
         height_px=req.height_px,
         exif_lat=req.exif_lat,
         exif_lon=req.exif_lon,
+        uploader_id=principal.user_id,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
+    if media.scan_status is not ScanStatus.CLEAN:
+        # The decision is saved above; now the client is told why the photo was refused.
+        raise MediaValidationError((media.scan_findings or {}).get("message") or "The photo was rejected.")
     return MediaResponse(
         id=media.id,
         uploader_id=media.uploader_id,
@@ -316,7 +344,7 @@ async def confirm_media_upload(
 async def get_media_download_url(
     media_id: UUID,
     db: AsyncSession = Depends(get_db),
-    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_REPORT_MEDIA)),
+    principal: PrincipalContext = Depends(require_authenticated),
 ) -> DownloadUrlResponse:
     repo = SqlAlchemyReportingRepository(db)
     service = MediaUploadService(repo)

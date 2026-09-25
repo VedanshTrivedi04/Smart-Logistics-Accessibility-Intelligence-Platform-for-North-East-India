@@ -44,6 +44,8 @@ dependencies = [
 
     # Utilities & Dispatch Solver
     "orjson==3.10.12",
+    # Server-side image decoding for uploaded evidence photos
+    "pillow==12.3.0",
     "ortools==9.15.6755",
 ]
 

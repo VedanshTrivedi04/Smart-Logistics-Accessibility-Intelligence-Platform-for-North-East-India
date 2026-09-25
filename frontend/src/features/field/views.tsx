@@ -18,7 +18,10 @@ import { ReportEvidence, useIncidents, useReport, useReports } from "@/features/
 import { EdgePanel, edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { isReportPayload } from "./model";
 import { useOffline } from "./OfflineProvider";
+import { RoadConditionForm } from "./RoadConditionForm";
+import { StaleDataBanner } from "./StaleDataBanner";
 import { useGeolocation } from "./useGeolocation";
+import { useOfflineSnapshot } from "./useOfflineSnapshot";
 
 function LocationCard({ geo }: { geo: ReturnType<typeof useGeolocation> }) {
   const s = geo.state;
@@ -121,7 +124,7 @@ function AmendForm({ report }: { report: Report }) {
       <p className="small muted">Amending needs a connection. It creates a new linked report; the original stays on record.</p>
       <Field label="Reason for the correction" htmlFor="am-reason" error={error}><input id="am-reason" value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       <div className="grid cols-2">
-        <Field label="Type" htmlFor="am-type"><select id="am-type" value={type} onChange={(e) => setType(e.target.value as ReportType)}>{REPORT_TYPES.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}</select></Field>
+        <Field label="Type" htmlFor="am-type"><select id="am-type" value={type} onChange={(e) => setType(e.target.value as ReportType)}>{REPORT_TYPES.filter((t) => t !== "ROAD_CONDITION_UPDATE" || type === "ROAD_CONDITION_UPDATE").map((t) => <option key={t} value={t}>{humanize(t)}</option>)}</select></Field>
         <Field label="Severity" htmlFor="am-sev"><select id="am-sev" value={severity} onChange={(e) => setSeverity(e.target.value as ReportSeverity)}>{REPORT_SEVERITIES.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}</select></Field>
       </div>
       <Field label="Description" htmlFor="am-desc"><textarea id="am-desc" value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
@@ -159,21 +162,26 @@ export function NearbyView() {
   const fix = geo.state.status === "ok" ? geo.state.fix : null;
   const bbox = useMemo(() => (fix ? bboxAround(fix.latitude, fix.longitude, RADIUS_M) : null), [fix]);
   const edges = useEdges(bbox, 13, Boolean(bbox));
+  const reportsS = useOfflineSnapshot("reports", reports);
+  const incidentsS = useOfflineSnapshot("incidents", incidents);
+  const edgesS = useOfflineSnapshot("nearby-edges", edges);
+  const savedCopies = [reportsS, incidentsS, edgesS].filter((x) => x.fromDevice && x.asOf);
+  const savedAsOf = savedCopies.length ? new Date(Math.min(...savedCopies.map((x) => x.asOf!.getTime()))) : null;
 
   const nearReports = useMemo(() => {
     if (!fix) return [];
-    return (reports.data ?? []).map((r) => ({ r, d: haversineMeters(fix.latitude, fix.longitude, r.location.latitude, r.location.longitude) })).filter((x) => x.d <= RADIUS_M).sort((a, b) => a.d - b.d);
-  }, [fix, reports.data]);
+    return (reportsS.data ?? []).map((r) => ({ r, d: haversineMeters(fix.latitude, fix.longitude, r.location.latitude, r.location.longitude) })).filter((x) => x.d <= RADIUS_M).sort((a, b) => a.d - b.d);
+  }, [fix, reportsS.data]);
   const nearEdges = useMemo(() => {
     if (!fix) return [];
-    return sortBySeverity(edges.data?.features ?? []).filter((f) => f.props.accessibility_status !== "OPEN").map((f) => ({ f, d: Math.min(...f.coordinates.map(([x, y]) => haversineMeters(fix.latitude, fix.longitude, y, x))) })).filter((x) => x.d <= RADIUS_M);
-  }, [fix, edges.data]);
+    return sortBySeverity(edgesS.data?.features ?? []).filter((f) => f.props.accessibility_status !== "OPEN").map((f) => ({ f, d: Math.min(...f.coordinates.map(([x, y]) => haversineMeters(fix.latitude, fix.longitude, y, x))) })).filter((x) => x.d <= RADIUS_M);
+  }, [fix, edgesS.data]);
   const notices = useMemo(
-    () => buildNotices({ incidents: incidents.data ?? [], reports: reports.data ?? [], ownUserId: me.user_id, edges: nearEdges.map(({ f }) => ({ id: f.id, name: edgeLabel(f), status: f.props.accessibility_status, at: new Date().toISOString() })), hrefs: { report: (id) => `/field/reports/${id}` } }),
-    [incidents.data, reports.data, me.user_id, nearEdges],
+    () => buildNotices({ incidents: incidentsS.data ?? [], reports: reportsS.data ?? [], ownUserId: me.user_id, edges: nearEdges.map(({ f }) => ({ id: f.id, name: edgeLabel(f), status: f.props.accessibility_status, at: new Date().toISOString() })), hrefs: { report: (id) => `/field/reports/${id}` } }),
+    [incidentsS.data, reportsS.data, me.user_id, nearEdges],
   );
   const selectedReport = selected ? nearReports.find(({ r }) => r.id === selected)?.r ?? null : null;
-  const nearbyLines = edgeLines(edges.data?.features ?? []);
+  const nearbyLines = edgeLines(edgesS.data?.features ?? []);
   const nearbyPoints = [
     ...(fix ? [{ id: "self", kind: "self" as const, lon: fix.longitude, lat: fix.latitude, label: "You are here", tone: "info" as const }] : []),
     ...nearReports.map(({ r }) => ({ id: r.id, kind: "report" as const, lon: r.location.longitude, lat: r.location.latitude, label: `${humanize(r.report_type)} report, ${humanize(r.review_state)}`, tone: r.severity === "CRITICAL" || r.severity === "HIGH" ? ("danger" as const) : ("warn" as const) })),
@@ -182,6 +190,7 @@ export function NearbyView() {
   return (
     <div className="stack">
       <LocationCard geo={geo} />
+      {savedAsOf ? <StaleDataBanner asOf={savedAsOf} /> : null}
       {!fix ? <Banner tone="info" title="Location needed for distances"><p className="small">Update your location to see what is within {RADIUS_M / 1000} km. Alerts that do not depend on distance are shown below.</p></Banner> : null}
       <div className="split">
         <div className="stack">
@@ -244,21 +253,24 @@ export function RoadUpdate() {
   const fix = geo.state.status === "ok" ? geo.state.fix : null;
   const bbox = useMemo(() => (fix ? bboxAround(fix.latitude, fix.longitude, 1500) : null), [fix]);
   const edges = useEdges(bbox, 14, Boolean(bbox));
+  const edgesS = useOfflineSnapshot("nearby-edges", edges);
   const nearest = useMemo(() => {
     if (!fix) return [];
-    return (edges.data?.features ?? []).map((f) => ({ f, d: Math.min(...f.coordinates.map(([x, y]) => haversineMeters(fix.latitude, fix.longitude, y, x))) })).sort((a, b) => a.d - b.d).slice(0, 12);
-  }, [fix, edges.data]);
+    return (edgesS.data?.features ?? []).map((f) => ({ f, d: Math.min(...f.coordinates.map(([x, y]) => haversineMeters(fix.latitude, fix.longitude, y, x))) })).sort((a, b) => a.d - b.d).slice(0, 12);
+  }, [fix, edgesS.data]);
   return (
     <div className="stack">
       <Banner tone="info" title="How road updates work">
-        <p className="small">If your role may set road status, you can do it below and the server records who and why. Otherwise, <Link href="/field/report/new">report what you see</Link>; a verifier decides.</p>
+        <p className="small">Use the form below to report what a road segment is like now; it works with no signal and a verifier decides. If your role may set road status directly, that option appears when you choose a segment (needs a connection). To report a new hazard, <Link href="/field/report/new">start an incident report</Link>.</p>
       </Banner>
       <LocationCard geo={geo} />
+      {edgesS.fromDevice && edgesS.asOf ? <StaleDataBanner asOf={edgesS.asOf} /> : null}
+      <RoadConditionForm segments={nearest} fix={fix} />
       <div className="split">
         <Card title="Road segments near you">
-          {edges.isPending && bbox ? <p role="status" className="muted">Loading…</p> : null}
-          {edges.isError ? <ErrorNotice error={edges.error} subject="nearby roads" onRetry={() => void edges.refetch()} /> : null}
-          {!fix ? <p className="muted">Update your location to list nearby segments.</p> : nearest.length === 0 && !edges.isPending ? <p className="muted">No imported road segments within 1.5 km.</p> : (
+          {edges.isPending && bbox && !edgesS.data ? <p role="status" className="muted">Loading…</p> : null}
+          {edges.isError && !edgesS.data ? <ErrorNotice error={edges.error} subject="nearby roads" onRetry={() => void edges.refetch()} /> : null}
+          {!fix ? <p className="muted">Update your location to list nearby segments.</p> : nearest.length === 0 && !edges.isPending && !edgesS.fromDevice ? <p className="muted">No imported road segments within 1.5 km.</p> : (
             <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {nearest.map(({ f, d }) => (
                 <li key={f.id} className="row">
@@ -280,6 +292,7 @@ export function RoadUpdate() {
 
 export function FieldProfile() {
   const me = usePrincipal();
+  const { offlineReady, persisted } = useOffline();
   const [prefs, setPrefs] = usePreferences();
   const pilot = pilotLocale();
   const locales = reviewedLocales();
@@ -288,6 +301,10 @@ export function FieldProfile() {
       <Card title="Officer profile">
         <KeyValue items={[["Name", me.display_name], ["Email", me.email ?? "—"], ["Role", ROLE_LABEL[me.role] ?? me.role], ["Organization", me.org_name], ["Assigned areas", `${me.jurisdiction_ids?.length ?? 0} jurisdiction(s)`]]} />
         <p className="small muted">Assigned inspections and incidents are not available from the API yet.</p>
+      </Card>
+      <Card title="Offline readiness">
+        <KeyValue items={[["Screens saved for offline use", offlineReady ? "Yes: report, road update, queue and nearby open without a connection" : "Not yet (needs one online visit after sign-in; stay connected a few seconds)"], ["Storage kept when space runs low", persisted === null ? "Unknown" : persisted ? "Yes" : "Not guaranteed. The browser may clear it; send queued reports soon."]]} />
+        <p className="small muted">Live maps, other people&apos;s reports and vehicle positions still need a connection.</p>
       </Card>
       <Card title="Language and data use">
         <div className="stack">

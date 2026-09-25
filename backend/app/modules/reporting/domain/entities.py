@@ -17,6 +17,7 @@ from app.modules.reporting.domain.enums import (
     ReportSeverity,
     ReportType,
     ReviewState,
+    RoadSide,
     ScanStatus,
 )
 from app.modules.reporting.domain.exceptions import (
@@ -159,6 +160,7 @@ class FieldReport:
     lane_status: LaneStatus | None = None
     passable_classes: list[PassableVehicleClass] = field(default_factory=list)
     life_safety_risk: bool = False
+    road_side: RoadSide | None = None
 
     def validate_timestamps(self, max_skew_seconds: int = 900, max_stale_days: int = 7) -> None:
         """Enforce triple-timestamp consistency."""

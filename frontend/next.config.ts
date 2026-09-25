@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const backend = process.env.BACKEND_ORIGIN ?? "http://127.0.0.1:8000";
 
 const config: NextConfig = {
+  // A separate output folder lets an end-to-end build run without touching a running `next dev`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,

@@ -2489,6 +2489,7 @@ export interface components {
             candidate_edge_id?: string | null;
             /** Candidate Bridge Id */
             candidate_bridge_id?: string | null;
+            road_side?: components["schemas"]["RoadSide"] | null;
             lane_status?: components["schemas"]["LaneStatus"] | null;
             /** Passable Classes */
             passable_classes?: components["schemas"]["PassableVehicleClass"][];
@@ -2563,6 +2564,8 @@ export interface components {
              * @default false
              */
             life_safety_risk: boolean;
+            /** @description Mountain slope side: HILLSIDE, VALLEY_SIDE, BOTH, or UNKNOWN */
+            road_side?: components["schemas"]["RoadSide"] | null;
         };
         /**
          * ReportResponse
@@ -2614,6 +2617,7 @@ export interface components {
              * @default false
              */
             life_safety_risk: boolean;
+            road_side?: components["schemas"]["RoadSide"] | null;
             /**
              * Observed At
              * Format: date-time
@@ -2645,7 +2649,7 @@ export interface components {
          * @description Specific field observation types in North-East mountain terrain.
          * @enum {string}
          */
-        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OBSTRUCTION" | "OTHER";
+        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OBSTRUCTION" | "ROAD_CONDITION_UPDATE" | "OTHER";
         /**
          * ResolutionReason
          * @description Enumerated justification for closing an operational incident.
@@ -2753,6 +2757,12 @@ export interface components {
             /** Zones Created */
             zones_created: number;
         };
+        /**
+         * RoadSide
+         * @description Mountain carriageway side relative to slope topography.
+         * @enum {string}
+         */
+        RoadSide: "HILLSIDE" | "VALLEY_SIDE" | "BOTH" | "UNKNOWN";
         /** RouteEdgeResponse */
         RouteEdgeResponse: {
             /**

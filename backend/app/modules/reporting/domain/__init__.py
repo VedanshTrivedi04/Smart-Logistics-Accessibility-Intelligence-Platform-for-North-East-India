@@ -10,11 +10,14 @@ from app.modules.reporting.domain.entities import (
     SyncResult,
 )
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
     LocationProvider,
+    PassableVehicleClass,
     RejectionReason,
     ReportSeverity,
     ReportType,
     ReviewState,
+    RoadSide,
     ScanStatus,
 )
 from app.modules.reporting.domain.exceptions import (
@@ -35,12 +38,14 @@ __all__ = [
     "ClockSkewError",
     "DuplicateOperationError",
     "FieldReport",
+    "LaneStatus",
     "LocationPoint",
     "LocationProvider",
     "MediaNotFoundError",
     "MediaObject",
     "MediaScanNotCleanError",
     "MediaValidationError",
+    "PassableVehicleClass",
     "RejectionReason",
     "ReportAlreadyAdjudicatedError",
     "ReportAmendment",
@@ -49,6 +54,7 @@ __all__ = [
     "ReportType",
     "ReportingDomainError",
     "ReviewState",
+    "RoadSide",
     "ScanStatus",
     "StaleObservationError",
     "SyncResult",

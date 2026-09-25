@@ -58,6 +58,8 @@ export type AccessibilityStatus = S["AccessibilityStatus"];
 export type ReportType = S["ReportType"];
 export type LaneStatus = S["LaneStatus"];
 export type PassableVehicleClass = S["PassableVehicleClass"];
+export type RoadSide = "HILLSIDE" | "VALLEY_SIDE" | "BOTH" | "UNKNOWN";
+export const ROAD_SIDES: readonly RoadSide[] = ["HILLSIDE", "VALLEY_SIDE", "BOTH", "UNKNOWN"];
 
 export type ReportSeverity = S["ReportSeverity"];
 export type ReviewState = S["ReviewState"];
@@ -121,7 +123,13 @@ export const REPORT_TYPES: readonly ReportType[] = [
   "WEATHER_HAZARD",
   "SECURITY_INCIDENT",
   "OTHER",
+  "ROAD_CONDITION_UPDATE",
 ];
+/** Report types an officer can file as a new incident. A road-condition update has its own form. */
+export type IncidentReportType = Exclude<ReportType, "ROAD_CONDITION_UPDATE">;
+export const INCIDENT_REPORT_TYPES: readonly IncidentReportType[] = REPORT_TYPES.filter(
+  (t): t is IncidentReportType => t !== "ROAD_CONDITION_UPDATE",
+);
 export const REPORT_SEVERITIES: readonly ReportSeverity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 export const VEHICLE_TYPES: readonly VehicleType[] = [
   "TRUCK_HEAVY",

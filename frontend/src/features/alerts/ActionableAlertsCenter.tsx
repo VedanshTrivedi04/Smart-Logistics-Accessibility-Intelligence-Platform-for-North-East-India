@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useSession, useScopeFilter } from "@/shared/auth";
+import { useScopeFilter } from "@/shared/auth";
 import { formatAge } from "@/shared/lib/time";
 import { useNow } from "@/shared/lib/useNow";
 
@@ -143,7 +143,6 @@ const ACTIONABLE_ALERTS_ROSTER: ActionableAlert[] = [
 ];
 
 export function ActionableAlertsCenter() {
-  const { can } = useSession();
   const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict } = useScopeFilter();
   const [scopeActive, setScopeActive] = useState<boolean>(isDistrictOfficer || isStateAuthority);
   const now = useNow(30_000);

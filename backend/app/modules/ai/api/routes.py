@@ -36,6 +36,9 @@ from app.modules.ai.api.schemas import (
     VoiceReportInferredFields,
     VoiceReportResponse,
 )
+from app.modules.identity.domain.enums import Capability
+from app.modules.reporting.application.access import can_view_report, scope_for
+from app.modules.reporting.domain.exceptions import ReportNotFoundError
 from app.modules.ai.application.auto_triage_report import AutoTriageFieldReportUseCase
 from app.modules.ai.application.estimate_eta import EstimateETAUseCase
 from app.modules.ai.application.optimize_dispatch import OptimizeDispatchUseCase
@@ -157,15 +160,22 @@ async def verify_photo(
 async def auto_triage_report(
     body: AutoTriageReportRequest,
     db: AsyncSession = Depends(get_db),
-    principal: PrincipalContext = Depends(require_authenticated),
+    # It rewrites the report's review fields (and can escalate it), so it is a reviewer action.
+    principal: PrincipalContext = Depends(require_capability(Capability.VERIFY_REPORT)),
 ) -> VerifyPhotoResponse:
-    reporting = ReportingModule(SqlAlchemyReportingRepository(db))
+    repo = SqlAlchemyReportingRepository(db)
+    report = await repo.get_report_by_id(body.report_id)
+    if report is None or not can_view_report(scope_for(principal), report.reporter_id, report.jurisdiction_id):
+        raise ReportNotFoundError(f"Report {body.report_id} not found.")
+    reporting = ReportingModule(repo)
     use_case = AutoTriageFieldReportUseCase(
         hazard_verifier=get_hazard_verifier(),
         reporting=reporting,
         object_storage=get_storage_service(),
     )
     result = await use_case.execute(body.report_id)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
 
     return VerifyPhotoResponse(
         hazard_detected=result.hazard_detected,

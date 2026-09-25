@@ -9,36 +9,60 @@ test.describe.configure({ mode: "serial" });
 
 const MARKER = `E2E-SYNTHETIC-${Date.now()}`;
 
+/**
+ * After sign-in the app asks the service worker to save the field screens. Going offline before that has
+ * finished would (correctly) show the "You are offline" page, so wait for the worker's ready marker.
+ */
+async function waitUntilSavedForOffline(page: Page) {
+  await page.goto("/field");
+  const ready = await page.evaluate(async () => {
+    // Poll: waitForFunction does not reliably await an async predicate.
+    const started = Date.now();
+    while (Date.now() - started < 45_000) {
+      if (await caches.match("/__field-shell-ready")) return true;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return false;
+  });
+  expect(ready, "the field screens were saved for offline use").toBe(true);
+}
+
 async function fillWizardOffline(page: Page) {
   await page.goto("/field/report/new");
-  await expect(page.getByText(/Draft not changed yet|Draft saved on device/)).toBeVisible();
-  await page.getByLabel(/Landslide/).check();
-  await page.getByRole("button", { name: "Next" }).click();
-  // Manual coordinates: works with geolocation denied and no map tiles.
+  await expect(page.getByRole("heading", { name: "Report an incident" })).toBeVisible();
+  const next = page.getByRole("button", { name: /next/i });
+
+  // 1. What happened
+  await page.getByRole("radio", { name: /Landslide/ }).check();
+  await next.click();
+
+  // 2. Where: manual coordinates work with geolocation denied and no map tiles.
+  if (!(await page.getByLabel("Latitude").isVisible())) await page.getByText(/manual/i).first().click();
   await page.getByLabel("Latitude").fill("26.1445");
   await page.getByLabel("Longitude").fill("91.7362");
   await page.getByLabel(/Accuracy/).fill("30");
-  await page.getByRole("button", { name: /apply coordinates/i }).click();
-  await expect(page.getByText(/Accuracy · /)).toBeVisible();
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: /apply coordinates|use these coordinates/i }).click();
+  await expect(page.getByText(/Accuracy/).first()).toBeVisible();
+  await next.click();
+
+  // 3. Evidence (photos are optional)
   await page.getByLabel(/Describe what you see/).fill(`${MARKER} debris across one lane`);
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByLabel(/High/).check();
-  await page.getByRole("button", { name: "Next" }).click();
+  await next.click();
+
+  // 4. Passability and severity
+  await page.getByRole("radio", { name: /High/ }).first().check();
+  await next.click();
 }
 
 test("field officer saves offline, survives a reload, and syncs exactly once", async ({ browser }) => {
   const context = await browser.newContext({ permissions: [] });
   const page = await newSignedInPage(context, USERS.officer);
 
-  // Open the pages once online so the service worker can store the shell.
-  await page.goto("/field/report/new");
-  await page.goto("/field/queue");
-  await page.waitForFunction(() => navigator.serviceWorker?.controller !== null || true);
+  await waitUntilSavedForOffline(page);
 
   await context.setOffline(true);
   await fillWizardOffline(page);
-  await page.getByRole("button", { name: /save on device and queue for sending/i }).click();
+  await page.getByRole("button", { name: /save on device.*queue/i }).click();
   await expect(page.getByText("Saved on device — queued for synchronization")).toBeVisible();
 
   // Restart the app while still offline: the report must still be there and still not "submitted".
@@ -64,12 +88,14 @@ test("field officer saves offline, survives a reload, and syncs exactly once", a
 test("a second user on the same device cannot see the first user's queue", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await newSignedInPage(context, USERS.officer);
+  await waitUntilSavedForOffline(page);
   await context.setOffline(true);
   await fillWizardOffline(page);
-  await page.getByRole("button", { name: /save on device and queue for sending/i }).click();
+  await page.getByRole("button", { name: /save on device.*queue/i }).click();
+  await expect(page.getByText("Saved on device — queued for synchronization")).toBeVisible();
   await context.setOffline(false);
   await page.goto("/account");
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Sign out" }).first().click();
   await page.waitForURL("**/login**");
   await signIn(page, USERS.regional);
   await page.goto("/account");

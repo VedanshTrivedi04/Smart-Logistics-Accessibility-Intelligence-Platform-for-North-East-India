@@ -74,13 +74,13 @@ class TestRoleCapabilities:
 
 
 class TestCoordinationCapability:
-    @pytest.mark.parametrize("role", [Role.REGIONAL_AUTHORITY, Role.STATE_AUTHORITY, Role.EMERGENCY_COORDINATOR])
+    @pytest.mark.parametrize("role", [Role.REGIONAL_AUTHORITY, Role.STATE_AUTHORITY, Role.DISTRICT_VERIFIER, Role.EMERGENCY_COORDINATOR])
     def test_government_coordinators_can_coordinate(self, role: Role) -> None:
         assert Capability.COORDINATE_RESPONSE in get_role_baseline_capabilities(role)
 
     @pytest.mark.parametrize(
         "role",
-        [Role.FIELD_OFFICER, Role.DISTRICT_VERIFIER, Role.FLEET_MANAGER, Role.DELIVERY_COORDINATOR, Role.TRANSPORT_OPERATOR, Role.PLATFORM_ADMINISTRATOR],
+        [Role.FIELD_OFFICER, Role.FLEET_MANAGER, Role.DELIVERY_COORDINATOR, Role.TRANSPORT_OPERATOR, Role.PLATFORM_ADMINISTRATOR],
     )
     def test_other_roles_cannot_coordinate(self, role: Role) -> None:
         assert Capability.COORDINATE_RESPONSE not in get_role_baseline_capabilities(role)
