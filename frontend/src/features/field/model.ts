@@ -25,10 +25,26 @@ export interface ReportPayload {
   observedAt: string;
   candidateEdgeId: string | null;
   mediaLocalIds: string[];
+  laneStatus?: "BOTH_BLOCKED" | "SINGLE_LANE_OPEN" | "SHOULDER_ONLY" | "CLEAR" | null;
+  passableClasses?: Array<"HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE">;
+  lifeSafetyRisk?: boolean;
+  /** True while any attached photo came from the dev-only simulated camera. */
+  simulatedEvidence?: boolean;
 }
 
 export function emptyPayload(now: Date): ReportPayload {
-  return { reportType: null, severity: null, description: "", location: null, observedAt: now.toISOString(), candidateEdgeId: null, mediaLocalIds: [] };
+  return {
+    reportType: null,
+    severity: null,
+    description: "",
+    location: null,
+    observedAt: now.toISOString(),
+    candidateEdgeId: null,
+    mediaLocalIds: [],
+    laneStatus: null,
+    passableClasses: [],
+    lifeSafetyRisk: false,
+  };
 }
 
 export function isReportPayload(value: unknown): value is ReportPayload {
@@ -49,8 +65,8 @@ export function validatePayload(p: ReportPayload): string[] {
   if (!p.reportType) problems.push("Choose what happened.");
   if (!p.severity) problems.push("Choose how severe it is.");
   if (p.description.trim().length < 3) problems.push("Add a short description (at least 3 characters).");
-  if (p.description.length > 2000) problems.push("The description is longer than 2000 characters.");
-  if (!p.location) problems.push("Add a location: use GPS or enter coordinates.");
+  if (formatStructuredDescription(p).length > 2000) problems.push("The description is longer than 2000 characters (the passability summary added to it counts).");
+  if (!p.location) problems.push("Add a location: use GPS or select a milestone.");
   else {
     if (!isValidLatLon(p.location.latitude, p.location.longitude)) problems.push("The coordinates are not valid.");
     if (!(p.location.accuracy_m > 0) || p.location.accuracy_m > 5000) problems.push("Location accuracy must be between 1 and 5000 metres.");
@@ -59,14 +75,54 @@ export function validatePayload(p: ReportPayload): string[] {
   return problems;
 }
 
+/** A header this module wrote earlier, so re-formatting an already formatted description never stacks headers. */
+const HEADER_RE = /^\[(?:LANE:|PASSABLE:|🚨 LIFE-SAFETY|DEMO:)[^\]]*\]\s*/;
+
+/**
+ * Prepend a human-readable passability header to the description for consumers that only read
+ * free text. The same values are also sent as structured fields, which are what the server stores.
+ */
+export function formatStructuredDescription(payload: ReportPayload): string {
+  const tags: string[] = [];
+  if (payload.simulatedEvidence) {
+    tags.push("DEMO: SIMULATED EVIDENCE, NOT A REAL OBSERVATION");
+  }
+  if (payload.laneStatus) {
+    const laneMap: Record<string, string> = {
+      BOTH_BLOCKED: "Both Lanes Blocked",
+      SINGLE_LANE_OPEN: "Single Lane Open (Alternating)",
+      SHOULDER_ONLY: "Shoulder Passage Only",
+      CLEAR: "Passage Clear",
+    };
+    tags.push(`LANE: ${laneMap[payload.laneStatus] ?? payload.laneStatus}`);
+  }
+  if (payload.passableClasses && payload.passableClasses.length > 0) {
+    const classMap: Record<string, string> = {
+      HEAVY_TRUCK: "Heavy Trucks",
+      LIGHT_4X4: "Light 4x4/Pickups",
+      EMERGENCY_ONLY: "Emergency Only",
+      NONE: "Zero Vehicles",
+    };
+    tags.push(`PASSABLE: ${payload.passableClasses.map((c) => classMap[c] ?? c).join(", ")}`);
+  }
+  if (payload.lifeSafetyRisk) {
+    tags.push("🚨 LIFE-SAFETY RISK: ACTIVE");
+  }
+
+  const cleanDesc = payload.description.trim().replace(HEADER_RE, "");
+  if (!tags.length) return cleanDesc;
+  return `[${tags.join(" · ")}]\n\n${cleanDesc}`;
+}
+
 /** Batch-sync item in the shape POST /reports/sync expects. `client_operation_id` is the stable operation id. */
 export function toBatchItem(op: Pick<OperationRecord, "id">, payload: ReportPayload, serverMediaIds: readonly string[]): Record<string, unknown> {
   if (!payload.reportType || !payload.severity || !payload.location) throw new Error("Incomplete payload cannot be sent");
+  const finalDescription = formatStructuredDescription(payload);
   return {
     client_operation_id: op.id,
     report_type: payload.reportType,
     severity: payload.severity,
-    description: payload.description.trim(),
+    description: finalDescription,
     location: {
       longitude: payload.location.longitude,
       latitude: payload.location.latitude,
@@ -77,5 +133,8 @@ export function toBatchItem(op: Pick<OperationRecord, "id">, payload: ReportPayl
     observed_at: payload.observedAt,
     media_ids: [...serverMediaIds],
     ...(payload.candidateEdgeId ? { candidate_edge_id: payload.candidateEdgeId } : {}),
+    ...(payload.laneStatus ? { lane_status: payload.laneStatus } : {}),
+    ...(payload.passableClasses && payload.passableClasses.length > 0 ? { passable_classes: payload.passableClasses } : {}),
+    ...(payload.lifeSafetyRisk !== undefined ? { life_safety_risk: payload.lifeSafetyRisk } : {}),
   };
 }

@@ -10,7 +10,9 @@ from typing import Any
 from uuid import UUID
 
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
     LocationProvider,
+    PassableVehicleClass,
     RejectionReason,
     ReportSeverity,
     ReportType,
@@ -153,6 +155,10 @@ class FieldReport:
     cv_confidence: float | None = None
     cv_is_roadway_blocked: bool | None = None
     cv_verified_at: datetime | None = None
+    # Reporter-observed passability (an observation, not verified).
+    lane_status: LaneStatus | None = None
+    passable_classes: list[PassableVehicleClass] = field(default_factory=list)
+    life_safety_risk: bool = False
 
     def validate_timestamps(self, max_skew_seconds: int = 900, max_stale_days: int = 7) -> None:
         """Enforce triple-timestamp consistency."""

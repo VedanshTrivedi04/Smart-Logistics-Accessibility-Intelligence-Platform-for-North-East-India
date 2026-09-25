@@ -31,6 +31,65 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 ## Interaction History
 
+### 2026-09-25 20:05
+
+**User Request**
+> 🚨 Report Incident — /field/report/new (Tactical field operational reporting wizard for Senior Field Officer on NH-27 / NH-6)
+
+**Diagnosis & Architecture**
+- Field officer needs an action-first, low-connectivity-resilient 5-step wizard to report incidents while patrolling highway lifelines.
+- Existing wizard lacked `?type=` query parameter parsing, and `/field` home chips sent invalid type codes (`FLOOD`, `BRIDGE_DAMAGE`, `ROAD_BLOCKAGE`).
+- Added missing `OBSTRUCTION` type to backend `ReportType` enum (`backend/app/modules/reporting/domain/enums.py`) and frontend `REPORT_TYPES` (`frontend/src/shared/api/types.ts`).
+- Dual compatibility architecture for passability attributes: payloads carry structured attributes (`lane_status`, `passable_classes`, `life_safety_risk`) and auto-format a structured header in `description` (`[LANE: ... · PASSABLE: ... · LIFE-SAFETY: ...] <notes>`) so government dashboards, triage views, and legacy consumers display passability without requiring schema changes.
+- Hardware camera (`capture="environment"`) with dev-only simulated photo generation featuring prominent `"⚠️ DEMO SIMULATION · NOT EVIDENCE"` watermark. Photos are strictly optional so reports can be submitted in zero-connectivity or urgent conditions.
+- Step 2 integrates high-precision corridor chainage snapping (`snapToCorridor`), landmark milestone fallback picker (`CORRIDOR_MILESTONES`), and proactive duplicate proximity warnings within ~1.5 km of active reports.
+
+**Work Done**
+- `backend/app/modules/reporting/domain/enums.py`: Added `OBSTRUCTION = "OBSTRUCTION"` to `ReportType` enum.
+- `frontend/src/shared/api/types.ts`: Added `OBSTRUCTION` to `ReportType` and `REPORT_TYPES`. Exported `LaneStatus` and `PassableVehicleClass` types.
+- `frontend/src/features/field/model.ts`: Extended `ReportPayload` with `laneStatus`, `passableClasses`, `lifeSafetyRisk`. Added `formatStructuredDescription()` and updated `toBatchItem()`.
+- `frontend/src/features/field/FieldHomeMobile.tsx`: Corrected quick hazard shortcut chips to use valid enum types (`FLOODING`, `BRIDGE_COLLAPSE`, `OBSTRUCTION`).
+- `frontend/src/features/field/ReportWizard.tsx`: Overhauled to 5-step tactical operational wizard with:
+  1. 9 tactical hazard cards with color badges and `?type=` prefill.
+  2. Live GPS + corridor chainage snap (`snapToCorridor`) + milestone fallback + duplicate proximity detection.
+  3. Camera/gallery capture with watermarked demo simulator and optional photo policy.
+  4. Passability matrix (lane status, passable vehicle classes, life safety risk toggle).
+  5. Observed time presets + quick note chips + dossier review + IndexedDB queue.
+- Updated memory documentation: `memory/portals/field/report-new.md`, `memory/portals/shared/backend-reporting-incidents.md`, `memory/portals/field/home.md`, and `memory.md`.
+
+**Files Changed**
+- `backend/app/modules/reporting/domain/enums.py`
+- `frontend/src/shared/api/types.ts`
+- `frontend/src/features/field/model.ts`
+- `frontend/src/features/field/FieldHomeMobile.tsx`
+- `frontend/src/features/field/ReportWizard.tsx`
+- `memory/portals/field/report-new.md`
+- `memory/portals/shared/backend-reporting-incidents.md`
+- `memory/portals/field/home.md`
+- `memory.md`
+
+### 2026-09-25 14:58
+
+**User Request**
+> mene already redis cahala ralha hei redis-cli kar ke (Clarifying Redis local instance status)
+
+**Diagnosis**
+- `redis-cli` is the Redis command-line client, whereas the background service is `redis-server`.
+- On Windows, `localhost` resolves to IPv6 `::1` before IPv4 `127.0.0.1`. When Redis runs on Windows, it binds to IPv4 `127.0.0.1:6379`, causing Python `aioredis` connections configured with `redis://localhost:6379/0` to fail or hang on `::1`.
+
+**Work Done**
+- Updated `backend/.env`: switched `REDIS_URL` and `REDIS_CELERY_URL` from `localhost` to `127.0.0.1`.
+- Added defensive `replace("localhost", "127.0.0.1")` in `backend/app/api/health.py`, `backend/app/main.py`, and `backend/app/core/rate_limit.py` to ensure IPv4 connection across Windows systems.
+- Updated `memory/portals/shared/status.md` and `memory.md`.
+
+**Files Changed**
+- `backend/.env`
+- `backend/app/api/health.py`
+- `backend/app/main.py`
+- `backend/app/core/rate_limit.py`
+- `memory/portals/shared/status.md`
+- `memory.md`
+
 ### 2026-09-25 12:42
 
 **User Request**
@@ -1354,3 +1413,56 @@ This document dynamically records the lifecycle of interactions, design decision
 **Verification**
 - tsc: 0 errors in field/corridors files (20 pre-existing errors elsewhere). eslint: clean on field files. vitest: 92/92.
 - Not verified in a browser.
+
+### 2026-09-25 Report wizard review fixes
+
+**User Request**
+> Review of /field/report/new; fix what was wrong or missing.
+
+**Work Done**
+- Backend: reports now store `lane_status`, `passable_classes`, `life_safety_risk` (entity, model, migration 010, submit/amend/sync use cases, schemas, router). Previously the sync handler silently dropped these keys.
+- Regenerated `backend/openapi.json` and `frontend/src/shared/api/schema.d.ts`; removed the hand-written `OBSTRUCTION` union in `types.ts`.
+- Wizard: fixed duplicate detection (`GET /reports` returns an array, code read `.items`; now same type, not rejected, last 24 h, 1.5 km). Simulated camera limited to `NODE_ENV=development` and marked in the report. Description header no longer skipped when notes start with `[`, and counts toward the 2000-char limit. Life-safety copy no longer claims an alert queue that does not exist. Amend form keeps the passability fields.
+- Tests: `report-payload.test.ts` (8), `test_report_passability.py` (7). e2e selectors updated, not run.
+
+**Files Changed**
+- backend: `reporting/{domain,application,infrastructure,api}/*`, `alembic/versions/010_report_passability.py`, `openapi.json`, `tests/unit/reporting/test_report_passability.py`
+- frontend: `features/field/{ReportWizard.tsx,model.ts,views.tsx}`, `shared/api/{types.ts,schema.d.ts}`, `tests/unit/report-payload.test.ts`, `tests/e2e/offline-report-journey.spec.ts`
+- memory: `portals/field/report-new.md`, `portals/shared/backend-reporting-incidents.md`, `memory.md`
+
+**Verification**
+- Backend unit: 340 pass, 1 fail (`test_other_roles_cannot_coordinate[DISTRICT_VERIFIER]`, caused by the earlier change giving DISTRICT_VERIFIER `COORDINATE_RESPONSE`; not touched here). Migration head is `010_report_passability`; not applied to any database.
+- Frontend: vitest 100/100, eslint clean on field files, tsc 23 errors, none in field or shared/api code (all pre-existing elsewhere).
+- Not done: browser check, e2e run, migration run against Postgres.
+
+### 2026-09-25 Cloudinary media storage
+
+**User Request**
+> Upload all files/images to Cloudinary. Confirmed scope: field report photos only; private with signed URLs; user has an account and will set the credentials in `.env`.
+
+**Work Done**
+- Added `CloudinaryStorageService` and `UploadTarget` to `backend/app/core/storage.py`; `STORAGE_BACKEND` and `CLOUDINARY_*` settings with startup validation; upload ticket now carries method/headers/fields; `.env.example` documents the new variables (no values).
+- Frontend transport does a multipart POST for Cloudinary tickets and keeps PUT for S3; engine passes the whole ticket.
+- Regenerated `backend/openapi.json` and `frontend/src/shared/api/schema.d.ts`.
+- Tests: `backend/tests/unit/core/test_cloudinary_storage.py` (15), `frontend/tests/unit/upload-transport.test.ts` (3).
+
+**Files Changed**
+- backend: `app/core/{config,storage}.py`, `app/modules/reporting/{application/media_service.py,api/schemas.py,api/router.py}`, `.env.example`, `openapi.json`, `tests/unit/core/test_cloudinary_storage.py`
+- frontend: `src/features/field/sync/{transport,engine}.ts`, `src/shared/api/schema.d.ts`, `tests/helpers.ts`, `tests/unit/upload-transport.test.ts`
+- memory: `portals/shared/{infra-deploy,backend-reporting-incidents}.md`, `memory.md`
+
+**Verification**
+- Backend unit: 362 pass, 1 pre-existing failure (DISTRICT_VERIFIER coordination test). Frontend: vitest 103/103, eslint clean, tsc 23 errors (all pre-existing, none in touched files).
+- Not verified: any call to real Cloudinary; existing photos in MinIO/S3 were not migrated.
+
+### 2026-09-25 Cloudinary live check
+
+**User Request**
+> Credentials added, test it.
+
+**Work Done**
+- Ran a throwaway script (scratchpad, not in repo) against the real account: upload, private type, signed download, refusal of unsigned/tampered URLs, server-side read, delete. All passed. The test asset was deleted. No credentials were printed or stored.
+
+**Notes**
+- `.env` still has `STORAGE_BACKEND=s3`, so the running app does not use Cloudinary yet.
+- Files touched: `memory/portals/shared/infra-deploy.md`, `memory.md`.

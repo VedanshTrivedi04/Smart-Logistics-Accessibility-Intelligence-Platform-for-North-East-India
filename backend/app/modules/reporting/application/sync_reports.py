@@ -17,7 +17,9 @@ from app.modules.reporting.application.ports import ReportingRepositoryPort
 from app.modules.reporting.application.submit_report import SubmitFieldReportUseCase
 from app.modules.reporting.domain.entities import LocationPoint, SyncResult
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
     LocationProvider,
+    PassableVehicleClass,
     ReportSeverity,
     ReportType,
 )
@@ -86,6 +88,11 @@ class SyncReportsBatchUseCase:
                     candidate_edge = UUID(item["candidate_edge_id"]) if item.get("candidate_edge_id") else None
                     candidate_bridge = UUID(item["candidate_bridge_id"]) if item.get("candidate_bridge_id") else None
 
+                    raw_lane = item.get("lane_status")
+                    lane_status = LaneStatus(raw_lane) if raw_lane else None
+                    passable_classes = [PassableVehicleClass(c) for c in item.get("passable_classes") or []]
+                    life_safety_risk = bool(item.get("life_safety_risk", False))
+
                     report = await self.submit_use_case.execute(
                         principal=principal,
                         report_type=ReportType(item["report_type"]),
@@ -99,6 +106,9 @@ class SyncReportsBatchUseCase:
                         media_ids=media_ids,
                         candidate_edge_id=candidate_edge,
                         candidate_bridge_id=candidate_bridge,
+                        lane_status=lane_status,
+                        passable_classes=passable_classes,
+                        life_safety_risk=life_safety_risk,
                     )
 
                     res_payload = {

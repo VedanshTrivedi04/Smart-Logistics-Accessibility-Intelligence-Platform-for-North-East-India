@@ -22,7 +22,9 @@ from app.modules.reporting.domain.entities import (
     SyncResult,
 )
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
     LocationProvider,
+    PassableVehicleClass,
     RejectionReason,
     ReportSeverity,
     ReportType,
@@ -81,6 +83,9 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             cv_confidence=m.cv_confidence,
             cv_is_roadway_blocked=m.cv_is_roadway_blocked,
             cv_verified_at=m.cv_verified_at,
+            lane_status=LaneStatus(m.lane_status) if m.lane_status else None,
+            passable_classes=[PassableVehicleClass(c) for c in (m.passable_classes or [])],
+            life_safety_risk=m.life_safety_risk,
         )
 
     def _media_to_domain(self, m: MediaObjectModel) -> MediaObject:
@@ -131,6 +136,9 @@ class SqlAlchemyReportingRepository(ReportingRepositoryPort):
             received_at=report.received_at,
             created_at=report.created_at,
             version=report.version,
+            lane_status=report.lane_status.value if report.lane_status else None,
+            passable_classes=[c.value for c in report.passable_classes],
+            life_safety_risk=report.life_safety_risk,
         )
         self.session.add(m)
         await self.session.flush()

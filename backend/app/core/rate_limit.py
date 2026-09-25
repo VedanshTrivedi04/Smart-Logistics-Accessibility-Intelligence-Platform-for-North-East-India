@@ -34,7 +34,8 @@ def _get_redis_client() -> aioredis.Redis:
     client = _redis_client
     if client is None:
         settings = get_settings()
-        client = aioredis.from_url(settings.REDIS_URL, socket_timeout=2.0)
+        redis_url = settings.REDIS_URL.replace("localhost", "127.0.0.1")
+        client = aioredis.from_url(redis_url, socket_timeout=2.0)
         _redis_client = client
     return client
 

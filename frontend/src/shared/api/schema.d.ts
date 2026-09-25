@@ -324,6 +324,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/network/seed-regional-network": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Correct road geometry glitches and expand network across all 8 NER states */
+        get: operations["seed_regional_highway_network_api_v1_network_seed_regional_network_get"];
+        put?: never;
+        /** Correct road geometry glitches and expand network across all 8 NER states */
+        post: operations["seed_regional_highway_network_api_v1_network_seed_regional_network_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports": {
         parameters: {
             query?: never;
@@ -849,6 +867,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/predict-risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Predict disruption/blockage probability for a road edge */
+        post: operations["predict_risk_api_v1_ai_predict_risk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/verify-photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Classify a field-report photo for hazard type, severity, and blockage */
+        post: operations["verify_photo_api_v1_ai_verify_photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/auto-triage-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run CV hazard verification against an already-submitted report's photo */
+        post: operations["auto_triage_report_api_v1_ai_auto_triage_report_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/estimate-eta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Estimate calibrated, terrain/weather-adjusted travel time for a route */
+        post: operations["estimate_eta_api_v1_ai_estimate_eta_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/optimize-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Optimize vehicle-to-delivery assignment and stop ordering (CVRPTW-R) */
+        post: operations["optimize_dispatch_api_v1_ai_optimize_dispatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/transcribe-voice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transcribe and translate a field officer's spoken voice note */
+        post: operations["transcribe_voice_api_v1_ai_transcribe_voice_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hazard/risk-zones": {
         parameters: {
             query?: never;
@@ -1066,6 +1186,14 @@ export interface components {
             /** Edges */
             edges: components["schemas"]["RouteEdgeResponse"][];
         };
+        /** AutoTriageReportRequest */
+        AutoTriageReportRequest: {
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+        };
         /** BatchIngestResponse */
         BatchIngestResponse: {
             /**
@@ -1116,6 +1244,29 @@ export interface components {
             succeeded: Record<string, never>[];
             /** Failed */
             failed: Record<string, never>[];
+        };
+        /** Body_transcribe_voice_api_v1_ai_transcribe_voice_post */
+        Body_transcribe_voice_api_v1_ai_transcribe_voice_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /** Source Language */
+            source_language: string;
+            /**
+             * Target Language
+             * @default en
+             */
+            target_language: string;
+        };
+        /** Body_verify_photo_api_v1_ai_verify_photo_post */
+        Body_verify_photo_api_v1_ai_verify_photo_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
         };
         /** BreadcrumbResponse */
         BreadcrumbResponse: {
@@ -1474,6 +1625,20 @@ export interface components {
              */
             decided_at: string;
         };
+        /** DispatchRouteResponse */
+        DispatchRouteResponse: {
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Commitment Ids */
+            commitment_ids: string[];
+            /** Total Distance Meters */
+            total_distance_meters: number;
+            /** Total Duration Seconds */
+            total_duration_seconds: number;
+        };
         /** DispatchTripRequest */
         DispatchTripRequest: {
             /**
@@ -1621,6 +1786,43 @@ export interface components {
              */
             is_full_closure: boolean;
         };
+        /** EstimateEtaRequest */
+        EstimateEtaRequest: {
+            /** Edge Ids */
+            edge_ids: string[];
+            /** Vehicle Id */
+            vehicle_id?: string | null;
+            /**
+             * Max Weight Kg
+             * @default 16000
+             */
+            max_weight_kg: number;
+            /**
+             * Height M
+             * @default 3.5
+             */
+            height_m: number;
+            /**
+             * Is Hazmat
+             * @default false
+             */
+            is_hazmat: boolean;
+            /**
+             * Cargo Priority
+             * @default TIER_2_ESSENTIAL
+             */
+            cargo_priority: string;
+        };
+        /** EstimateEtaResponse */
+        EstimateEtaResponse: {
+            /** Total Seconds */
+            total_seconds: number;
+            /** Lower Bound Seconds */
+            lower_bound_seconds: number;
+            /** Upper Bound Seconds */
+            upper_bound_seconds: number;
+            model_status: components["schemas"]["ModelStatus"];
+        };
         /** EvaluateImpactRequest */
         EvaluateImpactRequest: {
             /**
@@ -1736,6 +1938,15 @@ export interface components {
             /** Snap Distance M */
             snap_distance_m?: number | null;
         };
+        /** FeatureContributionResponse */
+        FeatureContributionResponse: {
+            /** Feature Name */
+            feature_name: string;
+            /** Value */
+            value: number;
+            /** Shap Contribution */
+            shap_contribution: number;
+        };
         /**
          * FixOutcome
          * @enum {string}
@@ -1759,6 +1970,12 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HazardClass
+         * @description Hazard categories detected by the CV verification model.
+         * @enum {string}
+         */
+        HazardClass: "LANDSLIDE" | "FLOOD_WATERLOGGING" | "ROAD_DAMAGE_CRACK" | "TREE_FALL" | "CLEAR_ROAD";
         /**
          * ImpactSeverity
          * @enum {string}
@@ -1839,6 +2056,12 @@ export interface components {
             /** Parent Id */
             parent_id: string | null;
         };
+        /**
+         * LaneStatus
+         * @description Observed lane availability on the affected road section.
+         * @enum {string}
+         */
+        LaneStatus: "BOTH_BLOCKED" | "SINGLE_LANE_OPEN" | "SHOULDER_ONLY" | "CLEAR";
         /**
          * LocationPointDTO
          * @description Geographic coordinates with accuracy and sensor source.
@@ -1977,6 +2200,12 @@ export interface components {
             status: string;
         };
         /**
+         * ModelStatus
+         * @description Runtime readiness of an inference backend (real model vs. stub fallback).
+         * @enum {string}
+         */
+        ModelStatus: "STUB" | "LOADED";
+        /**
          * NetworkVersionResponse
          * @description Response DTO for a network graph snapshot version.
          */
@@ -2000,11 +2229,64 @@ export interface components {
             /** Metadata */
             metadata?: Record<string, never>;
         };
+        /** OptimizeDispatchRequest */
+        OptimizeDispatchRequest: {
+            /**
+             * Depot Facility Id
+             * Format: uuid
+             */
+            depot_facility_id: string;
+            /** Commitment Ids */
+            commitment_ids: string[];
+            /** Vehicle Ids */
+            vehicle_ids: string[];
+        };
+        /** OptimizeDispatchResponse */
+        OptimizeDispatchResponse: {
+            /** Routes */
+            routes: components["schemas"]["DispatchRouteResponse"][];
+            /** Unassigned Commitment Ids */
+            unassigned_commitment_ids: string[];
+        };
+        /**
+         * PassableVehicleClass
+         * @description Vehicle classes the reporter observed getting through.
+         * @enum {string}
+         */
+        PassableVehicleClass: "HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE";
         /**
          * PolicyVersion
          * @enum {string}
          */
         PolicyVersion: "CONSERVATIVE_CRITICAL_V1" | "STANDARD_DISPATCH_V1";
+        /** PredictRiskRequest */
+        PredictRiskRequest: {
+            /**
+             * Edge Id
+             * Format: uuid
+             */
+            edge_id: string;
+            /** @default H6 */
+            horizon: components["schemas"]["RiskHorizon"];
+            /** Features */
+            features?: {
+                [key: string]: number;
+            } | null;
+        };
+        /** PredictRiskResponse */
+        PredictRiskResponse: {
+            /**
+             * Edge Id
+             * Format: uuid
+             */
+            edge_id: string;
+            horizon: components["schemas"]["RiskHorizon"];
+            /** Probability */
+            probability: number;
+            model_status: components["schemas"]["ModelStatus"];
+            /** Top Contributions */
+            top_contributions: components["schemas"]["FeatureContributionResponse"][];
+        };
         /**
          * PriorityTier
          * @enum {string}
@@ -2146,6 +2428,14 @@ export interface components {
             candidate_edge_id?: string | null;
             /** Candidate Bridge Id */
             candidate_bridge_id?: string | null;
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /** Passable Classes */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @default false
+             */
+            life_safety_risk: boolean;
         };
         /**
          * ReportCreateRequest
@@ -2199,6 +2489,19 @@ export interface components {
              * @description Explicitly snapped bridge ID
              */
             candidate_bridge_id?: string | null;
+            /** @description Observed lane availability */
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /**
+             * Passable Classes
+             * @description Vehicle classes observed passing
+             */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @description Reporter flags an acute risk to life
+             * @default false
+             */
+            life_safety_risk: boolean;
         };
         /**
          * ReportResponse
@@ -2242,6 +2545,14 @@ export interface components {
             rejection_notes?: string | null;
             /** Amendment Of Report Id */
             amendment_of_report_id?: string | null;
+            lane_status?: components["schemas"]["LaneStatus"] | null;
+            /** Passable Classes */
+            passable_classes?: components["schemas"]["PassableVehicleClass"][];
+            /**
+             * Life Safety Risk
+             * @default false
+             */
+            life_safety_risk: boolean;
             /**
              * Observed At
              * Format: date-time
@@ -2273,7 +2584,7 @@ export interface components {
          * @description Specific field observation types in North-East mountain terrain.
          * @enum {string}
          */
-        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OTHER";
+        ReportType: "LANDSLIDE" | "FLOODING" | "ROAD_DAMAGE" | "BRIDGE_COLLAPSE" | "TREE_FALL" | "WEATHER_HAZARD" | "SECURITY_INCIDENT" | "OBSTRUCTION" | "OTHER";
         /**
          * ResolutionReason
          * @description Enumerated justification for closing an operational incident.
@@ -2359,6 +2670,12 @@ export interface components {
          * @enum {string}
          */
         ReviewState: "SUBMITTED" | "PROVISIONAL_CAUTION" | "UNDER_REVIEW" | "MORE_INFO_NEEDED" | "VERIFIED" | "REJECTED";
+        /**
+         * RiskHorizon
+         * @description Forecast horizon for edge disruption risk prediction.
+         * @enum {string}
+         */
+        RiskHorizon: "H3" | "H6" | "H12" | "H24";
         /**
          * RiskZoneRefreshResponse
          * @description Response DTO for the risk-assessment refresh endpoint.
@@ -2550,6 +2867,18 @@ export interface components {
             /** Fixes */
             fixes: components["schemas"]["RawTelemetryFixInput"][];
         };
+        /** TranscribeVoiceResponse */
+        TranscribeVoiceResponse: {
+            /** Source Language */
+            source_language: string;
+            /** Target Language */
+            target_language: string;
+            /** Transcribed Text */
+            transcribed_text: string;
+            /** Translated Text */
+            translated_text: string;
+            model_status: components["schemas"]["ModelStatus"];
+        };
         /** TripImpactResponse */
         TripImpactResponse: {
             /**
@@ -2723,7 +3052,7 @@ export interface components {
         };
         /**
          * UploadTicketResponse
-         * @description Pre-signed PUT upload ticket.
+         * @description Direct-upload ticket: a presigned PUT, or a signed multipart POST (Cloudinary).
          */
         UploadTicketResponse: {
             /**
@@ -2733,6 +3062,19 @@ export interface components {
             media_id: string;
             /** Upload Url */
             upload_url: string;
+            /**
+             * Upload Method
+             * @default PUT
+             */
+            upload_method: string;
+            /** Upload Headers */
+            upload_headers?: {
+                [key: string]: string;
+            };
+            /** Upload Fields */
+            upload_fields?: {
+                [key: string]: string;
+            };
             /** Object Key */
             object_key: string;
             /** Expires In Seconds */
@@ -2867,6 +3209,19 @@ export interface components {
          * @enum {string}
          */
         VehicleType: "TRUCK_HEAVY" | "TRUCK_MEDIUM" | "VAN_LIGHT" | "FOUR_WHEEL_DRIVE" | "AMBULANCE_RESCUE" | "TWO_WHEEL_SPECIAL";
+        /** VerifyPhotoResponse */
+        VerifyPhotoResponse: {
+            /** Hazard Detected */
+            hazard_detected: boolean;
+            hazard_class: components["schemas"]["HazardClass"];
+            /** Severity Score */
+            severity_score: number;
+            /** Is Roadway Blocked */
+            is_roadway_blocked: boolean;
+            /** Confidence */
+            confidence: number;
+            model_status: components["schemas"]["ModelStatus"];
+        };
     };
     responses: never;
     parameters: never;
@@ -3342,6 +3697,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NetworkVersionResponse"] | null;
+                };
+            };
+        };
+    };
+    seed_regional_highway_network_api_v1_network_seed_regional_network_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    seed_regional_highway_network_api_v1_network_seed_regional_network_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -4491,6 +4886,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvaluateImpactSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    predict_risk_api_v1_ai_predict_risk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PredictRiskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PredictRiskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_photo_api_v1_ai_verify_photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_verify_photo_api_v1_ai_verify_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyPhotoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auto_triage_report_api_v1_ai_auto_triage_report_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoTriageReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyPhotoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    estimate_eta_api_v1_ai_estimate_eta_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EstimateEtaRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstimateEtaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    optimize_dispatch_api_v1_ai_optimize_dispatch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptimizeDispatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OptimizeDispatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_voice_api_v1_ai_transcribe_voice_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcribe_voice_api_v1_ai_transcribe_voice_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscribeVoiceResponse"];
                 };
             };
             /** @description Validation Error */

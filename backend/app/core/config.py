@@ -70,14 +70,21 @@ class Settings(BaseSettings):
     REDIS_CELERY_URL: str = Field(..., description="Redis URL for Celery broker.")
 
     # ────────────────────────────────────────────────────
-    # Object storage (MinIO / S3-compatible)
+    # Object storage: "s3" (MinIO / S3-compatible) or "cloudinary"
     # ────────────────────────────────────────────────────
-    OBJECT_STORAGE_ENDPOINT: str = Field(..., description="MinIO/S3 endpoint URL.")
-    OBJECT_STORAGE_ACCESS_KEY: str = Field(...)
-    OBJECT_STORAGE_SECRET_KEY: str = Field(...)
+    STORAGE_BACKEND: Literal["s3", "cloudinary"] = "s3"
+    OBJECT_STORAGE_ENDPOINT: str = ""
+    OBJECT_STORAGE_ACCESS_KEY: str = ""
+    OBJECT_STORAGE_SECRET_KEY: str = ""
     OBJECT_STORAGE_BUCKET_QUARANTINE: str = "ner-media-quarantine"
     OBJECT_STORAGE_BUCKET_CLEAN: str = "ner-media-clean"
     OBJECT_STORAGE_REGION: str = "us-east-1"
+
+    # Cloudinary (used when STORAGE_BACKEND=cloudinary). Uploads are private ("authenticated" delivery).
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_FOLDER: str = "ner"
 
     # ────────────────────────────────────────────────────
     # Security
@@ -155,6 +162,24 @@ class Settings(BaseSettings):
                 "Use DATABASE_URL_DIRECT for Alembic migrations."
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_storage_backend(self) -> Settings:
+        if self.STORAGE_BACKEND == "s3":
+            missing = [
+                name
+                for name in ("OBJECT_STORAGE_ENDPOINT", "OBJECT_STORAGE_ACCESS_KEY", "OBJECT_STORAGE_SECRET_KEY")
+                if not getattr(self, name)
+            ]
+        else:
+            missing = [
+                name
+                for name in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")
+                if not getattr(self, name)
+            ]
+        if missing:
+            raise ValueError(f"STORAGE_BACKEND={self.STORAGE_BACKEND} requires: {', '.join(missing)}")
+        return self
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:

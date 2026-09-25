@@ -128,7 +128,7 @@ async function pass(deps: EngineDeps, summary: SyncSummary): Promise<SyncSummary
       try {
         for (const m of pendingUploads) {
           const ticket = await transport.requestUploadTicket({ fileName: m.fileName, sizeBytes: m.size, mimeType: m.mimeType, sha256: await hash(m.blob) });
-          await transport.putObject(ticket.uploadUrl, m.blob, m.mimeType);
+          await transport.putObject(ticket, m.blob, m.mimeType);
           await transport.confirmUpload(ticket.mediaId, {});
           // Record progress per file so an interrupted run never re-uploads confirmed photos.
           await db.put("local_media", { ...m, serverMediaId: ticket.mediaId });

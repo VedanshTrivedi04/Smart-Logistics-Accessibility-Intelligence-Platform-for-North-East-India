@@ -39,7 +39,8 @@ async def _check_redis_connectivity() -> dict[str, str]:
     """Ping Redis and return status dict."""
     settings = get_settings()
     try:
-        client = aioredis.from_url(settings.REDIS_URL, socket_timeout=3.0)
+        redis_url = settings.REDIS_URL.replace("localhost", "127.0.0.1")
+        client = aioredis.from_url(redis_url, socket_timeout=3.0)
         pong = await client.ping()
         await client.aclose()
         return {"status": "ok", "ping": str(pong)}

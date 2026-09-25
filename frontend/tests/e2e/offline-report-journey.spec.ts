@@ -18,8 +18,8 @@ async function fillWizardOffline(page: Page) {
   await page.getByLabel("Latitude").fill("26.1445");
   await page.getByLabel("Longitude").fill("91.7362");
   await page.getByLabel(/Accuracy/).fill("30");
-  await page.getByRole("button", { name: /use these coordinates/i }).click();
-  await expect(page.getByText("Location set")).toBeVisible();
+  await page.getByRole("button", { name: /apply coordinates/i }).click();
+  await expect(page.getByText(/Accuracy · /)).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByLabel(/Describe what you see/).fill(`${MARKER} debris across one lane`);
   await page.getByRole("button", { name: "Next" }).click();
@@ -39,7 +39,7 @@ test("field officer saves offline, survives a reload, and syncs exactly once", a
   await context.setOffline(true);
   await fillWizardOffline(page);
   await page.getByRole("button", { name: /save on device and queue for sending/i }).click();
-  await expect(page.getByText("Saved on device — not yet submitted")).toBeVisible();
+  await expect(page.getByText("Saved on device — queued for synchronization")).toBeVisible();
 
   // Restart the app while still offline: the report must still be there and still not "submitted".
   await page.goto("/field/queue");

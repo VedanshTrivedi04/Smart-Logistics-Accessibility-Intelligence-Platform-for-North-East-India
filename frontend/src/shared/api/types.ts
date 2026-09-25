@@ -39,6 +39,9 @@ export type BatchSyncResponse = S["BatchSyncResponse"];
 
 export type AccessibilityStatus = S["AccessibilityStatus"];
 export type ReportType = S["ReportType"];
+export type LaneStatus = S["LaneStatus"];
+export type PassableVehicleClass = S["PassableVehicleClass"];
+
 export type ReportSeverity = S["ReportSeverity"];
 export type ReviewState = S["ReviewState"];
 export type IncidentLifecycle = S["IncidentLifecycle"];
@@ -97,6 +100,7 @@ export const REPORT_TYPES: readonly ReportType[] = [
   "ROAD_DAMAGE",
   "BRIDGE_COLLAPSE",
   "TREE_FALL",
+  "OBSTRUCTION",
   "WEATHER_HAZARD",
   "SECURITY_INCIDENT",
   "OTHER",
