@@ -15,6 +15,8 @@ export interface ReportLocation {
   altitude_m?: number | null;
 }
 
+export type PassableVehicleClass = "HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE";
+
 /** What the officer captured. It is an observation; nothing here is verified. */
 export interface ReportPayload {
   reportType: ReportType | null;
@@ -26,7 +28,7 @@ export interface ReportPayload {
   candidateEdgeId: string | null;
   mediaLocalIds: string[];
   laneStatus?: "BOTH_BLOCKED" | "SINGLE_LANE_OPEN" | "SHOULDER_ONLY" | "CLEAR" | null;
-  passableClasses?: Array<"HEAVY_TRUCK" | "LIGHT_4X4" | "EMERGENCY_ONLY" | "NONE">;
+  passableClasses?: PassableVehicleClass[];
   lifeSafetyRisk?: boolean;
   roadSide?: "HILLSIDE" | "VALLEY_SIDE" | "BOTH" | "UNKNOWN" | null;
   /** True while any attached photo came from the dev-only simulated camera. */

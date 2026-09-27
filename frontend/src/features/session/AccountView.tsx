@@ -12,7 +12,11 @@ export function AccountView() {
   const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict, districtCircles } = useScopeFilter();
 
   if (!principal) return null;
-  const isFieldOfficer = principal.role === "FIELD_OFFICER" || principal.role === "ROAD_INSPECTION" || principal.role === "LOCAL_AUTHORITY";
+  const isFieldOfficer = principal.role === "FIELD_OFFICER";
+  const isInspector = principal.role === "ROAD_INSPECTION";
+  const isFleetManager = principal.role === "FLEET_MANAGER";
+  const isDeliveryCoordinator = principal.role === "DELIVERY_COORDINATOR";
+  const isTransportOperator = principal.role === "TRANSPORT_OPERATOR";
   const caps = [...principal.capabilities].sort();
 
   const neStates = [
@@ -56,6 +60,134 @@ export function AccountView() {
           </div>
           <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
             Officer: {principal.display_name || "Elangbam Meitei"}
+          </span>
+        </div>
+      )}
+
+      {/* Inspector Scoped Banner */}
+      {isInspector && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #4a044e 0%, #701a75 50%, #431407 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #d946ef",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(217, 70, 239, 0.2)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🔬 Senior Road &amp; Infrastructure Inspector · Engineering &amp; Verification Wing</span>
+              <span style={{ background: "#c026d3", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Inspector Surface
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#f5d0fe", marginTop: "0.2rem" }}>
+              Authorized for structural damage assessments, corridor passability checks, and authoritative closure / clearance decisions on assigned highway networks.
+            </div>
+          </div>
+          <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
+            Inspector: {principal.display_name || "Girish Nongmeikapam"}
+          </span>
+        </div>
+      )}
+
+      {/* Fleet Manager Scoped Banner */}
+      {isFleetManager && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #60a5fa",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(37, 99, 235, 0.2)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🚚 Fleet Operations Manager Active · Regional Logistics Control</span>
+              <span style={{ background: "#2563eb", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Fleet Operations
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#bfdbfe", marginTop: "0.2rem" }}>
+              Authorized for vehicle assignments, driver scheduling, multi-stop dispatch plans, and coordinating responses to road network disruptions.
+            </div>
+          </div>
+          <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
+            Manager: {principal.display_name || "Hema Goswami"}
+          </span>
+        </div>
+      )}
+
+      {/* Delivery Coordinator Scoped Banner */}
+      {isDeliveryCoordinator && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #064e3b 0%, #065f46 50%, #047857 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #34d399",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(5, 150, 105, 0.2)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📦 Delivery Logistics Coordinator Active · Consignment & SLA Management</span>
+              <span style={{ background: "#059669", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Delivery Logistics
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: "0.2rem" }}>
+              Authorized for consignment intake, cargo priorities, delivery commitment tracking, and dispatch route planning.
+            </div>
+          </div>
+          <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
+            Coordinator: {principal.display_name || "Indraneil"}
+          </span>
+        </div>
+      )}
+
+      {/* Transport Operator Scoped Banner */}
+      {isTransportOperator && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #78350f 0%, #92400e 50%, #b45309 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #fbbf24",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(217, 119, 6, 0.2)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🚛 Transport Operator / Driver Active · Route Execution Desk</span>
+              <span style={{ background: "#d97706", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Transport Operator
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#fef3c7", marginTop: "0.2rem" }}>
+              Authorized for live trip execution, automated telemetry streaming, waypoint inspection, and receiving route diversion directives.
+            </div>
+          </div>
+          <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.6rem", borderRadius: "6px" }}>
+            Operator: {principal.display_name || "Jayashree Teron"}
           </span>
         </div>
       )}
@@ -173,6 +305,14 @@ export function AccountView() {
                 ? (principal.display_name || "Bhaskar Singh")
                 : isFieldOfficer
                 ? (principal.display_name || "Elangbam Meitei")
+                : isInspector
+                ? (principal.display_name || "Girish Nongmeikapam")
+                : isFleetManager
+                ? (principal.display_name || "Hema Goswami")
+                : isDeliveryCoordinator
+                ? (principal.display_name || "Indraneil")
+                : isTransportOperator
+                ? (principal.display_name || "Jayashree Teron")
                 : (principal.display_name || "MDoNER Regional Commander")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -182,6 +322,14 @@ export function AccountView() {
                 ? (principal.email ?? "bhaskar.singh@assam-gov.in")
                 : isFieldOfficer
                 ? (principal.email ?? "elangbam.meitei@ner-field.gov.in")
+                : isInspector
+                ? (principal.email ?? "girish.inspector@ner-roads.gov.in")
+                : isFleetManager
+                ? (principal.email ?? "hema.goswami@ner-logistics.in")
+                : isDeliveryCoordinator
+                ? (principal.email ?? "indraneil@ner-deliveries.in")
+                : isTransportOperator
+                ? (principal.email ?? "jayashree.driver@ner-logistics.in")
                 : (principal.email ?? "commander@mdoner.gov.in")}
             </div>
           </div>
@@ -189,10 +337,38 @@ export function AccountView() {
           <div style={{ background: "var(--surface-2)", padding: "0.9rem 1.1rem", borderRadius: "12px", border: "1px solid var(--border)" }}>
             <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Role</div>
             <div style={{ fontSize: "1.1rem", fontWeight: 800, color: isDistrictOfficer ? "#059669" : "#0284c7", marginTop: "0.2rem" }}>
-              {isDistrictOfficer ? "District Incident Verifier" : isStateAuthority ? "State Authority" : isFieldOfficer ? "Senior Field Officer" : (ROLE_LABEL[principal.role] ?? "Regional Authority")}
+              {isDistrictOfficer
+                ? "District Incident Verifier"
+                : isStateAuthority
+                ? "State Authority"
+                : isFieldOfficer
+                ? "Senior Field Officer"
+                : isInspector
+                ? "Infrastructure Inspector"
+                : isFleetManager
+                ? "Fleet Operations Manager"
+                : isDeliveryCoordinator
+                ? "Delivery Logistics Coordinator"
+                : isTransportOperator
+                ? "Transport Operator / Driver"
+                : (ROLE_LABEL[principal.role] ?? "Regional Authority")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-              Level: {isDistrictOfficer ? `${assignedDistrict} District Operations Command` : isStateAuthority ? `${assignedState} State Operations Command` : isFieldOfficer ? "Active Lifeline Reconnaissance & Ground Patrol" : "Inter-State Regional Command"}
+              Level: {isDistrictOfficer
+                ? `${assignedDistrict} District Operations Command`
+                : isStateAuthority
+                ? `${assignedState} State Operations Command`
+                : isFieldOfficer
+                ? "Active Lifeline Reconnaissance & Ground Patrol"
+                : isInspector
+                ? "Structural Corridor Adjudication & Road Verification"
+                : isFleetManager
+                ? "Regional Fleet Allocation & Disruption Coordination"
+                : isDeliveryCoordinator
+                ? "Consignment SLA Management & Dispatch Planning"
+                : isTransportOperator
+                ? "Ground Trip Telemetry & Live Execution"
+                : "Inter-State Regional Command"}
             </div>
           </div>
 
@@ -205,6 +381,10 @@ export function AccountView() {
                 ? "Assam State Department of Transport"
                 : isFieldOfficer
                 ? (principal.org_name || "North East Strategic Lifelines Division")
+                : isInspector
+                ? (principal.org_name || "NER Road Infrastructure Inspection Directorate")
+                : (isFleetManager || isDeliveryCoordinator || isTransportOperator)
+                ? (principal.org_name || "North East Regional Logistics Fleet")
                 : (principal.org_name || "MDoNER")}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -214,6 +394,10 @@ export function AccountView() {
                 ? "Government of Assam · Transport & Logistics"
                 : isFieldOfficer
                 ? "Field Operations & Emergency Patrol Division"
+                : isInspector
+                ? "Engineering & Road Assessment Directorate"
+                : (isFleetManager || isDeliveryCoordinator || isTransportOperator)
+                ? "Regional Logistics & Fleet Operations"
                 : "Ministry of Development of North Eastern Region"}
             </div>
           </div>
@@ -227,6 +411,10 @@ export function AccountView() {
                 ? `${assignedState} State Corridors & Districts`
                 : isFieldOfficer
                 ? "NH-6 / NH-27 Lifeline Patrol Sectors"
+                : isInspector
+                ? "Highways & Corridor Networks"
+                : (isFleetManager || isDeliveryCoordinator || isTransportOperator)
+                ? "Assigned Fleet & Logistics Operations"
                 : "North Eastern Region (NER)"}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
@@ -236,6 +424,10 @@ export function AccountView() {
                 ? "Assam State Highways · District Emergency Triage"
                 : isFieldOfficer
                 ? "Strategic Mountain Corridors · Rapid Hazard Reporting"
+                : isInspector
+                ? "Designated Inspection Sectors · Ground Truth Verification"
+                : (isFleetManager || isDeliveryCoordinator || isTransportOperator)
+                ? "Vehicles, Drivers, Consignments & Disruption Response"
                 : "All 8 States · Full Access Scope"}
             </div>
           </div>

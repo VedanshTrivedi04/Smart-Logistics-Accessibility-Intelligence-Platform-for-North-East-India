@@ -6,14 +6,15 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
 from app.core.db import DbSession, get_db_session
-from app.core.security import require_capability
+from app.core.security import require_any_capability, require_capability
 from app.modules.identity.public import Capability, PrincipalContext, Role
 from app.modules.logistics.api.schemas import (
     CommitmentCreateRequest,
     CommitmentResponse,
+    CommitmentStatusUpdateRequest,
     DispatchTripRequest,
     DriverCreateRequest,
     DriverResponse,
@@ -30,7 +31,7 @@ from app.modules.logistics.application.dispatch_trip import DispatchTripUseCase
 from app.modules.logistics.application.update_trip_status import UpdateTripStatusUseCase
 from app.modules.logistics.domain.entities import Trip
 from app.modules.logistics.domain.enums import TripStatus
-from app.modules.logistics.domain.exceptions import TripNotFoundError
+from app.modules.logistics.domain.exceptions import CommitmentNotFoundError, TripNotFoundError
 from app.modules.logistics.infrastructure.repository import SqlAlchemyLogisticsRepository
 
 router = APIRouter(prefix="/logistics", tags=["Logistics & Fleet"])
@@ -53,6 +54,7 @@ def _to_trip_response(t: Trip) -> TripResponse:
             TripStopResponse(
                 id=s.id,
                 trip_id=s.trip_id,
+                commitment_id=s.commitment_id,
                 sequence_order=s.sequence_order,
                 stop_type=s.stop_type,
                 facility_id=s.facility_id,
@@ -209,6 +211,8 @@ async def create_commitment(
         destination_facility_id=payload.destination_facility_id,
         required_before=payload.required_before,
         consigned_volume_m3=payload.consigned_volume_m3,
+        is_hazmat=payload.is_hazmat,
+        requires_cold_chain=payload.requires_cold_chain,
     )
     # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
     await session.commit()
@@ -224,6 +228,64 @@ async def list_commitments(
     repo = SqlAlchemyLogisticsRepository(session)
     comms = await repo.list_commitments(principal.org_id, status=status_filter)
     return [CommitmentResponse.from_entity(c) for c in comms]
+
+
+@router.get("/commitments/{commitment_id}", response_model=CommitmentResponse)
+async def get_commitment(
+    commitment_id: UUID,
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_FLEET)),
+    session: DbSession = Depends(get_db_session),
+) -> CommitmentResponse:
+    repo = SqlAlchemyLogisticsRepository(session)
+    comm = await repo.get_commitment_by_id(commitment_id)
+    if comm is None or (comm.organization_id != principal.org_id and principal.role not in (Role.REGIONAL_AUTHORITY, Role.EMERGENCY_COORDINATOR)):
+        raise CommitmentNotFoundError(f"Delivery commitment '{commitment_id}' not found")
+    return CommitmentResponse.from_entity(comm)
+
+
+@router.patch("/commitments/{commitment_id}/status", response_model=CommitmentResponse)
+async def update_commitment_status(
+    commitment_id: UUID,
+    payload: CommitmentStatusUpdateRequest,
+    principal: PrincipalContext = Depends(require_any_capability(Capability.DISPATCH_ROUTE, Capability.SUBMIT_GPS)),
+    session: DbSession = Depends(get_db_session),
+) -> CommitmentResponse:
+    repo = SqlAlchemyLogisticsRepository(session)
+    comm = await repo.get_commitment_by_id(commitment_id)
+    if comm is None or (comm.organization_id != principal.org_id and principal.role not in (Role.REGIONAL_AUTHORITY, Role.EMERGENCY_COORDINATOR)):
+        raise CommitmentNotFoundError(f"Delivery commitment '{commitment_id}' not found")
+
+    # Scoped Driver RBAC Protection:
+    # A transport operator (driver) can only update status/POD for commitments on their own actively assigned trip.
+    if principal.role == Role.TRANSPORT_OPERATOR:
+        if principal.user_id is None:
+            raise HTTPException(status_code=403, detail="Transport operator profile not linked to user")
+        driver = await repo.get_driver_by_user_id(principal.user_id)
+        if not driver:
+            raise HTTPException(status_code=403, detail="Transport operator driver profile not registered")
+        active_trip = await repo.get_active_trip_for_driver(driver.id)
+        if not active_trip or commitment_id not in active_trip.commitment_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Drivers are only authorized to update consignments assigned to their active mission",
+            )
+
+    updated = await repo.update_commitment_status(
+        commitment_id=commitment_id,
+        status=payload.status,
+        delivered_units=payload.delivered_quantity_units,
+        shortage_reason=payload.shortage_reason,
+        recipient_name=payload.recipient_name,
+        recipient_organization=payload.recipient_organization,
+        pod_timestamp=payload.pod_timestamp,
+        pod_signature_acknowledgement=payload.pod_signature_acknowledgement,
+        delivery_condition=payload.delivery_condition,
+    )
+    if updated is None:
+        raise CommitmentNotFoundError(f"Delivery commitment '{commitment_id}' not found")
+
+    await session.commit()
+    return CommitmentResponse.from_entity(updated)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -281,12 +343,28 @@ async def get_trip(
 async def transition_trip(
     trip_id: UUID,
     payload: TripTransitionRequest,
-    principal: PrincipalContext = Depends(require_capability(Capability.DISPATCH_ROUTE)),
+    principal: PrincipalContext = Depends(require_any_capability(Capability.DISPATCH_ROUTE, Capability.SUBMIT_GPS)),
     session: DbSession = Depends(get_db_session),
 ) -> TripResponse:
     repo = SqlAlchemyLogisticsRepository(session)
+    trip = await repo.get_trip_by_id(trip_id)
+    if trip is None or trip.organization_id != principal.org_id:
+        raise TripNotFoundError(f"Trip '{trip_id}' not found")
+
+    # Scoped Driver RBAC Protection:
+    if principal.role == Role.TRANSPORT_OPERATOR:
+        if principal.user_id is None:
+            raise HTTPException(status_code=403, detail="Transport operator profile not linked to user")
+        driver = await repo.get_driver_by_user_id(principal.user_id)
+        if not driver or trip.driver_id != driver.id:
+            raise HTTPException(status_code=403, detail="Drivers are only authorized to transition their assigned trip")
+
     use_case = UpdateTripStatusUseCase(repo)
-    trip = await use_case.execute(trip_id, payload.target_status)
+    updated = await use_case.execute(
+        trip_id=trip_id,
+        target_status=payload.target_status,
+        cancellation_reason=payload.cancellation_reason,
+    )
     # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
     await session.commit()
-    return _to_trip_response(trip)
+    return _to_trip_response(updated)

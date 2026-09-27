@@ -80,3 +80,6 @@ export function downloadText(filename: string, text: string, mime = "text/csv;ch
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Date/time formatting lives in shared/lib/time.ts (formatDateTime, formatAge) — one implementation,
+// so a timestamp reads the same everywhere in the app instead of drifting per feature.

@@ -137,6 +137,7 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
 
   // Make the field screens available offline: after a verified sign-in, and again when the connection returns.
   const [offlineReady, setOfflineReady] = useState(false);
+  const surface = session.surface;
   useEffect(() => {
     if (!verified || !("serviceWorker" in navigator)) return;
     let cancelled = false;
@@ -147,7 +148,9 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
       }
     };
     const warm = () => {
-      void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "warm-field-shell" })).catch(() => undefined);
+      // Only this session's own portal is warmed: fetching the other portal's screens for every
+      // sign-in wastes bandwidth and storage on a device that will never use them.
+      void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "warm-field-shell", surface })).catch(() => undefined);
       // The map code is loaded on demand, so fetch it now (online) for the worker to keep for offline use.
       void preloadMap();
       void waitUntilReady();
@@ -158,7 +161,7 @@ export function FieldOfflineProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.removeEventListener("online", warm);
     };
-  }, [verified]);
+  }, [verified, surface]);
 
   const askPersist = useCallback(async () => {
     setPersisted(await requestPersistentStorage());

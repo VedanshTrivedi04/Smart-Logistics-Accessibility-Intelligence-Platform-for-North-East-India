@@ -9,7 +9,7 @@ import { Banner, Button, Card, ErrorNotice, Field } from "@/shared/ui";
 
 const ROLES = [
   "REGIONAL_AUTHORITY", "STATE_AUTHORITY", "DISTRICT_VERIFIER", "EMERGENCY_COORDINATOR", "PLATFORM_ADMINISTRATOR",
-  "FIELD_OFFICER", "LOCAL_AUTHORITY", "ROAD_INSPECTION", "FLEET_MANAGER", "DELIVERY_COORDINATOR", "TRANSPORT_OPERATOR",
+  "FIELD_OFFICER", "ROAD_INSPECTION", "FLEET_MANAGER", "DELIVERY_COORDINATOR", "TRANSPORT_OPERATOR",
 ] as const;
 
 export const ORG_GOV_ID = "00000000-0000-4000-a000-000000000001";
@@ -25,7 +25,7 @@ export interface DemoPersona {
   orgName: string;
   title: string;
   scope: string;
-  portal: "government" | "field" | "logistics";
+  portal: "government" | "field" | "inspector" | "logistics";
   badge: string;
   icon: string;
   description: string;
@@ -105,20 +105,8 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     icon: "🚜",
     description: "On-ground geo-tagged incident reporting with photographic evidence and offline IndexedDB synchronization.",
   },
-  {
-    userId: "d0000006-0000-4000-8000-000000000006",
-    name: "Falguni Boro",
-    email: "falguni@village-assam.in",
-    role: "LOCAL_AUTHORITY",
-    orgId: ORG_FIELD_ID,
-    orgName: "Byrnihat Local Panchayat Authority",
-    title: "Local Community Representative",
-    scope: "Byrnihat-Nongpoh Border Belt",
-    portal: "field",
-    badge: "Local",
-    icon: "🏘️",
-    description: "Reports localized bridge scours, flash floods, and mudslides directly to the central intelligence platform.",
-  },
+
+  // ── 3. Road Inspection Personas ────────────────────────────
   {
     userId: "d0000007-0000-4000-8000-000000000007",
     name: "Girish Nongmeikapam",
@@ -126,12 +114,12 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     role: "ROAD_INSPECTION",
     orgId: ORG_FIELD_ID,
     orgName: "NER Highway Infrastructure Inspection Wing",
-    title: "PWD Bridge & Road Inspector",
-    scope: "NH-6 Mountain Bridges",
-    portal: "field",
+    title: "Senior Road & Infrastructure Inspector",
+    scope: "NH-6 Mountain Bridges & Critical Corridors",
+    portal: "inspector",
     badge: "Inspector",
-    icon: "🛠️",
-    description: "Performs technical structural evaluations of mountain bridges and records real-time axle-weight restrictions.",
+    icon: "🔬",
+    description: "Conducts authoritative damage assessments, structural checks, and road closure/clearance decisions on assigned corridors.",
   },
 
   // ── 3. Logistics & Transport Personas ──────────────────────
@@ -215,7 +203,7 @@ export function LoginView() {
   const session = useSession();
   const complete = useCompleteLogin();
 
-  const [activeTab, setActiveTab] = useState<"government" | "field" | "logistics" | "custom">("government");
+  const [activeTab, setActiveTab] = useState<"government" | "field" | "inspector" | "logistics" | "custom">("government");
   const [loggingInId, setLoggingInId] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -381,7 +369,32 @@ export function LoginView() {
             }}
           >
             <span>🚜</span>
-            <span>Field Operations (3)</span>
+            <span>Field Operations (1)</span>
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={activeTab === "inspector"}
+            onClick={() => setActiveTab("inspector")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.5rem",
+              border: "none",
+              fontWeight: 600,
+              fontSize: "0.92rem",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+              backgroundColor: activeTab === "inspector" ? "white" : "transparent",
+              color: activeTab === "inspector" ? "#0f172a" : "#64748b",
+              boxShadow: activeTab === "inspector" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            }}
+          >
+            <span>🔬</span>
+            <span>Inspector Portal (1)</span>
           </button>
 
           <button

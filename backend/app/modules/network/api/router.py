@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 from uuid import UUID
+import uuid
 
 from fastapi import APIRouter, Depends, Query, status
 from app.core.db import DbSession as AsyncSession, get_db
@@ -13,6 +14,8 @@ from app.core.security import (
     require_authenticated,
     require_capability,
 )
+from app.modules.incidents.domain.entities import OutboxEvent
+from app.modules.incidents.infrastructure.repository import SqlAlchemyIncidentRepository
 from app.modules.identity.domain.enums import Capability
 from app.modules.identity.domain.principal import PrincipalContext
 from app.modules.network.api.schemas import (
@@ -22,7 +25,11 @@ from app.modules.network.api.schemas import (
     NetworkVersionResponse,
     ReachabilityResponse,
 )
-from app.modules.network.application.declare_edge_status import DeclareEdgeStatusUseCase
+from app.modules.network.application.declare_edge_status import (
+    DeclareEdgeStatusUseCase,
+    EdgeStatusChangeNotification,
+    make_edge_status_outbox_notifier,
+)
 from app.modules.network.application.evaluate_reachability import (
     EvaluateFacilityReachabilityUseCase,
 )
@@ -129,7 +136,12 @@ async def declare_edge_status(
     principal: PrincipalContext = Depends(require_capability(Capability.UPDATE_ROAD_STATUS)),
 ) -> dict[str, Any]:
     repo = SqlAlchemyNetworkRepository(db)
-    use_case = DeclareEdgeStatusUseCase(edge_status_repo=repo, network_repo=repo)
+    incident_repo = SqlAlchemyIncidentRepository(db)
+    use_case = DeclareEdgeStatusUseCase(
+        edge_status_repo=repo,
+        network_repo=repo,
+        on_status_changed=make_edge_status_outbox_notifier(incident_repo),
+    )
 
     result = await use_case.execute(
         edge_id=edge_id,

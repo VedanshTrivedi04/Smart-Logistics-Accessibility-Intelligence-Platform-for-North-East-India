@@ -30,7 +30,10 @@ from app.modules.incidents.domain.entities import Incident
 from app.modules.incidents.domain.enums import IncidentLifecycle
 from app.modules.incidents.domain.exceptions import IncidentNotFoundError
 from app.modules.incidents.infrastructure.repository import SqlAlchemyIncidentRepository
-from app.modules.network.application.declare_edge_status import DeclareEdgeStatusUseCase
+from app.modules.network.application.declare_edge_status import (
+    DeclareEdgeStatusUseCase,
+    make_edge_status_outbox_notifier,
+)
 from app.modules.network.infrastructure.repository import SqlAlchemyNetworkRepository
 from app.modules.reporting.api.router import _to_response_dto
 from app.modules.reporting.api.schemas import ReportResponse
@@ -94,7 +97,9 @@ async def review_report(
     reporting_repo = SqlAlchemyReportingRepository(db)
     incident_repo = SqlAlchemyIncidentRepository(db)
     network_repo = SqlAlchemyNetworkRepository(db)
-    declare_use_case = DeclareEdgeStatusUseCase(network_repo, network_repo)
+    declare_use_case = DeclareEdgeStatusUseCase(
+        network_repo, network_repo, on_status_changed=make_edge_status_outbox_notifier(incident_repo)
+    )
 
     verify_use_case = VerifyReportUseCase(
         reporting_repo=reporting_repo,
@@ -187,7 +192,9 @@ async def resolve_incident(
 ) -> IncidentResponse:
     incident_repo = SqlAlchemyIncidentRepository(db)
     network_repo = SqlAlchemyNetworkRepository(db)
-    declare_use_case = DeclareEdgeStatusUseCase(network_repo, network_repo)
+    declare_use_case = DeclareEdgeStatusUseCase(
+        network_repo, network_repo, on_status_changed=make_edge_status_outbox_notifier(incident_repo)
+    )
 
     use_case = ResolveIncidentUseCase(
         incident_repo=incident_repo,

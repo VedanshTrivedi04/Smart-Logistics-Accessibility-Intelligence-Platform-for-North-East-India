@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { humanize } from "@/shared/lib/format";
 import { formatAge, formatDateTime } from "@/shared/lib/time";
 import { useNow } from "@/shared/lib/useNow";

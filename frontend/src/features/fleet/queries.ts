@@ -159,12 +159,23 @@ export interface CommitmentInput {
   origin_facility_id: string;
   destination_facility_id: string;
   required_before: string;
+  is_hazmat?: boolean;
+  requires_cold_chain?: boolean;
 }
 
 export function useCreateCommitment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CommitmentInput) => unwrap(() => api.POST("/api/v1/logistics/commitments", { body })),
+    mutationFn: (body: CommitmentInput) =>
+      unwrap(() =>
+        api.POST("/api/v1/logistics/commitments", {
+          body: {
+            ...body,
+            is_hazmat: body.is_hazmat ?? false,
+            requires_cold_chain: body.requires_cold_chain ?? false,
+          },
+        })
+      ),
     onSuccess: () => invalidateFleet(qc),
   });
 }
@@ -175,7 +186,15 @@ export interface TripInput {
   trip_code: string;
   scheduled_departure: string;
   commitment_ids: string[];
-  stops: Array<{ stop_type: StopType; facility_id: string | null; lat: number; lon: number; planned_arrival: string; planned_departure: string }>;
+  stops: Array<{
+    stop_type: StopType;
+    facility_id: string | null;
+    commitment_id?: string | null;
+    lat: number;
+    lon: number;
+    planned_arrival: string;
+    planned_departure: string;
+  }>;
 }
 
 export function useDispatchTrip() {
@@ -190,8 +209,62 @@ export function useDispatchTrip() {
 export function useTripTransition() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (i: { tripId: string; target: TripStatus }) =>
-      unwrap(() => api.POST("/api/v1/logistics/trips/{trip_id}/transition", { params: { path: { trip_id: i.tripId } }, body: { target_status: i.target } })),
+    mutationFn: (i: { tripId: string; target: TripStatus; cancellationReason?: string }) =>
+      unwrap(() =>
+        api.POST("/api/v1/logistics/trips/{trip_id}/transition", {
+          params: { path: { trip_id: i.tripId } },
+          body: { target_status: i.target, cancellation_reason: i.cancellationReason ?? null },
+        })
+      ),
+    onSuccess: () => invalidateFleet(qc),
+  });
+}
+
+export function useCommitment(commitmentId: string | null) {
+  const { scope } = useSession();
+  return useQuery({
+    queryKey: [...scope, "commitment", commitmentId],
+    enabled: commitmentId !== null,
+    queryFn: () =>
+      unwrap(() =>
+        api.GET("/api/v1/logistics/commitments/{commitment_id}", {
+          params: { path: { commitment_id: commitmentId as string } },
+        })
+      ),
+  });
+}
+
+export interface UpdateCommitmentStatusInput {
+  commitmentId: string;
+  status: DeliveryStatus;
+  deliveredUnits?: number;
+  shortageReason?: string;
+  recipientName?: string;
+  recipientOrganization?: string;
+  podTimestamp?: string;
+  podSignatureAcknowledgement?: string;
+  deliveryCondition?: string;
+}
+
+export function useUpdateCommitmentStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (i: UpdateCommitmentStatusInput) =>
+      unwrap(() =>
+        api.PATCH("/api/v1/logistics/commitments/{commitment_id}/status", {
+          params: { path: { commitment_id: i.commitmentId } },
+          body: {
+            status: i.status,
+            delivered_quantity_units: i.deliveredUnits ?? null,
+            shortage_reason: i.shortageReason ?? null,
+            recipient_name: i.recipientName ?? null,
+            recipient_organization: i.recipientOrganization ?? null,
+            pod_timestamp: i.podTimestamp ?? null,
+            pod_signature_acknowledgement: i.podSignatureAcknowledgement ?? null,
+            delivery_condition: i.deliveryCondition ?? null,
+          },
+        })
+      ),
     onSuccess: () => invalidateFleet(qc),
   });
 }

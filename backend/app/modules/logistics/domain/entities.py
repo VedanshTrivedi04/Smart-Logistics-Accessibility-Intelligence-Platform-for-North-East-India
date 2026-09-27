@@ -70,9 +70,20 @@ class DeliveryCommitment:
     destination_facility_id: UUID
     required_before: datetime
     status: DeliveryStatus
-    shortage_reason: str | None
-    created_at: datetime
-    updated_at: datetime
+    shortage_reason: str | None = None
+    is_hazmat: bool = False
+    requires_cold_chain: bool = False
+    recipient_name: str | None = None
+    recipient_organization: str | None = None
+    pod_timestamp: datetime | None = None
+    pod_signature_acknowledgement: str | None = None
+    delivery_condition: str | None = None
+    previous_trip_code: str | None = None
+    previous_trip_status: str | None = None
+    cancellation_reason: str | None = None
+    released_at: datetime | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass(frozen=True)
@@ -89,6 +100,7 @@ class TripStop:
     actual_arrival: datetime | None
     actual_departure: datetime | None
     status: StopStatus
+    commitment_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -131,16 +143,44 @@ def validate_trip_state_transition(current: TripStatus, target: TripStatus) -> b
     return target in allowed
 
 
+VALID_DELIVERY_TRANSITIONS: dict[DeliveryStatus, set[DeliveryStatus]] = {
+    DeliveryStatus.PENDING: {DeliveryStatus.DISPATCHED, DeliveryStatus.CANCELLED},
+    DeliveryStatus.DISPATCHED: {DeliveryStatus.IN_TRANSIT, DeliveryStatus.PENDING, DeliveryStatus.CANCELLED},
+    DeliveryStatus.IN_TRANSIT: {
+        DeliveryStatus.DELIVERED,
+        DeliveryStatus.PARTIALLY_DELIVERED,
+        DeliveryStatus.FAILED,
+        DeliveryStatus.PENDING,  # released if trip cancelled
+    },
+    DeliveryStatus.PARTIALLY_DELIVERED: {DeliveryStatus.DELIVERED, DeliveryStatus.FAILED},
+    DeliveryStatus.DELIVERED: set(),  # Terminal completion! No silent reset to PENDING
+    DeliveryStatus.FAILED: {DeliveryStatus.PENDING},  # Allows re-queueing by operations
+    DeliveryStatus.CANCELLED: {DeliveryStatus.PENDING},  # Reopening cancelled commitment
+}
+
+
+def validate_delivery_state_transition(current: DeliveryStatus, target: DeliveryStatus) -> bool:
+    """Validate if delivery state transition is legal under finite state machine."""
+    if current == target:
+        return True
+    allowed = VALID_DELIVERY_TRANSITIONS.get(current, set())
+    return target in allowed
+
+
+AT_RISK_THRESHOLD_MINUTES = 120
+
+
 def calculate_sla_status(
     required_before: datetime,
     current_status: DeliveryStatus,
     now_utc: datetime | None = None,
+    at_risk_threshold_minutes: int = AT_RISK_THRESHOLD_MINUTES,
 ) -> SlaStatus:
     """
     Calculate dynamic SLA status based on SLA deadline and delivery status:
     - If already DELIVERED: remains ON_TIME.
-    - If now >= required_before: BREACHED.
-    - If now >= required_before - 2 hours: AT_RISK.
+    - If now_utc >= required_before: BREACHED.
+    - If now_utc >= required_before - at_risk_threshold_minutes: AT_RISK.
     - Otherwise: ON_TIME.
     """
     if current_status == DeliveryStatus.DELIVERED:
@@ -149,7 +189,7 @@ def calculate_sla_status(
     if now_utc is None:
         now_utc = datetime.now(timezone.utc)
 
-    # Ensure timezone awareness
+    # Ensure timezone awareness (UTC normalized for North East India operations)
     if required_before.tzinfo is None:
         required_before = required_before.replace(tzinfo=timezone.utc)
     if now_utc.tzinfo is None:
@@ -158,7 +198,7 @@ def calculate_sla_status(
     remaining_seconds = (required_before - now_utc).total_seconds()
     if remaining_seconds <= 0:
         return SlaStatus.BREACHED
-    elif remaining_seconds <= 7200:  # 2 hours
+    elif remaining_seconds <= (at_risk_threshold_minutes * 60):
         return SlaStatus.AT_RISK
     return SlaStatus.ON_TIME
 

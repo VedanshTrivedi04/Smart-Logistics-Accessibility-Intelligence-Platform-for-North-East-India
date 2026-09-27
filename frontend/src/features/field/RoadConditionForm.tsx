@@ -8,7 +8,7 @@ import type { LaneStatus } from "@/shared/api";
 import { snapToCorridor } from "@/shared/lib/corridors";
 import { formatDistance } from "@/shared/lib/geo";
 import { Banner, Button, Card, Field, StatusBadge } from "@/shared/ui";
-import { validatePayload, type ReportLocation } from "./model";
+import { validatePayload, type PassableVehicleClass, type ReportLocation } from "./model";
 import { requestBackgroundSync, useOffline } from "./OfflineProvider";
 import { buildRoadConditionPayload, CONDITION_NOTE_CHIPS, OBSERVED_STATUS, type ObservedRoadStatus } from "./roadCondition";
 import { newDraft, queueDraft, saveDraft } from "./store";
@@ -28,7 +28,7 @@ export function RoadConditionForm({ segments, fix }: Props) {
   const [edgeId, setEdgeId] = useState<string | null>(null);
   const [status, setStatus] = useState<ObservedRoadStatus | null>(null);
   const [laneStatus, setLaneStatus] = useState<LaneStatus | null>(null);
-  const [passableClasses, setPassableClasses] = useState<string[]>([]);
+  const [passableClasses, setPassableClasses] = useState<PassableVehicleClass[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
@@ -44,7 +44,7 @@ export function RoadConditionForm({ segments, fix }: Props) {
 
   const chosen = useMemo(() => segments.find((s) => s.f.id === edgeId) ?? null, [segments, edgeId]);
 
-  const toggleVehicleClass = (cls: string) => {
+  const toggleVehicleClass = (cls: PassableVehicleClass) => {
     setPassableClasses((prev) => (prev.includes(cls) ? prev.filter((c) => c !== cls) : [...prev, cls]));
   };
 
@@ -216,9 +216,9 @@ export function RoadConditionForm({ segments, fix }: Props) {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
               {[
-                { id: "LIGHT_4X4", label: "🚙 4x4 / Light Utility" },
-                { id: "EMERGENCY_ONLY", label: "🚑 Emergency / Ambulance" },
-                { id: "HEAVY_TRUCK", label: "🚛 Multi-Axle Logistics Trucks" },
+                { id: "LIGHT_4X4" as const, label: "🚙 4x4 / Light Utility" },
+                { id: "EMERGENCY_ONLY" as const, label: "🚑 Emergency / Ambulance" },
+                { id: "HEAVY_TRUCK" as const, label: "🚛 Multi-Axle Logistics Trucks" },
               ].map((v) => (
                 <label key={v.id} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#ffffff", padding: "0.35rem 0.7rem", borderRadius: "6px", border: "1px solid #cbd5e1", cursor: "pointer", fontSize: "0.82rem" }}>
                   <input

@@ -202,6 +202,10 @@ def _register_routers(app: FastAPI) -> None:
     from app.modules.incidents.api import router as incidents_router
     app.include_router(incidents_router, prefix="/api/v1")
 
+    # Road inspection intelligence router
+    from app.modules.inspection.api.router import router as inspection_router
+    app.include_router(inspection_router, prefix="/api/v1/inspections")
+
     # Phase 5: fleet logistics & dispatch router
     from app.modules.logistics.api import router as logistics_router
     app.include_router(logistics_router, prefix="/api/v1")

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useEdgeRiskQuery, usePredictRisk } from "@/features/ai";
-import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
+import { Button, Card, ErrorNotice, StatusBadge } from "@/shared/ui";
 import type { PredictRiskResponse } from "@/shared/api";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function RiskExplainerDrawer({ edgeId, edgeLabel, onClose }: Props) {
-  const [horizon, setHorizon] = useState<"H24" | "H72">("H24");
+  const [horizon] = useState<"H24" | "H72">("H24");
   const riskQuery = useEdgeRiskQuery(edgeId, horizon === "H72" ? "H24" : horizon);
   const predictCustom = usePredictRisk();
   const [customResult, setCustomResult] = useState<PredictRiskResponse | null>(null);

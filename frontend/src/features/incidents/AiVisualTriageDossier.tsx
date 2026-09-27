@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAutoTriageReport } from "@/features/ai";
-import { Banner, Button, Card, ErrorNotice, StatusBadge } from "@/shared/ui";
+import { Button, Card, ErrorNotice, StatusBadge } from "@/shared/ui";
 import type { Report, VerifyPhotoResponse } from "@/shared/api";
 
 interface ReportWithCv extends Report {

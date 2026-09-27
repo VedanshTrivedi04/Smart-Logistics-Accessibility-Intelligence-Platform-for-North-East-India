@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Mic, Volume2, Sparkles, AlertCircle, FileText, CheckCircle2 } from "lucide-react";
+import { Mic, Sparkles, FileText } from "lucide-react";
 import { useVoiceReport, useTranscribeVoice, useSubmitTextReport } from "@/features/ai";
 import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
 import type { LocationPoint } from "@/shared/api";
@@ -76,7 +76,7 @@ export function VoiceReportSection({ location, onSuccess }: Props) {
       timerRef.current = setInterval(() => {
         setRecordDuration((prev) => prev + 1);
       }, 1000);
-    } catch (err) {
+    } catch {
       alert("Microphone access denied or not available. Use 'Simulate Field Voice' button for demo!");
     }
   };
@@ -294,11 +294,11 @@ export function VoiceReportSection({ location, onSuccess }: Props) {
                 <div className="stack" style={{ gap: "0.5rem" }}>
                   <div>
                     <span className="small muted" style={{ display: "block" }}>Original Transcript ({lang.toUpperCase()}):</span>
-                    <p style={{ margin: "2px 0 0 0", fontStyle: "italic" }}>"{transcript.original}"</p>
+                    <p style={{ margin: "2px 0 0 0", fontStyle: "italic" }}>&ldquo;{transcript.original}&rdquo;</p>
                   </div>
                   <div>
                     <span className="small muted" style={{ display: "block" }}>English Translation:</span>
-                    <p style={{ margin: "2px 0 0 0", fontWeight: 600 }}>"{transcript.translated}"</p>
+                    <p style={{ margin: "2px 0 0 0", fontWeight: 600 }}>&ldquo;{transcript.translated}&rdquo;</p>
                   </div>
                 </div>
               </div>
@@ -314,7 +314,7 @@ export function VoiceReportSection({ location, onSuccess }: Props) {
                     <strong>Detected Hazard:</strong> {voiceReport.data.report_type} ({voiceReport.data.severity})
                   </p>
                   <p className="small muted" style={{ margin: 0 }}>
-                    "{voiceReport.data.description}"
+                    &ldquo;{voiceReport.data.description}&rdquo;
                   </p>
                 </div>
               </Banner>
@@ -385,7 +385,7 @@ export function VoiceReportSection({ location, onSuccess }: Props) {
                     <strong>Detected Hazard:</strong> {textReport.data.report_type} ({textReport.data.severity})
                   </p>
                   <p className="small muted" style={{ margin: 0 }}>
-                    "{textReport.data.description}"
+                    &ldquo;{textReport.data.description}&rdquo;
                   </p>
                 </div>
               </Banner>

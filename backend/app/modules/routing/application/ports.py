@@ -21,7 +21,7 @@ class RoutingRepositoryPort(ABC):
         self,
         lon: float,
         lat: float,
-        max_distance_m: float = 5000.0,
+        max_distance_m: float = 100000.0,
     ) -> tuple[UUID, int, float] | None:
         """Snaps coordinate to nearest road_node. Returns (node_id, node_index, distance_meters)."""
 

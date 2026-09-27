@@ -1,5 +1,5 @@
 import type { LaneStatus, ReportSeverity } from "@/shared/api";
-import { emptyPayload, type ReportLocation, type ReportPayload } from "./model";
+import { emptyPayload, type PassableVehicleClass, type ReportLocation, type ReportPayload } from "./model";
 
 /**
  * A field officer's observation of one road segment's current condition ("one lane is open again",
@@ -38,7 +38,7 @@ export interface RoadConditionInput {
   edgeLabel: string;
   location: ReportLocation;
   laneStatus?: LaneStatus | null;
-  passableClasses?: string[];
+  passableClasses?: PassableVehicleClass[];
   now?: Date;
 }
 

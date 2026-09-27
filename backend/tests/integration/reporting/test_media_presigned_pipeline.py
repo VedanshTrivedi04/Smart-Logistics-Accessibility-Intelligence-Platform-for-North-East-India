@@ -46,7 +46,7 @@ def unauthorized_principal() -> PrincipalContext:
         org_id=ORG_FIELD_ID,
         org_name="Assam Field Authority",
         org_kind=OrgKind.FIELD_AUTHORITY,
-        role=Role.LOCAL_AUTHORITY,
+        role=Role.FIELD_OFFICER,
         capabilities=frozenset([Capability.VIEW_REPORT_SUMMARY]),  # Lacks VIEW_REPORT_MEDIA
     )
 

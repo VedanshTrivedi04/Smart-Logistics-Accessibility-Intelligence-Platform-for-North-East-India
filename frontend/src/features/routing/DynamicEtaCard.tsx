@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useEstimateEta } from "@/features/ai";
 import { formatDuration } from "@/shared/lib/time";
-import { Banner, Button, Card, ErrorNotice, StatusBadge } from "@/shared/ui";
+import { Button, Card, ErrorNotice } from "@/shared/ui";
 import type { EstimateEtaResponse, RoutePlan } from "@/shared/api";
 
 interface Props {
@@ -20,12 +20,6 @@ export function DynamicEtaCard({ plan, selectedRank }: Props) {
       ? plan.total_duration_seconds
       : plan.alternatives.find((a) => a.rank === selectedRank)?.total_duration_seconds ??
         plan.total_duration_seconds;
-
-  // Gather edges for the selected route
-  const edgeIds: string[] = [];
-  if (selectedRank === 0 && plan.primary_geometry) {
-    // If route edge IDs are stored in plan or can be evaluated
-  }
 
   const runEvaluation = async () => {
     try {

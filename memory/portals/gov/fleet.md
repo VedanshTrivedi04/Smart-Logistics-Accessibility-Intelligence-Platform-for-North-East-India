@@ -31,3 +31,6 @@ No page-specific test.
 
 ## Known issues / TODO
 - None recorded.
+
+## Cross-portal note (2026-09-27)
+Verified unchanged by the Fleet Ops Portal restructuring of `/logistics/*` (see [[home]] in logistics, [[backend-logistics]]): this page still renders bare `<FleetOperationsCenter />` with no props, untouched. `VehicleDetail`/`TripDetail`/`CommitmentList` gained new tabs/features on the logistics side, but their prop contracts (`vehicleId`+`tripBase`, `tripId`+`vehicleBase`, no-prop) are unchanged, so `/gov/fleet/trips/[id]`, `/gov/fleet/vehicles/[id]`, `/gov/fleet/deliveries` all continue to work exactly as before.

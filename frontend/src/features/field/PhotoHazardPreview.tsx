@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useVerifyPhoto } from "@/features/ai";
-import { Banner, Button, ErrorNotice, StatusBadge } from "@/shared/ui";
+import { Button, ErrorNotice, StatusBadge } from "@/shared/ui";
 import type { VerifyPhotoResponse } from "@/shared/api";
 
 interface Props {

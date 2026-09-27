@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Cpu,
   Truck,
@@ -12,14 +13,18 @@ import {
   RotateCcw,
   CheckSquare,
   Square,
+  Send,
+  AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 import { useOptimizeDispatch } from "@/features/ai";
 import { useFacilities } from "@/features/network";
-import { useCommitments, useVehicles } from "./queries";
+import { useCommitments, useVehicles, useDrivers, useTrips, useDispatchTrip } from "./queries";
+import { useSession } from "@/shared/auth";
 import { Button, Card, Banner } from "@/shared/ui";
 import { formatDuration } from "@/shared/lib/time";
 import { formatKg, humanize, shortId } from "@/shared/lib/format";
-import type { Commitment, DispatchRoute, OptimizeDispatchResponse, PriorityTier, Vehicle } from "@/shared/api";
+import type { Commitment, DispatchRoute, OptimizeDispatchResponse, PriorityTier, Vehicle, Driver } from "@/shared/api";
 
 const PRIORITY_BADGE_MAP: Record<PriorityTier, "danger" | "warn" | "neutral"> = {
   TIER_1_LIFE_SAVING: "danger",
@@ -181,7 +186,7 @@ export function DispatchOptimizer() {
                 <Cpu size={22} />
               </span>
               <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#ffffff" }}>
-                AI Multi-Stop Dispatch Optimizer
+                Optimization-Based Multi-Stop Dispatch (Google OR-Tools)
               </h2>
             </div>
             <p style={{ margin: "0.4rem 0 0", color: "#94a3b8", fontSize: "0.9rem", maxWidth: "680px" }}>
@@ -399,6 +404,15 @@ export function DispatchOptimizer() {
                         </li>
                       </ol>
                     </div>
+
+                    <ApplyDispatchPlanRow
+                      route={route}
+                      routeIdx={routeIdx}
+                      activeDepotId={activeDepotId}
+                      facilityMap={facilityMap}
+                      commitmentMap={commitmentMap}
+                      vehicles={vehicles}
+                    />
                   </div>
                 );
               })}
@@ -585,3 +599,273 @@ export function DispatchOptimizer() {
     </div>
   );
 }
+
+interface ApplyDispatchPlanRowProps {
+  route: DispatchRoute;
+  routeIdx: number;
+  activeDepotId: string;
+  facilityMap: Map<string, any>;
+  commitmentMap: Map<string, Commitment>;
+  vehicles: Vehicle[];
+}
+
+function ApplyDispatchPlanRow({
+  route,
+  routeIdx,
+  activeDepotId,
+  facilityMap,
+  commitmentMap,
+  vehicles,
+}: ApplyDispatchPlanRowProps) {
+  const { can } = useSession();
+  const driversQuery = useDrivers();
+  const tripsQuery = useTrips();
+  const dispatchTrip = useDispatchTrip();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(route.vehicle_id);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [tripCode, setTripCode] = useState<string>(`TR-OPT-${routeIdx + 1}-${Date.now().toString().slice(-4)}`);
+  const [departureTime, setDepartureTime] = useState<string>(() => {
+    const d = new Date(Date.now() + 15 * 60 * 1000);
+    return d.toISOString().slice(0, 16);
+  });
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const activeTrips = useMemo(() => {
+    return (tripsQuery.data ?? []).filter((t) =>
+      ["DISPATCHED", "IN_TRANSIT", "HELD_FOR_INSPECTION"].includes(t.status),
+    );
+  }, [tripsQuery.data]);
+
+  const busyDriverIds = useMemo(() => new Set(activeTrips.map((t) => t.driver_id)), [activeTrips]);
+  const busyVehicleIds = useMemo(() => new Set(activeTrips.map((t) => t.vehicle_id)), [activeTrips]);
+
+  const availableDrivers = useMemo(() => {
+    return (driversQuery.data ?? []).filter((d) => d.is_active && !busyDriverIds.has(d.id));
+  }, [driversQuery.data, busyDriverIds]);
+
+  const availableVehicles = useMemo(() => {
+    return vehicles.filter((v) => v.is_active && (!busyVehicleIds.has(v.id) || v.id === selectedVehicleId));
+  }, [vehicles, busyVehicleIds, selectedVehicleId]);
+
+  if (!can("DISPATCH_ROUTE")) {
+    return null;
+  }
+
+  const handleApply = async () => {
+    setErrorMsg(null);
+    if (!selectedVehicleId) {
+      setErrorMsg("Please select a vehicle.");
+      return;
+    }
+    if (!selectedDriverId) {
+      setErrorMsg("Please select an available driver.");
+      return;
+    }
+    if (!tripCode.trim()) {
+      setErrorMsg("Trip code is required.");
+      return;
+    }
+
+    const depot = facilityMap.get(activeDepotId);
+    if (!depot) {
+      setErrorMsg("Origin depot facility not found in network registry.");
+      return;
+    }
+
+    const depDate = new Date(departureTime);
+    if (isNaN(depDate.getTime())) {
+      setErrorMsg("Invalid scheduled departure time.");
+      return;
+    }
+
+    const stops: Array<{
+      stop_type: "PICKUP" | "DELIVERY" | "WAYPOINT";
+      facility_id: string | null;
+      lat: number;
+      lon: number;
+      planned_arrival: string;
+      planned_departure: string;
+    }> = [
+      {
+        stop_type: "PICKUP",
+        facility_id: depot.id,
+        lat: depot.lat,
+        lon: depot.lon,
+        planned_arrival: depDate.toISOString(),
+        planned_departure: depDate.toISOString(),
+      },
+    ];
+
+    const totalDurationSec = Math.max(1800, route.total_duration_seconds);
+    const nStops = route.commitment_ids.length;
+    const legSec = nStops > 0 ? Math.floor(totalDurationSec / nStops) : 1800;
+
+    let currentOffsetSec = 0;
+    for (let i = 0; i < route.commitment_ids.length; i++) {
+      const commId = route.commitment_ids[i];
+      if (!commId) continue;
+      const comm = commitmentMap.get(commId);
+      if (!comm) continue;
+      const destFac = facilityMap.get(comm.destination_facility_id);
+      if (!destFac) {
+        setErrorMsg(`Destination facility not found for commitment ${comm.consignment_reference}`);
+        return;
+      }
+
+      currentOffsetSec += legSec;
+      const arrival = new Date(depDate.getTime() + currentOffsetSec * 1000);
+      const departure = new Date(arrival.getTime() + 15 * 60 * 1000);
+
+      stops.push({
+        stop_type: "DELIVERY",
+        facility_id: destFac.id,
+        lat: destFac.lat,
+        lon: destFac.lon,
+        planned_arrival: arrival.toISOString(),
+        planned_departure: departure.toISOString(),
+      });
+    }
+
+    try {
+      await dispatchTrip.mutateAsync({
+        vehicle_id: selectedVehicleId,
+        driver_id: selectedDriverId,
+        trip_code: tripCode.trim(),
+        scheduled_departure: depDate.toISOString(),
+        commitment_ids: route.commitment_ids,
+        stops,
+      });
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to dispatch trip. The vehicle or driver may have an active dispatch conflict.");
+    }
+  };
+
+  if (dispatchTrip.isSuccess) {
+    const createdTrip = dispatchTrip.data;
+    return (
+      <div style={{ marginTop: "1rem", padding: "0.8rem", background: "rgba(16, 185, 129, 0.1)", border: "1px solid #10b981", borderRadius: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#065f46" }}>
+            <CheckCircle2 size={18} />
+            <span>
+              Trip <strong>{createdTrip.trip_code}</strong> created & dispatched successfully!
+            </span>
+          </div>
+          <Link href={`/logistics/trips/${createdTrip.id}`}>
+            <Button size="small" variant="default">
+              View Trip <ExternalLink size={14} style={{ marginLeft: "4px" }} />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
+        <Button size="small" variant="primary" onClick={() => setIsOpen(true)}>
+          <Send size={14} style={{ marginRight: "0.4rem" }} /> Apply Plan & Dispatch Trip
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: "1rem",
+        borderTop: "1px solid var(--border-color, #e2e8f0)",
+        paddingTop: "1rem",
+        background: "var(--bg-subtle, #f8fafc)",
+        padding: "1rem",
+        borderRadius: "8px",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
+        <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Dispatch Route Assignment</span>
+        <Button size="small" variant="default" onClick={() => setIsOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+
+      <div className="grid cols-2" style={{ gap: "0.8rem", marginBottom: "0.8rem" }}>
+        <div className="field">
+          <label htmlFor={`apply-veh-${routeIdx}`} className="small">Assigned Vehicle</label>
+          <select
+            id={`apply-veh-${routeIdx}`}
+            value={selectedVehicleId}
+            onChange={(e) => setSelectedVehicleId(e.target.value)}
+          >
+            {availableVehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.registration_number} ({humanize(v.vehicle_type)} - {formatKg(v.max_weight_kg)})
+                {busyVehicleIds.has(v.id) ? " [BUSY]" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor={`apply-drv-${routeIdx}`} className="small">Assign Driver *</label>
+          <select
+            id={`apply-drv-${routeIdx}`}
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
+          >
+            <option value="">-- Select Available Driver --</option>
+            {availableDrivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.full_name} ({d.license_number})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid cols-2" style={{ gap: "0.8rem", marginBottom: "0.8rem" }}>
+        <div className="field">
+          <label htmlFor={`apply-code-${routeIdx}`} className="small">Trip Identifier Code</label>
+          <input
+            id={`apply-code-${routeIdx}`}
+            value={tripCode}
+            onChange={(e) => setTripCode(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor={`apply-dep-${routeIdx}`} className="small">Departure Time</label>
+          <input
+            id={`apply-dep-${routeIdx}`}
+            type="datetime-local"
+            value={departureTime}
+            onChange={(e) => setDepartureTime(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <p className="small muted" style={{ margin: "0.5rem 0" }}>
+        * Stop sequence: 1 Depot Pickup + {route.commitment_ids.length} Consignment Deliveries in solver order. ETAs are proportionally distributed across the {formatDuration(route.total_duration_seconds)} solver duration.
+      </p>
+
+      {errorMsg ? (
+        <div style={{ color: "#ef4444", fontSize: "0.85rem", margin: "0.5rem 0", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <AlertCircle size={16} />
+          <span>{errorMsg}</span>
+        </div>
+      ) : null}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.8rem" }}>
+        <Button size="small" variant="default" onClick={() => setIsOpen(false)}>
+          Cancel
+        </Button>
+        <Button size="small" variant="primary" busy={dispatchTrip.isPending} onClick={handleApply}>
+          Confirm & Dispatch
+        </Button>
+      </div>
+    </div>
+  );
+}
+

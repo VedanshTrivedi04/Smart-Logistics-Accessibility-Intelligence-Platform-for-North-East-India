@@ -55,6 +55,7 @@ class ReviewState(str, Enum):
     MORE_INFO_NEEDED = "MORE_INFO_NEEDED"
     VERIFIED = "VERIFIED"
     REJECTED = "REJECTED"
+    REINSPECTION_REQUIRED = "REINSPECTION_REQUIRED"
 
 
 class ScanStatus(str, Enum):

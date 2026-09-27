@@ -8,7 +8,14 @@ import { formatCoords, humanize } from "@/shared/lib/format";
 import { formatDateTime } from "@/shared/lib/time";
 import { Banner, Button, Card, KeyValue, StatusBadge, useAnnounce } from "@/shared/ui";
 import { useGeolocation } from "@/features/field/useGeolocation";
-import { useCommitments, useTripImpacts, useTripTransition, useTrips, useVehicles } from "./queries";
+import {
+  useCommitments,
+  useTripImpacts,
+  useTripTransition,
+  useTrips,
+  useUpdateCommitmentStatus,
+  useVehicles,
+} from "./queries";
 
 export function OperatorCockpit() {
   const me = usePrincipal();
@@ -18,6 +25,7 @@ export function OperatorCockpit() {
   const trips = useTrips();
   const commitments = useCommitments();
   const transition = useTripTransition();
+  const updateCommitmentStatus = useUpdateCommitmentStatus();
 
   // Find active or dispatched trips
   const activeTrips = useMemo(() => {
@@ -51,6 +59,74 @@ export function OperatorCockpit() {
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [sosActive, setSosActive] = useState(false);
   const [copiedCoords, setCopiedCoords] = useState(false);
+
+  // Dedicated Driver POD Handover State
+  const [podCommitment, setPodCommitment] = useState<any | null>(null);
+  const [podResult, setPodResult] = useState<"full" | "partial" | "failed">("full");
+  const [podDeliveredUnits, setPodDeliveredUnits] = useState("");
+  const [podShortageReason, setPodShortageReason] = useState("");
+  const [podRecipientName, setPodRecipientName] = useState("");
+  const [podRecipientOrg, setPodRecipientOrg] = useState("");
+  const [podCondition, setPodCondition] = useState("GOOD");
+
+  const handleOpenPod = (c: any) => {
+    setPodCommitment(c);
+    setPodResult(c.status === "PARTIALLY_DELIVERED" ? "partial" : "full");
+    setPodDeliveredUnits(String(c.delivered_quantity_units > 0 ? c.delivered_quantity_units : c.consigned_quantity_units));
+    setPodShortageReason(c.shortage_reason ?? "");
+    setPodRecipientName(c.recipient_name ?? "");
+    setPodRecipientOrg(c.recipient_organization ?? "");
+    setPodCondition(c.delivery_condition ?? "GOOD");
+  };
+
+  const handleSelectPodResult = (res: "full" | "partial" | "failed") => {
+    if (!podCommitment) return;
+    setPodResult(res);
+    if (res === "full") {
+      setPodDeliveredUnits(String(podCommitment.consigned_quantity_units));
+      setPodCondition("GOOD");
+    } else if (res === "partial") {
+      const half = Math.max(1, Math.floor(podCommitment.consigned_quantity_units * 0.8));
+      setPodDeliveredUnits(String(half));
+      setPodCondition("PARTIAL_LOSS");
+    } else if (res === "failed") {
+      setPodDeliveredUnits("0");
+      setPodCondition("REJECTED_BY_RECIPIENT");
+    }
+  };
+
+  const handleSubmitPod = () => {
+    if (!podCommitment) return;
+    const units = parseInt(podDeliveredUnits, 10);
+    const targetStatus = podResult === "full" ? "DELIVERED" : podResult === "partial" ? "PARTIALLY_DELIVERED" : "FAILED";
+    const gpsLocation = geo.state.status === "ok" ? formatCoords(geo.state.fix.latitude, geo.state.fix.longitude) : undefined;
+    const notes = [
+      podShortageReason.trim(),
+      gpsLocation ? `GPS: ${gpsLocation}` : null,
+    ].filter(Boolean).join(" | ");
+
+    updateCommitmentStatus.mutate(
+      {
+        commitmentId: podCommitment.id,
+        status: targetStatus,
+        deliveredUnits: isNaN(units) ? undefined : units,
+        shortageReason: notes || undefined,
+        recipientName: podRecipientName.trim() || undefined,
+        recipientOrganization: podRecipientOrg.trim() || undefined,
+        deliveryCondition: podCondition,
+      },
+      {
+        onSuccess: () => {
+          announce(`Proof of Handover recorded for ${podCommitment.consignment_reference}`);
+          setPodCommitment(null);
+        },
+      }
+    );
+  };
+
+  const unconfirmedCommitments = useMemo(() => {
+    return linkedCommitments.filter((c) => c.status !== "DELIVERED" && c.status !== "PARTIALLY_DELIVERED" && c.status !== "FAILED");
+  }, [linkedCommitments]);
 
   const handleCopyCoords = () => {
     if (geo.state.status === "ok") {
@@ -188,8 +264,8 @@ export function OperatorCockpit() {
             <Link className="btn primary" href="/logistics/trips">
               View All Trips
             </Link>
-            <Link className="btn" href="/logistics/manage">
-              Fleet Management
+            <Link className="btn" href="/logistics/assignments">
+              Fleet Assignments
             </Link>
           </div>
         </Card>
@@ -233,24 +309,50 @@ export function OperatorCockpit() {
                   ]}
                 />
                 {linkedCommitments.length > 0 && (
-                  <div>
-                    <span className="small muted">Consignment Tier:</span>
-                    <div style={{ marginTop: "0.25rem" }}>
-                      <span
-                        style={{
-                          padding: "0.2rem 0.55rem",
-                          borderRadius: "4px",
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          background: linkedCommitments.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING")
-                            ? "rgba(239, 68, 68, 0.2)"
-                            : "rgba(59, 130, 246, 0.2)",
-                          color: linkedCommitments.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING") ? "#f87171" : "#60a5fa",
-                          border: `1px solid ${linkedCommitments.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING") ? "rgba(239, 68, 68, 0.4)" : "rgba(59, 130, 246, 0.4)"}`,
-                        }}
-                      >
-                        {linkedCommitments[0]?.priority_tier}
-                      </span>
+                  <div className="stack" style={{ gap: "0.5rem" }}>
+                    <span className="small muted">Consignments on board:</span>
+                    <div className="stack" style={{ gap: "0.4rem" }}>
+                      {linkedCommitments.map((c) => {
+                        const isHandedOver = c.status === "DELIVERED" || c.status === "PARTIALLY_DELIVERED";
+                        return (
+                          <div
+                            key={c.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "0.4rem 0.6rem",
+                              borderRadius: "6px",
+                              background: "rgba(255, 255, 255, 0.03)",
+                              border: "1px solid rgba(255, 255, 255, 0.08)",
+                              flexWrap: "wrap",
+                              gap: "0.4rem",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                              <Link
+                                href={`/logistics/deliveries/${c.id}`}
+                                style={{ fontWeight: 600, fontSize: "0.85rem", color: "#38bdf8", textDecoration: "none" }}
+                              >
+                                📦 {c.consignment_reference}
+                              </Link>
+                              <StatusBadge kind="delivery" value={c.status} />
+                              <span className="small muted">
+                                ({c.delivered_quantity_units}/{c.consigned_quantity_units} units)
+                              </span>
+                            </div>
+                            <div>
+                              <Button
+                                size="small"
+                                variant={isHandedOver ? "default" : "primary"}
+                                onClick={() => handleOpenPod(c)}
+                              >
+                                {isHandedOver ? "✓ Review POD" : "📝 Handover / POD"}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -284,6 +386,133 @@ export function OperatorCockpit() {
               </div>
             </Card>
           </div>
+
+          {/* Quick POD Handover Drawer for Drivers */}
+          {podCommitment && (
+            <Card title={`Authoritative Proof of Delivery — #${podCommitment.consignment_reference}`}>
+              <div className="stack" style={{ gap: "1rem" }}>
+                <p className="small muted">
+                  Confirm physical cargo handover at destination. POD records recipient signature and GPS fix. Individual delivery completion is decoupled from trip completion.
+                </p>
+
+                <div>
+                  <span className="small muted" style={{ display: "block", marginBottom: "0.4rem", fontWeight: 600 }}>
+                    Select Handover Result:
+                  </span>
+                  <div className="row" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+                    <Button
+                      size="small"
+                      variant={podResult === "full" ? "primary" : "default"}
+                      onClick={() => handleSelectPodResult("full")}
+                    >
+                      🟢 Full Handover Complete
+                    </Button>
+                    <Button
+                      size="small"
+                      variant={podResult === "partial" ? "primary" : "default"}
+                      onClick={() => handleSelectPodResult("partial")}
+                    >
+                      🟡 Partial Delivery with Shortage
+                    </Button>
+                    <Button
+                      size="small"
+                      variant={podResult === "failed" ? "primary" : "default"}
+                      onClick={() => handleSelectPodResult("failed")}
+                    >
+                      🔴 Handover Rejected / Failed
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid cols-3" style={{ gap: "0.75rem" }}>
+                  <div className="field">
+                    <label htmlFor="pod-units">Delivered Units (Total: {podCommitment.consigned_quantity_units})</label>
+                    <input
+                      id="pod-units"
+                      type="number"
+                      min="0"
+                      max={podCommitment.consigned_quantity_units}
+                      value={podDeliveredUnits}
+                      onChange={(e) => setPodDeliveredUnits(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="pod-cond">Cargo Condition</label>
+                    <select
+                      id="pod-cond"
+                      value={podCondition}
+                      onChange={(e) => setPodCondition(e.target.value)}
+                    >
+                      <option value="GOOD">Good / Intact Packaging</option>
+                      <option value="DAMAGED_PACKAGING">Damaged Outer Packaging</option>
+                      <option value="PARTIAL_LOSS">Partial Loss / Short Unload</option>
+                      <option value="TEMPERATURE_EXCURSION">Temperature Excursion</option>
+                      <option value="REJECTED_BY_RECIPIENT">Rejected by Consignee</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="pod-gps">GPS Tag</label>
+                    <input
+                      id="pod-gps"
+                      type="text"
+                      disabled
+                      value={geo.state.status === "ok" ? formatCoords(geo.state.fix.latitude, geo.state.fix.longitude) : "Acquiring GPS…"}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid cols-2" style={{ gap: "0.75rem" }}>
+                  <div className="field">
+                    <label htmlFor="pod-rec-name">Authorized Recipient Name</label>
+                    <input
+                      id="pod-rec-name"
+                      type="text"
+                      value={podRecipientName}
+                      onChange={(e) => setPodRecipientName(e.target.value)}
+                      placeholder="e.g. Dr. H. L. Sarma"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="pod-rec-org">Recipient Organization / Ward</label>
+                    <input
+                      id="pod-rec-org"
+                      type="text"
+                      value={podRecipientOrg}
+                      onChange={(e) => setPodRecipientOrg(e.target.value)}
+                      placeholder="e.g. Guwahati Medical College Pharmacy"
+                    />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="pod-shortage">
+                    {podResult === "partial" ? "Reason for Shortage / Unloaded Quantity (Required)" : "Handover / Delivery Notes"}
+                  </label>
+                  <input
+                    id="pod-shortage"
+                    type="text"
+                    value={podShortageReason}
+                    onChange={(e) => setPodShortageReason(e.target.value)}
+                    placeholder={podResult === "partial" ? "e.g. Heavy rain delayed full unload; remaining units retained on board" : "e.g. Signed and stamped by chief pharmacist"}
+                  />
+                </div>
+
+                <div className="row" style={{ justifyContent: "flex-end", gap: "0.5rem" }}>
+                  <Button onClick={() => setPodCommitment(null)}>Cancel</Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSubmitPod}
+                    disabled={updateCommitmentStatus.isPending}
+                  >
+                    {updateCommitmentStatus.isPending ? "Submitting…" : "Confirm Handover & Submit POD"}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Real-time Route Hazard Advisories */}
           {tripImpacts.data && tripImpacts.data.length > 0 ? (
@@ -383,21 +612,51 @@ export function OperatorCockpit() {
               </div>
 
               {confirmComplete && (
-                <Banner tone="warn" title="Confirm Delivery Completion">
-                  <p className="small">
-                    This confirms that all consignments for trip <strong>{activeTrip.trip_code}</strong> have been safely unloaded at the destination facility.
-                  </p>
-                  <div className="row" style={{ marginTop: "0.5rem" }}>
-                    <Button
-                      variant="primary"
-                      onClick={() => executeTransition("COMPLETED")}
-                      disabled={transition.isPending}
-                    >
-                      Yes, Confirm Delivery
-                    </Button>
-                    <Button onClick={() => setConfirmComplete(false)}>Cancel</Button>
-                  </div>
-                </Banner>
+                unconfirmedCommitments.length > 0 ? (
+                  <Banner tone="warn" title="⚠️ Consignments Pending Authoritative Handover (POD)">
+                    <div className="stack" style={{ gap: "0.5rem" }}>
+                      <p className="small">
+                        <strong>{unconfirmedCommitments.length} consignment(s)</strong> on this mission do not have a recorded Handover / POD:
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                        {unconfirmedCommitments.map((c) => (
+                          <Button key={c.id} size="small" variant="primary" onClick={() => handleOpenPod(c)}>
+                            📝 Submit POD for #{c.consignment_reference}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="small muted">
+                        In accordance with logistics integrity policy, completing this trip will <strong>NOT</strong> automatically mark remaining consignments as DELIVERED. They will remain in their true handover state until POD is signed.
+                      </p>
+                      <div className="row" style={{ marginTop: "0.5rem" }}>
+                        <Button
+                          variant="primary"
+                          onClick={() => executeTransition("COMPLETED")}
+                          disabled={transition.isPending}
+                        >
+                          Complete Trip Record
+                        </Button>
+                        <Button onClick={() => setConfirmComplete(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  </Banner>
+                ) : (
+                  <Banner tone="ok" title="All Consignments Verified Handed Over">
+                    <p className="small">
+                      All {linkedCommitments.length} consignment(s) have verified Proof of Handover records. Confirming will finalize and close mission <strong>{activeTrip.trip_code}</strong>.
+                    </p>
+                    <div className="row" style={{ marginTop: "0.5rem" }}>
+                      <Button
+                        variant="primary"
+                        onClick={() => executeTransition("COMPLETED")}
+                        disabled={transition.isPending}
+                      >
+                        Yes, Finalize & Complete Mission
+                      </Button>
+                      <Button onClick={() => setConfirmComplete(false)}>Cancel</Button>
+                    </div>
+                  </Banner>
+                )
               )}
             </div>
           </Card>

@@ -28,7 +28,6 @@ export function useFieldScope(): FieldScopeResult {
     return (
       role === "FIELD_OFFICER" ||
       role === "ROAD_INSPECTION" ||
-      role === "LOCAL_AUTHORITY" ||
       name.includes("elangbam") ||
       name.includes("meitei") ||
       email.includes("field") ||

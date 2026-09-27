@@ -1561,6 +1561,469 @@
         }
       }
     },
+    "/api/v1/inspections/inspectors": {
+      "get": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "List Available Inspectors",
+        "description": "Users an inspection can be assigned to, for the assignment picker.",
+        "operationId": "list_available_inspectors_api_v1_inspections_inspectors_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InspectorSummaryResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Available Inspectors Api V1 Inspections Inspectors Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections": {
+      "post": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Assign Inspection",
+        "description": "Dispatches a formal road inspection task to an inspector.",
+        "operationId": "assign_inspection_api_v1_inspections_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignInspectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "List Inspections",
+        "description": "Lists inspections with optional scoping filters.",
+        "operationId": "list_inspections_api_v1_inspections_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InspectionStatus-Input"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "assigned_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assigned To"
+            }
+          },
+          {
+            "name": "jurisdiction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jurisdiction Id"
+            }
+          },
+          {
+            "name": "edge_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edge Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InspectionResponse"
+                  },
+                  "title": "Response List Inspections Api V1 Inspections Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/stats": {
+      "get": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Get Inspection Stats",
+        "description": "Returns aggregated status counts for the inspector dashboard.",
+        "operationId": "get_inspection_stats_api_v1_inspections_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/edge/{edge_id}/latest": {
+      "get": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Get Latest Inspection For Edge",
+        "description": "Returns the most recent inspection recorded for a specific road edge, if the caller may see it.",
+        "operationId": "get_latest_inspection_for_edge_api_v1_inspections_edge__edge_id__latest_get",
+        "parameters": [
+          {
+            "name": "edge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Edge Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InspectionResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Latest Inspection For Edge Api V1 Inspections Edge  Edge Id  Latest Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/{inspection_id}": {
+      "get": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Get Inspection Detail",
+        "description": "Retrieves full inspection dossier including measurements and evidence.",
+        "operationId": "get_inspection_detail_api_v1_inspections__inspection_id__get",
+        "parameters": [
+          {
+            "name": "inspection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inspection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/start": {
+      "post": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Start Inspection",
+        "description": "Transitions inspection to IN_PROGRESS and triages linked report.",
+        "operationId": "start_inspection_api_v1_inspections__inspection_id__start_post",
+        "parameters": [
+          {
+            "name": "inspection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inspection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/assessment": {
+      "post": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Submit Assessment",
+        "description": "Records engineering measurements and links categorized photographic evidence.",
+        "operationId": "submit_assessment_api_v1_inspections__inspection_id__assessment_post",
+        "parameters": [
+          {
+            "name": "inspection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inspection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAssessmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/decide": {
+      "post": {
+        "tags": [
+          "Road Inspection Intelligence"
+        ],
+        "summary": "Decide Inspection",
+        "description": "Submits authoritative decision, atomically updating incident & road status.",
+        "operationId": "decide_inspection_api_v1_inspections__inspection_id__decide_post",
+        "parameters": [
+          {
+            "name": "inspection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inspection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideInspectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Decide Inspection Api V1 Inspections  Inspection Id  Decide Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logistics/vehicles": {
       "post": {
         "tags": [
@@ -1820,6 +2283,102 @@
                     "$ref": "#/components/schemas/CommitmentResponse"
                   },
                   "title": "Response List Commitments Api V1 Logistics Commitments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logistics/commitments/{commitment_id}": {
+      "get": {
+        "tags": [
+          "Logistics & Fleet"
+        ],
+        "summary": "Get Commitment",
+        "operationId": "get_commitment_api_v1_logistics_commitments__commitment_id__get",
+        "parameters": [
+          {
+            "name": "commitment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Commitment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommitmentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logistics/commitments/{commitment_id}/status": {
+      "patch": {
+        "tags": [
+          "Logistics & Fleet"
+        ],
+        "summary": "Update Commitment Status",
+        "operationId": "update_commitment_status_api_v1_logistics_commitments__commitment_id__status_patch",
+        "parameters": [
+          {
+            "name": "commitment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Commitment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitmentStatusUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommitmentResponse"
                 }
               }
             }
@@ -2472,6 +3031,64 @@
                     "$ref": "#/components/schemas/TripImpactResponse"
                   },
                   "title": "Response Get Trip Impacts Api V1 Trips  Trip Id  Impacts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edges/{edge_id}/impacts": {
+      "get": {
+        "tags": [
+          "Disruption Impact"
+        ],
+        "summary": "List active trip impacts for an edge",
+        "description": "Lists disruption impacts assessed on trips traversing a specific road edge.",
+        "operationId": "get_edge_trip_impacts_api_v1_edges__edge_id__impacts_get",
+        "parameters": [
+          {
+            "name": "edge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Edge Id"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Active Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripImpactResponse"
+                  },
+                  "title": "Response Get Edge Trip Impacts Api V1 Edges  Edge Id  Impacts Get"
                 }
               }
             }
@@ -3631,6 +4248,31 @@
           }
         }
       }
+    },
+    "/api/v1/seed-demo": {
+      "post": {
+        "tags": [
+          "Demo"
+        ],
+        "summary": "Run Demo Seed",
+        "operationId": "run_demo_seed_api_v1_seed_demo_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Run Demo Seed Api V1 Seed Demo Post"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3694,6 +4336,77 @@
           "edges"
         ],
         "title": "AlternativeRouteResponse"
+      },
+      "AssignInspectionRequest": {
+        "properties": {
+          "assigned_to": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Assigned To",
+            "description": "UUID of designated inspector"
+          },
+          "jurisdiction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Jurisdiction Id",
+            "description": "Jurisdiction governing the inspection corridor"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id",
+            "description": "Linked ground field report if originating from patrol"
+          },
+          "candidate_edge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Edge Id",
+            "description": "Road network edge segment ID"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id",
+            "description": "Linked incident ID if already confirmed"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/InspectionPriority",
+            "description": "Task urgency level",
+            "default": "MEDIUM"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "Special directives from regional/district authority",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "assigned_to",
+          "jurisdiction_id"
+        ],
+        "title": "AssignInspectionRequest"
       },
       "AutoTriageReportRequest": {
         "properties": {
@@ -4125,6 +4838,16 @@
               }
             ],
             "title": "Consigned Volume M3"
+          },
+          "is_hazmat": {
+            "type": "boolean",
+            "title": "Is Hazmat",
+            "default": false
+          },
+          "requires_cold_chain": {
+            "type": "boolean",
+            "title": "Requires Cold Chain",
+            "default": false
           }
         },
         "type": "object",
@@ -4217,6 +4940,115 @@
             ],
             "title": "Shortage Reason"
           },
+          "is_hazmat": {
+            "type": "boolean",
+            "title": "Is Hazmat"
+          },
+          "requires_cold_chain": {
+            "type": "boolean",
+            "title": "Requires Cold Chain"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "recipient_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Organization"
+          },
+          "pod_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod Timestamp"
+          },
+          "pod_signature_acknowledgement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod Signature Acknowledgement"
+          },
+          "delivery_condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Condition"
+          },
+          "previous_trip_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Trip Code"
+          },
+          "previous_trip_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Trip Status"
+          },
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Reason"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4240,9 +5072,116 @@
           "status",
           "sla_status",
           "shortage_reason",
+          "is_hazmat",
+          "requires_cold_chain",
+          "recipient_name",
+          "recipient_organization",
+          "pod_timestamp",
+          "pod_signature_acknowledgement",
+          "delivery_condition",
+          "previous_trip_code",
+          "previous_trip_status",
+          "cancellation_reason",
+          "released_at",
           "created_at"
         ],
         "title": "CommitmentResponse"
+      },
+      "CommitmentStatusUpdateRequest": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/DeliveryStatus"
+          },
+          "delivered_quantity_units": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered Quantity Units"
+          },
+          "shortage_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortage Reason"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "recipient_organization": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Organization"
+          },
+          "pod_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod Timestamp"
+          },
+          "pod_signature_acknowledgement": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod Signature Acknowledgement"
+          },
+          "delivery_condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Condition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "CommitmentStatusUpdateRequest"
       },
       "ConfirmUploadRequest": {
         "properties": {
@@ -4501,7 +5440,7 @@
             "title": "Assigned At"
           },
           "inspection_status": {
-            "$ref": "#/components/schemas/InspectionStatus"
+            "$ref": "#/components/schemas/app__modules__coordination__domain__enums__InspectionStatus"
           },
           "last_action_at": {
             "type": "string",
@@ -4550,6 +5489,75 @@
           "csrf_token"
         ],
         "title": "CsrfTokenResponse"
+      },
+      "DamageType": {
+        "type": "string",
+        "enum": [
+          "LANDSLIDE",
+          "FLOODING",
+          "BRIDGE_SCOUR",
+          "CULVERT_COLLAPSE",
+          "ROAD_EROSION",
+          "PAVEMENT_CRACKING",
+          "FALLEN_DEBRIS",
+          "OTHER"
+        ],
+        "title": "DamageType",
+        "description": "Specific technical failure classification."
+      },
+      "DecideInspectionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision",
+            "description": "Outcome: VERIFIED, REJECTED, REINSPECTION_REQUIRED, CLEARANCE_RESTORED"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Reasoning and official remarks"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason",
+            "description": "Required if decision is REJECTED"
+          },
+          "affected_edges": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {},
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Edges",
+            "description": "List of [edge_id, direction, is_full_closure]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "DecideInspectionRequest"
       },
       "DeclareEdgeStatusRequest": {
         "properties": {
@@ -5388,6 +6396,19 @@
         ],
         "title": "EvaluateImpactSummaryResponse"
       },
+      "EvidenceKind": {
+        "type": "string",
+        "enum": [
+          "WIDE_ANGLE",
+          "CLOSE_UP",
+          "DAMAGE_SCALE",
+          "GPS_SURVEY",
+          "PASSABILITY_PROOF",
+          "ENGINEERING_SKETCH"
+        ],
+        "title": "EvidenceKind",
+        "description": "Categorized evidence types required for technical verification."
+      },
       "FacilityImpactResponse": {
         "properties": {
           "id": {
@@ -5798,14 +6819,405 @@
         "title": "IncidentResponse",
         "description": "Operational incident details."
       },
-      "InspectionStatus": {
+      "InspectionEvidenceCreateSchema": {
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Media Id",
+            "description": "UUID of pre-uploaded media object in media_objects"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EvidenceKind",
+            "description": "Evidence category",
+            "default": "WIDE_ANGLE"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption",
+            "description": "Caption or description"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude",
+            "description": "Geotagged latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude",
+            "description": "Geotagged longitude"
+          },
+          "altitude_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude M",
+            "description": "Elevation in meters"
+          },
+          "azimuth_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azimuth Deg",
+            "description": "Compass heading direction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "media_id"
+        ],
+        "title": "InspectionEvidenceCreateSchema"
+      },
+      "InspectionEvidenceResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Media Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EvidenceKind"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "altitude_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude M"
+          },
+          "azimuth_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azimuth Deg"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "media_id",
+          "kind",
+          "caption",
+          "latitude",
+          "longitude",
+          "altitude_m",
+          "azimuth_deg",
+          "captured_at"
+        ],
+        "title": "InspectionEvidenceResponse"
+      },
+      "InspectionPriority": {
         "type": "string",
         "enum": [
-          "NOT_REQUESTED",
-          "REQUESTED",
-          "COMPLETED"
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
         ],
-        "title": "InspectionStatus"
+        "title": "InspectionPriority",
+        "description": "Urgency level for dispatching an on-site engineer/inspector."
+      },
+      "InspectionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "jurisdiction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Jurisdiction Id"
+          },
+          "assigned_to": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Assigned To"
+          },
+          "assigned_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Assigned By"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/InspectionPriority"
+          },
+          "status": {
+            "$ref": "#/components/schemas/app__modules__inspection__domain__enums__InspectionStatus"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
+          "candidate_edge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Edge Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "final_decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Decision"
+          },
+          "decision_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Notes"
+          },
+          "assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TechnicalAssessmentSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionEvidenceResponse"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "jurisdiction_id",
+          "assigned_to",
+          "assigned_by",
+          "priority",
+          "status",
+          "instructions",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "InspectionResponse"
+      },
+      "InspectionStatsResponse": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counts"
+        ],
+        "title": "InspectionStatsResponse"
+      },
+      "InspectionStatus-Input": {
+        "type": "string",
+        "enum": [
+          "ASSIGNED",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "REINSPECTION_REQUIRED",
+          "CANCELLED"
+        ],
+        "title": "InspectionStatus",
+        "description": "Lifecycle state of an infrastructure inspection task."
+      },
+      "InspectorSummaryResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "org_name": {
+            "type": "string",
+            "title": "Org Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name",
+          "email",
+          "org_name"
+        ],
+        "title": "InspectorSummaryResponse"
       },
       "JurisdictionResponse": {
         "properties": {
@@ -6248,6 +7660,17 @@
           "unassigned_commitment_ids"
         ],
         "title": "OptimizeDispatchResponse"
+      },
+      "PassabilityStatus": {
+        "type": "string",
+        "enum": [
+          "IMPASSABLE",
+          "EMERGENCY_ONLY",
+          "SINGLE_LANE_LIGHT",
+          "ALL_VEHICLES"
+        ],
+        "title": "PassabilityStatus",
+        "description": "Authoritative physical traversability of the affected highway asset."
       },
       "PassableVehicleClass": {
         "type": "string",
@@ -7179,7 +8602,8 @@
         "enum": [
           "CONFIRM_INCIDENT",
           "REJECT_REPORT",
-          "REQUEST_MORE_INFO"
+          "REQUEST_MORE_INFO",
+          "REQUEST_REINSPECTION"
         ],
         "title": "ReviewDecisionKind",
         "description": "Adjudication outcomes for field observations."
@@ -7306,7 +8730,8 @@
           "UNDER_REVIEW",
           "MORE_INFO_NEEDED",
           "VERIFIED",
-          "REJECTED"
+          "REJECTED",
+          "REINSPECTION_REQUIRED"
         ],
         "title": "ReviewState",
         "description": "Field observation review workflow state."
@@ -7772,6 +9197,17 @@
         ],
         "title": "StopType"
       },
+      "StructuralStability": {
+        "type": "string",
+        "enum": [
+          "STABLE",
+          "MONITORING_REQUIRED",
+          "IMMINENT_FAILURE",
+          "CRITICAL_FAILURE"
+        ],
+        "title": "StructuralStability",
+        "description": "Engineering assessment of ground or structural stability."
+      },
       "SubjectType": {
         "type": "string",
         "enum": [
@@ -7782,6 +9218,162 @@
         ],
         "title": "SubjectType",
         "description": "What a coordination action is about."
+      },
+      "SubmitAssessmentRequest": {
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/TechnicalAssessmentSchema"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionEvidenceCreateSchema"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessment"
+        ],
+        "title": "SubmitAssessmentRequest"
+      },
+      "TechnicalAssessmentSchema": {
+        "properties": {
+          "road_condition": {
+            "type": "string",
+            "title": "Road Condition",
+            "description": "e.g. 'Partial carriageway obstruction', 'Culvert breach'"
+          },
+          "passability": {
+            "$ref": "#/components/schemas/PassabilityStatus",
+            "description": "Authoritative traversability rating"
+          },
+          "damage_type": {
+            "$ref": "#/components/schemas/DamageType",
+            "description": "Technical damage taxonomy"
+          },
+          "stability": {
+            "$ref": "#/components/schemas/StructuralStability",
+            "description": "Ground/structural stability assessment",
+            "default": "STABLE"
+          },
+          "affected_length_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Length M",
+            "description": "Obstruction / damage length in meters"
+          },
+          "affected_width_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Width M",
+            "description": "Obstruction / damage width in meters"
+          },
+          "debris_depth_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debris Depth M",
+            "description": "Depth of silt/boulders on tarmac"
+          },
+          "bridge_pier_scour_depth_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Pier Scour Depth M",
+            "description": "Bridge pier scour depth in meters"
+          },
+          "water_level_over_road_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Level Over Road Cm",
+            "description": "Standing or flowing water depth"
+          },
+          "slope_movement_detected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope Movement Detected",
+            "description": "Active hillside slippage indicator"
+          },
+          "heavy_vehicle_passable": {
+            "type": "boolean",
+            "title": "Heavy Vehicle Passable",
+            "description": "Can heavy commercial trucks negotiate the section",
+            "default": false
+          },
+          "recommended_speed_limit_kmh": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 120.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Speed Limit Kmh",
+            "description": "Recommended safe speed limit"
+          },
+          "technical_notes": {
+            "type": "string",
+            "title": "Technical Notes",
+            "description": "Detailed engineering remarks",
+            "default": ""
+          },
+          "raw_measurements": {
+            "type": "object",
+            "title": "Raw Measurements",
+            "description": "Flexible parameters per damage type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "road_condition",
+          "passability",
+          "damage_type"
+        ],
+        "title": "TechnicalAssessmentSchema"
       },
       "TelemetryIngestRequest": {
         "properties": {
@@ -8232,6 +9824,18 @@
             ],
             "title": "Facility Id"
           },
+          "commitment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitment Id"
+          },
           "lat": {
             "type": "number",
             "maximum": 90.0,
@@ -8276,6 +9880,18 @@
             "type": "string",
             "format": "uuid",
             "title": "Trip Id"
+          },
+          "commitment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitment Id"
           },
           "sequence_order": {
             "type": "integer",
@@ -8346,6 +9962,7 @@
         "required": [
           "id",
           "trip_id",
+          "commitment_id",
           "sequence_order",
           "stop_type",
           "facility_id",
@@ -8363,6 +9980,18 @@
         "properties": {
           "target_status": {
             "$ref": "#/components/schemas/TripStatus"
+          },
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Reason"
           }
         },
         "type": "object",
@@ -8925,6 +10554,27 @@
           "inferred_fields"
         ],
         "title": "VoiceReportResponse"
+      },
+      "app__modules__coordination__domain__enums__InspectionStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_REQUESTED",
+          "REQUESTED",
+          "COMPLETED"
+        ],
+        "title": "InspectionStatus"
+      },
+      "app__modules__inspection__domain__enums__InspectionStatus": {
+        "type": "string",
+        "enum": [
+          "ASSIGNED",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "REINSPECTION_REQUIRED",
+          "CANCELLED"
+        ],
+        "title": "InspectionStatus",
+        "description": "Lifecycle state of an infrastructure inspection task."
       }
     }
   }

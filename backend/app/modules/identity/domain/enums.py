@@ -24,7 +24,6 @@ class Role(str, Enum):
 
     # Field tier
     FIELD_OFFICER = "FIELD_OFFICER"
-    LOCAL_AUTHORITY = "LOCAL_AUTHORITY"
     ROAD_INSPECTION = "ROAD_INSPECTION"
 
     # Logistics tier
@@ -53,6 +52,10 @@ class Capability(str, Enum):
     VIEW_ROAD_STATUS = "VIEW_ROAD_STATUS"
     UPDATE_ROAD_STATUS = "UPDATE_ROAD_STATUS"
     VIEW_REGION = "VIEW_REGION"
+
+    # Inspection capabilities
+    CONDUCT_INSPECTION = "CONDUCT_INSPECTION"
+    ASSIGN_INSPECTION = "ASSIGN_INSPECTION"
 
     # Logistics & routing
     COMPUTE_ROUTE = "COMPUTE_ROUTE"

@@ -10,7 +10,7 @@ import { useCommitments, useCreateCommitment, useCreateDriver, useCreateVehicle,
 
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
-function CreateVehicleForm() {
+export function CreateVehicleForm() {
   const create = useCreateVehicle();
   const announce = useAnnounce();
   const [f, setF] = useState({ reg: "", type: "TRUCK_MEDIUM" as VehicleType, model: "", max: "", empty: "", h: "", w: "", l: "", axles: "2", hazmat: false, fridge: false });
@@ -55,7 +55,7 @@ function CreateVehicleForm() {
   );
 }
 
-function CreateDriverForm() {
+export function CreateDriverForm() {
   const create = useCreateDriver();
   const [f, setF] = useState({ name: "", phone: "", license: "", classes: "" });
   const [error, setError] = useState<string | null>(null);
@@ -84,9 +84,20 @@ function CreateDriverForm() {
   );
 }
 
-function CreateCommitmentForm() {
+export function CreateCommitmentForm() {
   const create = useCreateCommitment();
-  const [f, setF] = useState({ ref: "", cat: "GENERAL_SUPPLIES" as CargoCategory, tier: "TIER_3_STANDARD" as PriorityTier, kg: "", units: "", origin: "", dest: "", by: "" });
+  const [f, setF] = useState({
+    ref: "",
+    cat: "GENERAL_SUPPLIES" as CargoCategory,
+    tier: "TIER_3_STANDARD" as PriorityTier,
+    kg: "",
+    units: "",
+    origin: "",
+    dest: "",
+    by: "",
+    is_hazmat: false,
+    requires_cold_chain: false,
+  });
   const [error, setError] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -94,7 +105,21 @@ function CreateCommitmentForm() {
     if (!f.ref.trim() || !f.origin || !f.dest || !f.by) return setError("Reference, origin, destination and deadline are required.");
     if (f.origin === f.dest) return setError("Origin and destination must differ.");
     if (!(num(f.kg) > 0) || !(Number(f.units) >= 1)) return setError("Weight and quantity must be positive.");
-    create.mutate({ consignment_reference: f.ref.trim(), cargo_category: f.cat, priority_tier: f.tier, consigned_weight_kg: num(f.kg), consigned_quantity_units: Math.floor(Number(f.units)), origin_facility_id: f.origin, destination_facility_id: f.dest, required_before: new Date(f.by).toISOString() }, { onSuccess: () => setF((p) => ({ ...p, ref: "" })) });
+    create.mutate(
+      {
+        consignment_reference: f.ref.trim(),
+        cargo_category: f.cat,
+        priority_tier: f.tier,
+        consigned_weight_kg: num(f.kg),
+        consigned_quantity_units: Math.floor(Number(f.units)),
+        origin_facility_id: f.origin,
+        destination_facility_id: f.dest,
+        required_before: new Date(f.by).toISOString(),
+        is_hazmat: f.is_hazmat,
+        requires_cold_chain: f.requires_cold_chain,
+      },
+      { onSuccess: () => setF((p) => ({ ...p, ref: "" })) }
+    );
   };
   return (
     <Card title="Record a consignment">
@@ -109,6 +134,16 @@ function CreateCommitmentForm() {
           <Field label="Origin facility" htmlFor="c-o"><FacilitySelect id="c-o" value={f.origin} onChange={(v) => setF({ ...f, origin: v })} /></Field>
           <Field label="Destination facility" htmlFor="c-d"><FacilitySelect id="c-d" value={f.dest} onChange={(v) => setF({ ...f, dest: v })} /></Field>
         </div>
+        <div style={{ display: "flex", gap: "1.5rem", padding: "0.5rem 0" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer" }}>
+            <input type="checkbox" checked={f.is_hazmat} onChange={(e) => setF({ ...f, is_hazmat: e.target.checked })} />
+            <span>⚠️ Hazardous cargo (Hazmat)</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer" }}>
+            <input type="checkbox" checked={f.requires_cold_chain} onChange={(e) => setF({ ...f, requires_cold_chain: e.target.checked })} />
+            <span>❄️ Requires Cold-Chain</span>
+          </label>
+        </div>
         {error ? <p className="error" role="alert">{error}</p> : null}
         {create.isError ? <ErrorNotice error={create.error} subject="this consignment" /> : null}
         {create.isSuccess ? <Banner tone="ok" title="Consignment recorded" /> : null}
@@ -120,7 +155,7 @@ function CreateCommitmentForm() {
 
 interface StopDraft { type: StopType; facilityId: string; arrive: string; depart: string }
 
-function DispatchTripForm() {
+export function DispatchTripForm() {
   const create = useDispatchTrip();
   const vehicles = useVehicles();
   const drivers = useDrivers();

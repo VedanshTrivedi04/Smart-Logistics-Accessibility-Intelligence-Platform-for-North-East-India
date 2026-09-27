@@ -36,15 +36,20 @@ export interface SessionValue {
 const SessionContext = createContext<SessionValue | null>(null);
 const SESSION_KEY = ["session", "me"] as const;
 
-async function loadSession(): Promise<SessionSnapshot> {
+async function loadSession(): Promise<SessionSnapshot | null> {
   try {
     const principal = await unwrap(() => api.GET("/api/v1/me"));
     void saveCachedPrincipal(principal).catch(() => undefined);
     return { principal, offlineCached: false };
   } catch (error) {
-    if (isApiError(error) && error.kind === "network") {
-      const cached = await readCachedPrincipal();
-      if (cached) return { principal: cached, offlineCached: true };
+    if (isApiError(error)) {
+      if (error.kind === "unauthenticated" || error.status === 401) {
+        return null;
+      }
+      if (error.kind === "network") {
+        const cached = await readCachedPrincipal();
+        if (cached) return { principal: cached, offlineCached: true };
+      }
     }
     throw error;
   }
@@ -72,8 +77,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setExpired(true);
       clearCsrfToken();
       purgeProtectedCache();
-      queryClient.setQueryData(SESSION_KEY, undefined);
-      void queryClient.invalidateQueries({ queryKey: SESSION_KEY });
+      queryClient.setQueryData<SessionSnapshot | null>(SESSION_KEY, null);
     };
     sessionEvents.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
     return () => sessionEvents.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
@@ -93,7 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const applyPrincipal = useCallback(
     (next: Principal) => {
       purgeProtectedCache();
-      queryClient.setQueryData<SessionSnapshot>(SESSION_KEY, { principal: next, offlineCached: false });
+      queryClient.setQueryData<SessionSnapshot | null>(SESSION_KEY, { principal: next, offlineCached: false });
       void saveCachedPrincipal(next).catch(() => undefined);
       setExpired(false);
     },

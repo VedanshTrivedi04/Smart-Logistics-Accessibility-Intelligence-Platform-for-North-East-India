@@ -6,7 +6,7 @@ Source of truth:
 - phase2_plan.md v2.0 (Fix 14: report granularity & default boundaries)
 
 Key Security Guarantees:
-- LOCAL_AUTHORITY does NOT have VERIFY_REPORT by default (test #23)
+- FIELD_OFFICER does NOT have VERIFY_REPORT by default
 - PLATFORM_ADMINISTRATOR does NOT have VIEW_REPORT_MEDIA by default (test #24)
 """
 
@@ -35,6 +35,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.OVERRIDE_VERIFICATION,
         Capability.EXPORT_DATA,
         Capability.COORDINATE_RESPONSE,
+        Capability.ASSIGN_INSPECTION,
     }),
 
     Role.DISTRICT_VERIFIER: frozenset({
@@ -49,6 +50,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_FLEET,
         Capability.COORDINATE_RESPONSE,
         Capability.EXPORT_DATA,
+        Capability.ASSIGN_INSPECTION,
     }),
 
     Role.EMERGENCY_COORDINATOR: frozenset({
@@ -61,6 +63,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.UPDATE_ROAD_STATUS,
         Capability.VIEW_FLEET,
         Capability.VIEW_IMPACT,
+        Capability.ASSIGN_INSPECTION,
     }),
 
     Role.FIELD_OFFICER: frozenset({
@@ -69,19 +72,15 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_ROAD_STATUS,
     }),
 
-    Role.LOCAL_AUTHORITY: frozenset({
-        Capability.SUBMIT_REPORT,
-        Capability.VIEW_REPORT_SUMMARY,
-        Capability.VIEW_ROAD_STATUS,
-        # Intentionally does NOT have VERIFY_REPORT
-    }),
-
     Role.ROAD_INSPECTION: frozenset({
         Capability.SUBMIT_REPORT,
         Capability.VIEW_REPORT_SUMMARY,
         Capability.VIEW_REPORT_DETAIL,
+        Capability.VIEW_REPORT_MEDIA,
         Capability.VIEW_ROAD_STATUS,
         Capability.UPDATE_ROAD_STATUS,
+        Capability.CONDUCT_INSPECTION,
+        Capability.VERIFY_REPORT,
     }),
 
     Role.FLEET_MANAGER: frozenset({
@@ -91,11 +90,13 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
         Capability.VIEW_ROAD_STATUS,
         Capability.VIEW_IMPACT,
         Capability.VIEW_DRIVER_PII,
+        Capability.COORDINATE_RESPONSE,
     }),
 
     Role.DELIVERY_COORDINATOR: frozenset({
         Capability.VIEW_FLEET,
         Capability.COMPUTE_ROUTE,
+        Capability.DISPATCH_ROUTE,
         Capability.VIEW_ROAD_STATUS,
         Capability.VIEW_DRIVER_PII,
     }),
@@ -103,6 +104,7 @@ ROLE_CAPABILITY_MAP: dict[Role, frozenset[Capability]] = {
     Role.TRANSPORT_OPERATOR: frozenset({
         Capability.SUBMIT_GPS,
         Capability.VIEW_ROAD_STATUS,
+        Capability.VIEW_FLEET,
     }),
 
     Role.PLATFORM_ADMINISTRATOR: frozenset({

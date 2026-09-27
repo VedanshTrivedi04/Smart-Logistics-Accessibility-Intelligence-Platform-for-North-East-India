@@ -22,19 +22,186 @@ import { isReportPayload } from "./model";
 import { useOffline } from "./OfflineProvider";
 import { RoadConditionForm } from "./RoadConditionForm";
 import { StaleDataBanner } from "./StaleDataBanner";
-import { useGeolocation } from "./useGeolocation";
+import { useGeolocation, NORTH_EAST_LOCATION_PRESETS } from "./useGeolocation";
 import { useOfflineSnapshot } from "./useOfflineSnapshot";
 
 function LocationCard({ geo }: { geo: ReturnType<typeof useGeolocation> }) {
   const s = geo.state;
+  const isOverridden = geo.isOverridden;
+  const [showOverridePanel, setShowOverridePanel] = useState(false);
+  const [customLat, setCustomLat] = useState("26.0850");
+  const [customLon, setCustomLon] = useState("91.8650");
+
+  const handleApplyCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lat = parseFloat(customLat);
+    const lon = parseFloat(customLon);
+    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      geo.setTemporaryLocation(lat, lon, `Custom Point (${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E)`);
+      setShowOverridePanel(false);
+    }
+  };
+
   return (
-    <Card title="Your location">
-      <div className="stack">
+    <Card
+      title={
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "0.5rem" }}>
+          <span>Your Location</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            {isOverridden && (
+              <span
+                style={{
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  border: "1px solid #fde68a",
+                  fontSize: "0.72rem",
+                  fontWeight: 800,
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "4px",
+                }}
+              >
+                📍 Temporary Location Active
+              </span>
+            )}
+            <Button
+              size="small"
+              variant={showOverridePanel ? "primary" : "default"}
+              onClick={() => setShowOverridePanel((v) => !v)}
+              style={{ fontSize: "0.75rem", padding: "0.2rem 0.55rem" }}
+            >
+              {showOverridePanel ? "Hide Presets ▲" : "📍 Set Temporary Location ▼"}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="stack" style={{ gap: "0.85rem" }}>
         {s.status === "ok" ? (
-          <p>{formatCoords(s.fix.latitude, s.fix.longitude)} <span className="muted small">(±{s.fix.accuracy_m} m, read {formatAge(s.fix.at, new Date())})</span></p>
-        ) : s.status === "locating" ? <p role="status">Finding your position…</p> : s.status === "idle" ? <p className="muted">Not read yet. The app reads your position only when you ask.</p> : <Banner tone="warn" title="Position unavailable"><p className="small">{s.message}</p></Banner>}
-        <div><Button size="small" onClick={geo.locate}>Update my location</Button></div>
-        <p className="small muted">Your position is read once on request, not tracked in the background.</p>
+          <div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "1.1rem", fontWeight: 700, color: isOverridden ? "#0284c7" : "inherit" }}>
+                {formatCoords(s.fix.latitude, s.fix.longitude)}
+              </span>
+              <span className="muted small">
+                {isOverridden ? (
+                  <span style={{ color: "#0369a1", fontWeight: 600 }}>({s.fix.label ?? "Temporary override"})</span>
+                ) : (
+                  `(±${s.fix.accuracy_m} m, read ${formatAge(s.fix.at, new Date())})`
+                )}
+              </span>
+            </div>
+            {isOverridden && (
+              <p className="small muted" style={{ marginTop: "0.2rem" }}>
+                Simulation mode: Nearby hazards, lifeline corridor distance, and road passability are evaluating around this custom point.
+              </p>
+            )}
+          </div>
+        ) : s.status === "locating" ? (
+          <p role="status">Finding your position…</p>
+        ) : s.status === "idle" ? (
+          <p className="muted">Not read yet. The app reads your position only when you ask or choose a temporary location.</p>
+        ) : (
+          <Banner tone="warn" title="Position unavailable">
+            <p className="small">{s.message}</p>
+          </Banner>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+          <Button size="small" onClick={geo.locate}>
+            {isOverridden ? "Use Real Device GPS" : "Update my location"}
+          </Button>
+          {isOverridden && (
+            <Button size="small" variant="default" onClick={geo.clearTemporaryLocation}>
+              ↺ Clear Temporary Override
+            </Button>
+          )}
+        </div>
+
+        {showOverridePanel && (
+          <div
+            style={{
+              background: "var(--color-surface-sunken, #f8fafc)",
+              border: "1px solid var(--color-border, #e2e8f0)",
+              borderRadius: "10px",
+              padding: "1rem",
+              marginTop: "0.25rem",
+            }}
+            className="stack"
+          >
+            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#1e293b" }}>
+              ⚡ 1-Click North-East Corridor Presets (Testing &amp; Mountains)
+            </div>
+            <p className="small muted" style={{ margin: "0.1rem 0 0.5rem 0" }}>
+              Instantly place your location on a key North-East logistics artery to test nearby hazards and passability:
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "0.5rem" }}>
+              {NORTH_EAST_LOCATION_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => {
+                    geo.setTemporaryLocation(p.latitude, p.longitude, p.name);
+                    setShowOverridePanel(false);
+                  }}
+                  style={{
+                    textAlign: "left",
+                    padding: "0.6rem 0.75rem",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                  className="preset-btn"
+                >
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0f172a" }}>{p.name}</div>
+                  <div className="mono small muted" style={{ fontSize: "0.72rem", marginTop: "0.15rem" }}>
+                    {p.latitude.toFixed(4)}°N, {p.longitude.toFixed(4)}°E
+                  </div>
+                  <div style={{ fontSize: "0.7rem", color: "#0284c7", fontWeight: 600, marginTop: "0.2rem" }}>
+                    {p.corridor}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "0.75rem", marginTop: "0.5rem" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.82rem", marginBottom: "0.4rem" }}>
+                🎯 Or Enter Custom Coordinates (Latitude / Longitude):
+              </div>
+              <form onSubmit={handleApplyCustom} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="number"
+                  step="any"
+                  value={customLat}
+                  onChange={(e) => setCustomLat(e.target.value)}
+                  placeholder="Latitude (e.g. 26.0850)"
+                  style={{ padding: "0.35rem 0.6rem", fontSize: "0.85rem", width: "150px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                  required
+                />
+                <input
+                  type="number"
+                  step="any"
+                  value={customLon}
+                  onChange={(e) => setCustomLon(e.target.value)}
+                  placeholder="Longitude (e.g. 91.8650)"
+                  style={{ padding: "0.35rem 0.6rem", fontSize: "0.85rem", width: "150px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                  required
+                />
+                <Button size="small" type="submit">
+                  Apply Coordinates
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <p className="small muted">
+          {isOverridden
+            ? "Your temporary location is saved for this session. Click 'Use Real Device GPS' anytime to revert."
+            : "Your position is read once on request, not tracked in the background."}
+        </p>
       </div>
     </Card>
   );

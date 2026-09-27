@@ -9,7 +9,7 @@
  * the old one are closed (no skipWaiting), so an open form is never swapped mid-entry. Schema
  * changes to IndexedDB must ship with a tested migration (see tests/unit/offline-db.test.ts).
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = `ner-shell-${VERSION}`;
 const STATIC_CACHE = `ner-static-${VERSION}`;
 const SYNC_TAG = "ner-report-sync";
@@ -19,6 +19,8 @@ const SYNC_TAG = "ner-report-sync";
 // Written after every field screen and its assets were saved; the app reads it to show "ready for offline use".
 const READY_KEY = "/__field-shell-ready";
 const FIELD_ROUTES = ["/field", "/field/report/new", "/field/road-update", "/field/queue", "/field/nearby", "/field/reports", "/field/profile"];
+const INSPECTOR_ROUTES = ["/inspector", "/inspector/inspections", "/inspector/reports", "/inspector/road-assessment", "/inspector/queue", "/inspector/nearby", "/inspector/profile"];
+const ALL_SHELL_ROUTES = [...FIELD_ROUTES, ...INSPECTOR_ROUTES];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.add("/offline")));
@@ -40,7 +42,7 @@ function isProtectedApi(url) {
 }
 
 function isFieldNavigation(url) {
-  return url.pathname === "/field" || url.pathname.startsWith("/field/");
+  return url.pathname === "/field" || url.pathname.startsWith("/field/") || url.pathname === "/inspector" || url.pathname.startsWith("/inspector/");
 }
 
 self.addEventListener("fetch", (event) => {
@@ -100,11 +102,14 @@ self.addEventListener("sync", (event) => {
 });
 
 // Fetch the field screens and the scripts/styles they need while there is a connection.
-async function warmFieldShell() {
+// `surface` narrows the route list to this session's own portal (field or inspector); unknown or
+// missing surface falls back to warming both, so nothing regresses for a caller that omits it.
+async function warmFieldShell(surface) {
+  const routes = surface === "field" ? FIELD_ROUTES : surface === "inspector" ? INSPECTOR_ROUTES : ALL_SHELL_ROUTES;
   const shell = await caches.open(SHELL_CACHE);
   const assets = await caches.open(STATIC_CACHE);
   let saved = 0;
-  for (const path of FIELD_ROUTES) {
+  for (const path of routes) {
     try {
       const res = await fetch(path, { credentials: "same-origin" });
       // A redirect means "not signed in": caching the login page under a field path would be wrong.
@@ -128,9 +133,11 @@ async function warmFieldShell() {
       /* offline or blocked right now: it is tried again on the next sign-in or reconnect */
     }
   }
-  if (saved === FIELD_ROUTES.length) await shell.put(READY_KEY, new Response(String(Date.now())));
+  // "Ready" means every one of this surface's own screens is actually cached, not just some
+  // fraction of a combined list — a partial warm must not tell the officer they can go offline.
+  if (saved === routes.length) await shell.put(READY_KEY, new Response(String(Date.now())));
 }
 
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "warm-field-shell") event.waitUntil(warmFieldShell());
+  if (event.data && event.data.type === "warm-field-shell") event.waitUntil(warmFieldShell(event.data.surface));
 });

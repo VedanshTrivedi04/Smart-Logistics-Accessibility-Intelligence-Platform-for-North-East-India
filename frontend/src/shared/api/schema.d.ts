@@ -564,6 +564,170 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inspections/inspectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Available Inspectors
+         * @description Users an inspection can be assigned to, for the assignment picker.
+         */
+        get: operations["list_available_inspectors_api_v1_inspections_inspectors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Inspections
+         * @description Lists inspections with optional scoping filters.
+         */
+        get: operations["list_inspections_api_v1_inspections_get"];
+        put?: never;
+        /**
+         * Assign Inspection
+         * @description Dispatches a formal road inspection task to an inspector.
+         */
+        post: operations["assign_inspection_api_v1_inspections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Inspection Stats
+         * @description Returns aggregated status counts for the inspector dashboard.
+         */
+        get: operations["get_inspection_stats_api_v1_inspections_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/edge/{edge_id}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Inspection For Edge
+         * @description Returns the most recent inspection recorded for a specific road edge, if the caller may see it.
+         */
+        get: operations["get_latest_inspection_for_edge_api_v1_inspections_edge__edge_id__latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Inspection Detail
+         * @description Retrieves full inspection dossier including measurements and evidence.
+         */
+        get: operations["get_inspection_detail_api_v1_inspections__inspection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Inspection
+         * @description Transitions inspection to IN_PROGRESS and triages linked report.
+         */
+        post: operations["start_inspection_api_v1_inspections__inspection_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}/assessment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Assessment
+         * @description Records engineering measurements and links categorized photographic evidence.
+         */
+        post: operations["submit_assessment_api_v1_inspections__inspection_id__assessment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Inspection
+         * @description Submits authoritative decision, atomically updating incident & road status.
+         */
+        post: operations["decide_inspection_api_v1_inspections__inspection_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logistics/vehicles": {
         parameters: {
             query?: never;
@@ -616,6 +780,40 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logistics/commitments/{commitment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Commitment */
+        get: operations["get_commitment_api_v1_logistics_commitments__commitment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logistics/commitments/{commitment_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Commitment Status */
+        patch: operations["update_commitment_status_api_v1_logistics_commitments__commitment_id__status_patch"];
         trace?: never;
     };
     "/api/v1/logistics/trips": {
@@ -818,6 +1016,26 @@ export interface paths {
          * @description Lists disruption impacts assessed for a specific trip.
          */
         get: operations["get_trip_impacts_api_v1_trips__trip_id__impacts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edges/{edge_id}/impacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active trip impacts for an edge
+         * @description Lists disruption impacts assessed on trips traversing a specific road edge.
+         */
+        get: operations["get_edge_trip_impacts_api_v1_edges__edge_id__impacts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1190,6 +1408,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/seed-demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Demo Seed */
+        post: operations["run_demo_seed_api_v1_seed_demo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1219,6 +1454,47 @@ export interface components {
             geometry: Record<string, never>;
             /** Edges */
             edges: components["schemas"]["RouteEdgeResponse"][];
+        };
+        /** AssignInspectionRequest */
+        AssignInspectionRequest: {
+            /**
+             * Assigned To
+             * Format: uuid
+             * @description UUID of designated inspector
+             */
+            assigned_to: string;
+            /**
+             * Jurisdiction Id
+             * Format: uuid
+             * @description Jurisdiction governing the inspection corridor
+             */
+            jurisdiction_id: string;
+            /**
+             * Report Id
+             * @description Linked ground field report if originating from patrol
+             */
+            report_id?: string | null;
+            /**
+             * Candidate Edge Id
+             * @description Road network edge segment ID
+             */
+            candidate_edge_id?: string | null;
+            /**
+             * Incident Id
+             * @description Linked incident ID if already confirmed
+             */
+            incident_id?: string | null;
+            /**
+             * @description Task urgency level
+             * @default MEDIUM
+             */
+            priority: components["schemas"]["InspectionPriority"];
+            /**
+             * Instructions
+             * @description Special directives from regional/district authority
+             * @default
+             */
+            instructions: string;
         };
         /** AutoTriageReportRequest */
         AutoTriageReportRequest: {
@@ -1399,6 +1675,16 @@ export interface components {
             required_before: string;
             /** Consigned Volume M3 */
             consigned_volume_m3?: number | null;
+            /**
+             * Is Hazmat
+             * @default false
+             */
+            is_hazmat: boolean;
+            /**
+             * Requires Cold Chain
+             * @default false
+             */
+            requires_cold_chain: boolean;
         };
         /** CommitmentResponse */
         CommitmentResponse: {
@@ -1443,11 +1729,51 @@ export interface components {
             sla_status: components["schemas"]["SlaStatus"];
             /** Shortage Reason */
             shortage_reason: string | null;
+            /** Is Hazmat */
+            is_hazmat: boolean;
+            /** Requires Cold Chain */
+            requires_cold_chain: boolean;
+            /** Recipient Name */
+            recipient_name: string | null;
+            /** Recipient Organization */
+            recipient_organization: string | null;
+            /** Pod Timestamp */
+            pod_timestamp: string | null;
+            /** Pod Signature Acknowledgement */
+            pod_signature_acknowledgement: string | null;
+            /** Delivery Condition */
+            delivery_condition: string | null;
+            /** Previous Trip Code */
+            previous_trip_code: string | null;
+            /** Previous Trip Status */
+            previous_trip_status: string | null;
+            /** Cancellation Reason */
+            cancellation_reason: string | null;
+            /** Released At */
+            released_at: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+        };
+        /** CommitmentStatusUpdateRequest */
+        CommitmentStatusUpdateRequest: {
+            status: components["schemas"]["DeliveryStatus"];
+            /** Delivered Quantity Units */
+            delivered_quantity_units?: number | null;
+            /** Shortage Reason */
+            shortage_reason?: string | null;
+            /** Recipient Name */
+            recipient_name?: string | null;
+            /** Recipient Organization */
+            recipient_organization?: string | null;
+            /** Pod Timestamp */
+            pod_timestamp?: string | null;
+            /** Pod Signature Acknowledgement */
+            pod_signature_acknowledgement?: string | null;
+            /** Delivery Condition */
+            delivery_condition?: string | null;
         };
         /**
          * ConfirmUploadRequest
@@ -1521,7 +1847,7 @@ export interface components {
             assigned_jurisdiction_id: string | null;
             /** Assigned At */
             assigned_at: string | null;
-            inspection_status: components["schemas"]["InspectionStatus"];
+            inspection_status: components["schemas"]["app__modules__coordination__domain__enums__InspectionStatus"];
             /**
              * Last Action At
              * Format: date-time
@@ -1539,6 +1865,35 @@ export interface components {
              * @default 8
              */
             expires_in_hours: number;
+        };
+        /**
+         * DamageType
+         * @description Specific technical failure classification.
+         * @enum {string}
+         */
+        DamageType: "LANDSLIDE" | "FLOODING" | "BRIDGE_SCOUR" | "CULVERT_COLLAPSE" | "ROAD_EROSION" | "PAVEMENT_CRACKING" | "FALLEN_DEBRIS" | "OTHER";
+        /** DecideInspectionRequest */
+        DecideInspectionRequest: {
+            /**
+             * Decision
+             * @description Outcome: VERIFIED, REJECTED, REINSPECTION_REQUIRED, CLEARANCE_RESTORED
+             */
+            decision: string;
+            /**
+             * Notes
+             * @description Reasoning and official remarks
+             */
+            notes?: string | null;
+            /**
+             * Rejection Reason
+             * @description Required if decision is REJECTED
+             */
+            rejection_reason?: string | null;
+            /**
+             * Affected Edges
+             * @description List of [edge_id, direction, is_full_closure]
+             */
+            affected_edges?: unknown[][] | null;
         };
         /**
          * DeclareEdgeStatusRequest
@@ -1926,6 +2281,12 @@ export interface components {
             /** Facilities Impacted */
             facilities_impacted: number;
         };
+        /**
+         * EvidenceKind
+         * @description Categorized evidence types required for technical verification.
+         * @enum {string}
+         */
+        EvidenceKind: "WIDE_ANGLE" | "CLOSE_UP" | "DAMAGE_SCALE" | "GPS_SURVEY" | "PASSABILITY_PROOF" | "ENGINEERING_SKETCH";
         /** FacilityImpactResponse */
         FacilityImpactResponse: {
             /**
@@ -2096,11 +2457,161 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** InspectionEvidenceCreateSchema */
+        InspectionEvidenceCreateSchema: {
+            /**
+             * Media Id
+             * Format: uuid
+             * @description UUID of pre-uploaded media object in media_objects
+             */
+            media_id: string;
+            /**
+             * @description Evidence category
+             * @default WIDE_ANGLE
+             */
+            kind: components["schemas"]["EvidenceKind"];
+            /**
+             * Caption
+             * @description Caption or description
+             */
+            caption?: string | null;
+            /**
+             * Latitude
+             * @description Geotagged latitude
+             */
+            latitude?: number | null;
+            /**
+             * Longitude
+             * @description Geotagged longitude
+             */
+            longitude?: number | null;
+            /**
+             * Altitude M
+             * @description Elevation in meters
+             */
+            altitude_m?: number | null;
+            /**
+             * Azimuth Deg
+             * @description Compass heading direction
+             */
+            azimuth_deg?: number | null;
+        };
+        /** InspectionEvidenceResponse */
+        InspectionEvidenceResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Media Id
+             * Format: uuid
+             */
+            media_id: string;
+            kind: components["schemas"]["EvidenceKind"];
+            /** Caption */
+            caption: string | null;
+            /** Latitude */
+            latitude: number | null;
+            /** Longitude */
+            longitude: number | null;
+            /** Altitude M */
+            altitude_m: number | null;
+            /** Azimuth Deg */
+            azimuth_deg: number | null;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+        };
         /**
-         * InspectionStatus
+         * InspectionPriority
+         * @description Urgency level for dispatching an on-site engineer/inspector.
          * @enum {string}
          */
-        InspectionStatus: "NOT_REQUESTED" | "REQUESTED" | "COMPLETED";
+        InspectionPriority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+        /** InspectionResponse */
+        InspectionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Jurisdiction Id
+             * Format: uuid
+             */
+            jurisdiction_id: string;
+            /**
+             * Assigned To
+             * Format: uuid
+             */
+            assigned_to: string;
+            /**
+             * Assigned By
+             * Format: uuid
+             */
+            assigned_by: string;
+            priority: components["schemas"]["InspectionPriority"];
+            status: components["schemas"]["app__modules__inspection__domain__enums__InspectionStatus"];
+            /** Instructions */
+            instructions: string;
+            /** Report Id */
+            report_id?: string | null;
+            /** Incident Id */
+            incident_id?: string | null;
+            /** Candidate Edge Id */
+            candidate_edge_id?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Final Decision */
+            final_decision?: string | null;
+            /** Decision Notes */
+            decision_notes?: string | null;
+            assessment?: components["schemas"]["TechnicalAssessmentSchema"] | null;
+            /** Evidence */
+            evidence?: components["schemas"]["InspectionEvidenceResponse"][];
+        };
+        /** InspectionStatsResponse */
+        InspectionStatsResponse: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * InspectionStatus
+         * @description Lifecycle state of an infrastructure inspection task.
+         * @enum {string}
+         */
+        "InspectionStatus-Input": "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "REINSPECTION_REQUIRED" | "CANCELLED";
+        /** InspectorSummaryResponse */
+        InspectorSummaryResponse: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string | null;
+            /** Org Name */
+            org_name: string;
+        };
         /** JurisdictionResponse */
         JurisdictionResponse: {
             /**
@@ -2309,6 +2820,12 @@ export interface components {
             /** Unassigned Commitment Ids */
             unassigned_commitment_ids: string[];
         };
+        /**
+         * PassabilityStatus
+         * @description Authoritative physical traversability of the affected highway asset.
+         * @enum {string}
+         */
+        PassabilityStatus: "IMPASSABLE" | "EMERGENCY_ONLY" | "SINGLE_LANE_LIGHT" | "ALL_VEHICLES";
         /**
          * PassableVehicleClass
          * @description Vehicle classes the reporter observed getting through.
@@ -2679,7 +3196,7 @@ export interface components {
          * @description Adjudication outcomes for field observations.
          * @enum {string}
          */
-        ReviewDecisionKind: "CONFIRM_INCIDENT" | "REJECT_REPORT" | "REQUEST_MORE_INFO";
+        ReviewDecisionKind: "CONFIRM_INCIDENT" | "REJECT_REPORT" | "REQUEST_MORE_INFO" | "REQUEST_REINSPECTION";
         /**
          * ReviewDecisionRequest
          * @description Verifier adjudication submission.
@@ -2734,7 +3251,7 @@ export interface components {
          * @description Field observation review workflow state.
          * @enum {string}
          */
-        ReviewState: "SUBMITTED" | "PROVISIONAL_CAUTION" | "UNDER_REVIEW" | "MORE_INFO_NEEDED" | "VERIFIED" | "REJECTED";
+        ReviewState: "SUBMITTED" | "PROVISIONAL_CAUTION" | "UNDER_REVIEW" | "MORE_INFO_NEEDED" | "VERIFIED" | "REJECTED" | "REINSPECTION_REQUIRED";
         /**
          * RiskHorizon
          * @description Forecast horizon for edge disruption risk prediction.
@@ -2923,11 +3440,92 @@ export interface components {
          */
         StopType: "PICKUP" | "DELIVERY" | "WAYPOINT" | "REST_CHECKPOINT" | "RELIEF_CAMP";
         /**
+         * StructuralStability
+         * @description Engineering assessment of ground or structural stability.
+         * @enum {string}
+         */
+        StructuralStability: "STABLE" | "MONITORING_REQUIRED" | "IMMINENT_FAILURE" | "CRITICAL_FAILURE";
+        /**
          * SubjectType
          * @description What a coordination action is about.
          * @enum {string}
          */
         SubjectType: "INCIDENT" | "ALERT" | "FACILITY" | "TRIP";
+        /** SubmitAssessmentRequest */
+        SubmitAssessmentRequest: {
+            assessment: components["schemas"]["TechnicalAssessmentSchema"];
+            /** Evidence */
+            evidence?: components["schemas"]["InspectionEvidenceCreateSchema"][];
+        };
+        /** TechnicalAssessmentSchema */
+        TechnicalAssessmentSchema: {
+            /**
+             * Road Condition
+             * @description e.g. 'Partial carriageway obstruction', 'Culvert breach'
+             */
+            road_condition: string;
+            /** @description Authoritative traversability rating */
+            passability: components["schemas"]["PassabilityStatus"];
+            /** @description Technical damage taxonomy */
+            damage_type: components["schemas"]["DamageType"];
+            /**
+             * @description Ground/structural stability assessment
+             * @default STABLE
+             */
+            stability: components["schemas"]["StructuralStability"];
+            /**
+             * Affected Length M
+             * @description Obstruction / damage length in meters
+             */
+            affected_length_m?: number | null;
+            /**
+             * Affected Width M
+             * @description Obstruction / damage width in meters
+             */
+            affected_width_m?: number | null;
+            /**
+             * Debris Depth M
+             * @description Depth of silt/boulders on tarmac
+             */
+            debris_depth_m?: number | null;
+            /**
+             * Bridge Pier Scour Depth M
+             * @description Bridge pier scour depth in meters
+             */
+            bridge_pier_scour_depth_m?: number | null;
+            /**
+             * Water Level Over Road Cm
+             * @description Standing or flowing water depth
+             */
+            water_level_over_road_cm?: number | null;
+            /**
+             * Slope Movement Detected
+             * @description Active hillside slippage indicator
+             */
+            slope_movement_detected?: boolean | null;
+            /**
+             * Heavy Vehicle Passable
+             * @description Can heavy commercial trucks negotiate the section
+             * @default false
+             */
+            heavy_vehicle_passable: boolean;
+            /**
+             * Recommended Speed Limit Kmh
+             * @description Recommended safe speed limit
+             */
+            recommended_speed_limit_kmh?: number | null;
+            /**
+             * Technical Notes
+             * @description Detailed engineering remarks
+             * @default
+             */
+            technical_notes: string;
+            /**
+             * Raw Measurements
+             * @description Flexible parameters per damage type
+             */
+            raw_measurements?: Record<string, never>;
+        };
         /** TelemetryIngestRequest */
         TelemetryIngestRequest: {
             /**
@@ -3099,6 +3697,8 @@ export interface components {
             stop_type: components["schemas"]["StopType"];
             /** Facility Id */
             facility_id?: string | null;
+            /** Commitment Id */
+            commitment_id?: string | null;
             /** Lat */
             lat: number;
             /** Lon */
@@ -3126,6 +3726,8 @@ export interface components {
              * Format: uuid
              */
             trip_id: string;
+            /** Commitment Id */
+            commitment_id: string | null;
             /** Sequence Order */
             sequence_order: number;
             stop_type: components["schemas"]["StopType"];
@@ -3154,6 +3756,8 @@ export interface components {
         /** TripTransitionRequest */
         TripTransitionRequest: {
             target_status: components["schemas"]["TripStatus"];
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
         };
         /**
          * UploadTicketRequest
@@ -3389,6 +3993,17 @@ export interface components {
              */
             replayed: boolean;
         };
+        /**
+         * InspectionStatus
+         * @enum {string}
+         */
+        app__modules__coordination__domain__enums__InspectionStatus: "NOT_REQUESTED" | "REQUESTED" | "COMPLETED";
+        /**
+         * InspectionStatus
+         * @description Lifecycle state of an infrastructure inspection task.
+         * @enum {string}
+         */
+        app__modules__inspection__domain__enums__InspectionStatus: "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "REINSPECTION_REQUIRED" | "CANCELLED";
     };
     responses: never;
     parameters: never;
@@ -4380,6 +4995,278 @@ export interface operations {
             };
         };
     };
+    list_available_inspectors_api_v1_inspections_inspectors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorSummaryResponse"][];
+                };
+            };
+        };
+    };
+    list_inspections_api_v1_inspections_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["InspectionStatus-Input"] | null;
+                assigned_to?: string | null;
+                jurisdiction_id?: string | null;
+                edge_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_inspection_api_v1_inspections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignInspectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inspection_stats_api_v1_inspections_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionStatsResponse"];
+                };
+            };
+        };
+    };
+    get_latest_inspection_for_edge_api_v1_inspections_edge__edge_id__latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                edge_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inspection_detail_api_v1_inspections__inspection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_inspection_api_v1_inspections__inspection_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_assessment_api_v1_inspections__inspection_id__assessment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_inspection_api_v1_inspections__inspection_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideInspectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_vehicles_api_v1_logistics_vehicles_get: {
         parameters: {
             query?: {
@@ -4554,6 +5441,72 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_commitment_api_v1_logistics_commitments__commitment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commitment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_commitment_status_api_v1_logistics_commitments__commitment_id__status_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commitment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentStatusUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4977,6 +5930,39 @@ export interface operations {
             header?: never;
             path: {
                 trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripImpactResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_edge_trip_impacts_api_v1_edges__edge_id__impacts_get: {
+        parameters: {
+            query?: {
+                active_only?: boolean;
+            };
+            header?: never;
+            path: {
+                edge_id: string;
             };
             cookie?: never;
         };
@@ -5689,6 +6675,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_demo_seed_api_v1_seed_demo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
         };

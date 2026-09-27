@@ -247,10 +247,10 @@ export default function MapView({
         bounds: NER_BBOX,
         fitBoundsOptions: { padding: 24 },
         maxBounds: [
-          [86.5, 20.5], // Southwest boundary (locks camera to North-East India)
-          [98.5, 30.5], // Northeast boundary
+          [84.0, 19.5], // Southwest boundary (covers West Bengal transit & North-East India)
+          [98.5, 31.0], // Northeast boundary
         ],
-        minZoom: 6.0, // Prevents zooming out to whole world
+        minZoom: 4.5, // Allows fitting inter-state vector approach routes
         maxZoom: 20,
         attributionControl: { compact: true },
         maxPitch: 75,
@@ -580,8 +580,10 @@ export default function MapView({
           el.addEventListener("click", () => map.easeTo({ center: [item.lon, item.lat], zoom: Math.min(map.getZoom() + 2, 15) }));
         } else {
           el.dataset["shape"] = SHAPES[item.kind];
+          el.dataset["kind"] = item.kind;
           el.dataset["tone"] = item.tone ?? "info";
           if (item.stale) el.dataset["stale"] = "true";
+          if (item.pulse) el.dataset["pulse"] = "true";
           if (selectedRef.current === item.id) el.dataset["selected"] = "true";
           const span = document.createElement("span");
           span.textContent = item.glyph ?? GLYPHS[item.kind];
@@ -649,14 +651,14 @@ export default function MapView({
     map.__renderMarkers?.();
   }, [points, selectedId, ready]);
 
-  // Fit to requested bounds.
+  // Fit to requested bounds with smooth transition.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !fitBounds) return;
-    map.fitBounds(fitBounds, { padding: 40, maxZoom: 18, duration: 0 });
-    // fitKey intentionally gates refits; fitBounds identity changes every render.
+    map.fitBounds(fitBounds, { padding: 48, maxZoom: 17, duration: 1200 });
+    // fitKey or bounds coordinates gate refits to avoid render loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, ready]);
+  }, [fitKey ?? (fitBounds ? fitBounds.join(",") : null), ready]);
 
   // Push hazard zone data.
   useEffect(() => {

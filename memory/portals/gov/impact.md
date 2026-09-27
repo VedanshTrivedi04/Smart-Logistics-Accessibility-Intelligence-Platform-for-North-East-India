@@ -51,3 +51,6 @@ Unified command surface combining operational disruption cascades, affected flee
 ## Known issues / TODO
 - None recorded.
 
+## Cross-portal note (2026-09-27)
+Verified unchanged by the Fleet Ops Portal restructuring: the new `GET /edges/{edge_id}/impacts` aggregate endpoint (see [[backend-impact]]) is additive only — this page's existing per-trip/per-facility `useImpactData` fan-out was left as-is, not migrated to the new endpoint.
+

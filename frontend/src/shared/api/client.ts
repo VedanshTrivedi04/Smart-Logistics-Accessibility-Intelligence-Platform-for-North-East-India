@@ -22,8 +22,15 @@ const csrfAndAuth: Middleware = {
     }
     return request;
   },
-  onResponse({ response }) {
-    if (response.status === 401) sessionEvents.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+  onResponse({ response, request }) {
+    if (response.status === 401) {
+      const url = new URL(request.url, "http://localhost");
+      // Probing /api/v1/me or hitting auth routes returning 401 is expected when
+      // unauthenticated and must NOT dispatch session-expired (which causes infinite retry loops).
+      if (!url.pathname.endsWith("/api/v1/me") && !url.pathname.startsWith("/api/v1/auth/")) {
+        sessionEvents.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      }
+    }
     return undefined;
   },
 };

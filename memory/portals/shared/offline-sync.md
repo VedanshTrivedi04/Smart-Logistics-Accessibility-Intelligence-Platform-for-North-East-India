@@ -1,6 +1,6 @@
 # Shared / Offline-first storage and sync
 
-- **Last updated:** 2026-09-26
+- **Last updated:** 2026-09-27
 
 - **Source:** frontend/src/shared/offline/*, features/field/{store,model,OfflineProvider}.ts(x), features/field/sync/{engine,media,transport}.ts, app/ServiceWorkerRegister.tsx
 - **Status:** done
@@ -19,8 +19,8 @@
 ## Tests
 `tests/unit/offline-db.test.ts`, `queue-state.test.ts`, `sync-engine.test.ts`; e2e `offline-report-journey.spec.ts`.
 
-## Offline shell (service worker `public/sw.js`, version v3, production builds only)
-- After a verified sign-in, `FieldOfflineProvider` posts `warm-field-shell`; the worker fetches the 7 field screens plus every `/_next/static` asset named in their HTML (paths contain `(protected)`, so the regex must allow parentheses) and writes the marker `/__field-shell-ready`. The provider exposes `offlineReady`; `/field/profile` shows it. The map code is lazy, so `preloadMap()` fetches it while online.
+## Offline shell (service worker `public/sw.js`, version v4, production builds only)
+- After a verified sign-in, `FieldOfflineProvider` posts `warm-field-shell` with a `surface` field (`session.surface`, `"field" | "inspector" | ...`). The worker (bumped v3 -> v4 2026-09-27) narrows `FIELD_ROUTES`/`INSPECTOR_ROUTES` to the caller's own surface — an inspector sign-in no longer fetches and caches the 7 field-portal screens it will never use, and vice versa; an unknown/missing surface still falls back to warming both (`ALL_SHELL_ROUTES`), so nothing regresses for an older client. `warmFieldShell(surface)` fetches that surface's screens plus every `/_next/static` asset named in their HTML (paths contain `(protected)`, so the regex must allow parentheses) and writes the marker `/__field-shell-ready` only once *every* route in that surface's own list is cached (a partial warm of one surface must not report the other surface as offline-ready). The provider exposes `offlineReady`; `/field/profile` and `/inspector/profile` show it. The map code is lazy, so `preloadMap()` fetches it while online.
 - Cached pages are keyed by path (query string ignored) so `?type=` and `?draft=` links work offline. The worker still never caches `/api` or `/health`.
 - `MapViewLazy` shows a notice instead of crashing the screen if the map chunk cannot load.
 - Verified in a real Chromium (desktop and Pixel 5 profiles) against a production build: offline wizard -> save -> reload -> queue -> reconnect -> sync exactly once.
