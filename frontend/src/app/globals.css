@@ -355,96 +355,9 @@ dl.kv dd { margin: 0; font-size: 0.9rem; color: #0f172a; }
 .map-marker[data-tone="warn"] { background: #b45309; }
 .map-marker[data-tone="ok"] { background: #15803d; }
 .map-marker[data-tone="neutral"] { background: #475569; }
-.map-marker[data-tone="info"],
-.map-marker[data-kind="self"] {
-  background: #0284c7 !important;
-  border: 2.5px solid #38bdf8 !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 16px rgba(2, 132, 199, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
-  z-index: 60 !important;
-  position: relative;
-  overflow: visible !important;
-}
-
-/* Concentric blue beacon ping for inspector live position */
-.map-marker[data-kind="self"]::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 2px solid #38bdf8;
-  animation: inspectorBeacon 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-  pointer-events: none;
-}
-
-@keyframes inspectorBeacon {
-  0% {
-    width: 28px;
-    height: 28px;
-    opacity: 0.9;
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
-  }
-  100% {
-    width: 68px;
-    height: 68px;
-    opacity: 0;
-    box-shadow: 0 0 0 18px rgba(56, 189, 248, 0);
-  }
-}
 .map-marker[data-stale="true"] { background: #fff; color: #475569; border: 3px dashed #475569; }
+.map-marker[data-selected="true"] { outline: 3px solid #f59e0b; outline-offset: 2px; }
 .map-marker[data-cluster="true"] { border-radius: 50%; width: 38px; height: 38px; background: #0284c7; }
-
-/* Animated High-Tech Radar Sonar Wave Pulse for Inspection Hazard Marker */
-.map-marker[data-pulse="true"] {
-  position: relative;
-  overflow: visible !important;
-  z-index: 50;
-  box-shadow: 0 0 16px rgba(220, 38, 38, 0.9), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
-}
-
-.map-marker[data-pulse="true"]::before,
-.map-marker[data-pulse="true"]::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.map-marker[data-pulse="true"]::before {
-  animation: radarWave 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-  border: 2.5px solid #ef4444;
-  background: rgba(239, 68, 68, 0.32);
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
-}
-
-.map-marker[data-pulse="true"]::after {
-  animation: radarWave 2s cubic-bezier(0, 0.2, 0.8, 1) infinite 0.75s;
-  border: 2px solid #f97316;
-  background: rgba(249, 115, 22, 0.2);
-}
-
-@keyframes radarWave {
-  0% {
-    width: 26px;
-    height: 26px;
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(0.85);
-  }
-  60% {
-    opacity: 0.7;
-  }
-  100% {
-    width: 105px;
-    height: 105px;
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2.7);
-  }
-}
 
 .map-view-switch { position: absolute; top: 0.75rem; left: 0.75rem; display: flex; gap: 0.35rem; flex-wrap: wrap; z-index: 5; max-width: calc(100% - 1.5rem); }
 .map-view-switch button { font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.7rem; border: 1px solid var(--border); border-radius: 9999px; background: var(--surface); color: var(--text); cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); transition: all 0.15s ease; }
@@ -507,5 +420,94 @@ body[data-low-bandwidth="true"] img, body[data-low-bandwidth="true"] video { dis
   .field-ops-split {
     grid-template-columns: 1fr;
   }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Hero & Interactive Showcase Keyframes & Tokens
+   ────────────────────────────────────────────────────────────── */
+
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes radarPing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  60% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+@keyframes softFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes slowGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 12px rgba(2, 132, 199, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 24px rgba(2, 132, 199, 0.85));
+  }
+}
+
+.anim-float {
+  animation: softFloat 4s ease-in-out infinite;
+}
+
+.anim-float-delayed {
+  animation: softFloat 4.5s ease-in-out 1.2s infinite;
+}
+
+.radar-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid #0284c7;
+  animation: radarPing 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.radar-ring-warn {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid #ea580c;
+  animation: radarPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+}
+
+.glass-hud-dark {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
 }
 

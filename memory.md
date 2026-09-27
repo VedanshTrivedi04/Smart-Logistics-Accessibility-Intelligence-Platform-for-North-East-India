@@ -39,6 +39,46 @@ Smart Logistics & Accessibility Intelligence Platform for North East India (SIH 
 
 ## Interaction History
 
+### 2026-09-28 (Selective Integration of UI/UX Overhaul from origin/kanhaiya)
+
+**User Request**
+> okay so mere ui ux developer nei ui ux ka push kiya hei uski branch mri jo ki hei kanhaiya name se
+> so meko abhi kya karna hei ki jo changes usne kiye hei bss vo hi meko meri side merge karna hei and baki meri side se kucch bhi baki ke changes nahi hona chchiye jo mene develop kiya hei jo files usne change ki hei bss vo hi
+> kya samjhe and kaise karo ge meko yeeh batao pehele then after that you can continue — followed by: "okay great do"
+
+**Work Done**
+- **Safety Precaution:** Created local safety branch `backup-before-kanhaiya-ui` before pulling any changes.
+- **Surgical Checkout:** Avoided blunt branch merge conflicts by checking out exclusively the targeted UI/UX files from `origin/kanhaiya` (commit `9c4130e`):
+  - Added new 3D topographic and satellite relief map assets in `frontend/public/` (`bg-ner.jpeg`, `logo-primary.png`, `main map up.png`, `map up.jpeg`, `ner-3d-relief.jpg`, `ner-topo-tablet.jpg`, `upper map.png`). Preserved `frontend/public/sw.js` at `HEAD` to maintain v4 offline caching and inspector route warming.
+  - Redesigned landing page `frontend/src/app/page.tsx` with interactive tablet HUD, delay reduction sparklines, terrain and flood hydrology pillars, and portal shortcut cards.
+  - Added 89 lines of styling utilities and keyframes to `frontend/src/app/globals.css`.
+  - Updated branding references from "PARVA" to "PRAVAHA" across `frontend/src/app/layout.tsx`, `frontend/src/app/public/page.tsx`, `frontend/src/features/session/LoginView.tsx`, and `frontend/src/shared/ui/AppShell.tsx`.
+  - Updated `frontend/src/middleware.ts` to allow static public asset routes without authentication redirect.
+  - Synchronized animation dependencies (`framer-motion`, `lenis`, `@studio-freight/react-lenis`) in `frontend/package.json` and `frontend/pnpm-lock.yaml`.
+- **Zero Impact on Platform Logic:** All previously developed backend modules, database schemas, dense network seed scripts, Google OR-Tools optimization dispatch, deliveries decoupling, authoritative POD lifecycle, and auth session fixes remain completely untouched.
+
+**Files Changed (Code)**
+- `frontend/package.json`
+- `frontend/pnpm-lock.yaml`
+- `frontend/public/bg-ner.jpeg`
+- `frontend/public/logo-primary.png`
+- `frontend/public/main map up.png`
+- `frontend/public/map up.jpeg`
+- `frontend/public/ner-3d-relief.jpg`
+- `frontend/public/ner-topo-tablet.jpg`
+- `frontend/public/upper map.png`
+- `frontend/src/app/globals.css`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/app/page.tsx`
+- `frontend/src/app/public/page.tsx`
+- `frontend/src/features/session/LoginView.tsx`
+- `frontend/src/middleware.ts`
+- `frontend/src/shared/ui/AppShell.tsx`
+
+**Memory Files Updated**
+- `memory/portals/public/landing.md`
+- `memory.md`
+
 ### 2026-09-28 (Session Check Infinite Loop Fix on Unauthenticated /api/v1/me)
 
 **User Request**
