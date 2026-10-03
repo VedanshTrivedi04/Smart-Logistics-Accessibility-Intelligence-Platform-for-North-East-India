@@ -63,12 +63,12 @@ class TestMeEndpoint:
         returned_caps = set(data["capabilities"])
         assert returned_caps == expected_caps
 
-    async def test_local_authority_lacks_verify_report_in_me(self, client: AsyncClient) -> None:
+    async def test_field_officer_lacks_verify_report_in_me(self, client: AsyncClient) -> None:
         response = await client.get(
             "/api/v1/me",
             headers={
                 "X-Dev-User-Id": str(uuid.uuid4()),
-                "X-Dev-Role": Role.LOCAL_AUTHORITY.value,
+                "X-Dev-Role": Role.FIELD_OFFICER.value,
             },
         )
         assert response.status_code == HTTP_200_OK

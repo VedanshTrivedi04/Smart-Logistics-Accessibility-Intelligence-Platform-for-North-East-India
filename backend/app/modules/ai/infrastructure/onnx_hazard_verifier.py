@@ -15,6 +15,12 @@ Two implementations:
     unchanged on a real 5-class model; the current model's predictions are not
     meaningful.
 
+Preprocessing is a letterbox (aspect-preserving resize + grey 114 padding), identical to
+Ultralytics' training/validation pipeline; a plain squashing resize measurably hurts accuracy.
+`is_roadway_blocked` is only asserted for detections with confidence >= BLOCKED_MIN_CONFIDENCE, and
+a model that does not know the CLEAR_ROAD class reports `detectable_classes` so callers can tell
+"no landslide found" apart from "road is clear".
+
 Class-name resolution reads the `names` mapping embedded in the ONNX model's
 metadata by Ultralytics' exporter, so once a real model is trained with class
 names matching HazardClass's enum values (LANDSLIDE, FLOOD_WATERLOGGING,
@@ -30,6 +36,7 @@ import ast
 import io
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -39,12 +46,22 @@ from app.modules.ai.domain.entities import HazardVerification
 from app.modules.ai.domain.enums import HazardClass, ModelStatus
 from app.modules.ai.domain.exceptions import InvalidFeatureVectorError, ModelNotLoadedError
 
+if TYPE_CHECKING:  # Pillow is an optional (ml extra) dependency, imported lazily at runtime
+    from PIL import Image
+
 logger = get_logger(__name__)
 
 MODEL_PATH = Path(__file__).resolve().parent / "models" / "hazard_model.onnx"
 
-CONFIDENCE_THRESHOLD = 0.25
+# Chosen on the validation split (max F2) for the real landslide model, see
+# ml-training/scripts/eval_onnx_verifier.py. The score is a raw detector score, NOT a calibrated
+# probability (this model rarely exceeds 0.5), so the threshold is low by design.
+CONFIDENCE_THRESHOLD = 0.10
 IOU_THRESHOLD = 0.45
+# A detection must be at least this confident before we claim the roadway is blocked (a landslide
+# somewhere in the frame does not by itself mean the road is blocked).
+BLOCKED_MIN_CONFIDENCE = 0.50
+LETTERBOX_FILL = 114
 
 # Fallback used when a detected class name doesn't match any HazardClass member
 # (true today: the only trained model has a single undifferentiated
@@ -131,6 +148,25 @@ def decode_yolov8_output(
     ]
 
 
+def max_class_score(raw_output: np.ndarray) -> float:
+    """Highest per-box class score in a raw YOLOv8 output tensor (0.0 when there are no boxes)."""
+    scores = raw_output[0][4:, :]
+    return float(scores.max()) if scores.size else 0.0
+
+
+def letterbox(image: Image.Image, width: int, height: int) -> np.ndarray:
+    """Aspect-preserving resize + centred grey padding -> float32 NCHW in [0, 1]."""
+    from PIL import Image as PILImage
+
+    ratio = min(width / image.width, height / image.height)
+    new_w, new_h = max(1, round(image.width * ratio)), max(1, round(image.height * ratio))
+    resized = image.resize((new_w, new_h), PILImage.Resampling.BILINEAR)
+    canvas = PILImage.new("RGB", (width, height), (LETTERBOX_FILL,) * 3)
+    canvas.paste(resized, ((width - new_w) // 2, (height - new_h) // 2))
+    array = np.asarray(canvas, dtype=np.float32) / 255.0
+    return np.transpose(array, (2, 0, 1))[None, ...]
+
+
 def _resolve_hazard_class(class_name: str) -> HazardClass:
     try:
         return HazardClass(class_name.upper())
@@ -155,34 +191,41 @@ class OnnxHazardVerifier(HazardVerifierPort):
         metadata = self.session.get_modelmeta().custom_metadata_map
         names_repr = metadata.get("names", "{}")
         self.class_names: dict[int, str] = ast.literal_eval(names_repr)
+        self.detectable_classes: tuple[str, ...] = tuple(
+            sorted(
+                {
+                    n.upper()
+                    for n in self.class_names.values()
+                    if n.upper() in HazardClass.__members__
+                }
+            )
+        )
 
     async def verify(self, image_bytes: bytes) -> HazardVerification:
         if not image_bytes:
             raise InvalidFeatureVectorError("image_bytes must not be empty")
 
-        from PIL import Image
+        from PIL import Image as PILImage
 
         try:
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            image = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
         except Exception as exc:
             raise InvalidFeatureVectorError(f"Could not decode image: {exc}") from exc
 
-        resized = image.resize((self.input_width, self.input_height))
-        array = np.asarray(resized, dtype=np.float32) / 255.0
-        array = np.transpose(array, (2, 0, 1))[None, ...]
+        array = letterbox(image, self.input_width, self.input_height)
 
         raw_output = self.session.run(None, {self.input_name: array})[0]
         detections = decode_yolov8_output(raw_output, self.class_names)
 
         if not detections:
-            max_score_seen = 0.0
             return HazardVerification(
                 hazard_detected=False,
                 hazard_class=HazardClass.CLEAR_ROAD,
                 severity_score=0.0,
                 is_roadway_blocked=False,
-                confidence=1.0 - max_score_seen,
+                confidence=1.0 - max_class_score(raw_output),
                 model_status=ModelStatus.LOADED,
+                detectable_classes=self.detectable_classes,
             )
 
         best_class_name, best_score = detections[0]
@@ -193,9 +236,10 @@ class OnnxHazardVerifier(HazardVerifierPort):
             hazard_detected=not is_clear,
             hazard_class=hazard_class,
             severity_score=0.0 if is_clear else best_score,
-            is_roadway_blocked=not is_clear,
+            is_roadway_blocked=(not is_clear) and best_score >= BLOCKED_MIN_CONFIDENCE,
             confidence=best_score,
             model_status=ModelStatus.LOADED,
+            detectable_classes=self.detectable_classes,
         )
 
 

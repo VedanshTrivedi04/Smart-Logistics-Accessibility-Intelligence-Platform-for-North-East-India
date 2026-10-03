@@ -10,7 +10,7 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [public/offline](portals/public/offline.md) - Public / Offline fallback (`/offline`)
 
 ## field
-- [field/home](portals/field/home.md) - Field / Home (`/field`)
+- [field/home](portals/field/home.md) - Field / Operational Command Home (`/field`)
 - [field/nearby](portals/field/nearby.md) - Field / Nearby and alerts (`/field/nearby`)
 - [field/profile](portals/field/profile.md) - Field / Profile and assignments (`/field/profile`)
 - [field/queue](portals/field/queue.md) - Field / Send queue (`/field/queue`)
@@ -20,16 +20,16 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [field/road-update](portals/field/road-update.md) - Field / Road and bridge status (`/field/road-update`)
 
 ## gov
-- [gov/alerts](portals/gov/alerts.md) - Gov / Alerts (`/gov/alerts`)
-- [gov/analytics](portals/gov/analytics.md) - Gov / Analytics and reports (`/gov/analytics`)
+- [gov/alerts](portals/gov/alerts.md) - Gov / Actionable Alerts Command (`/gov/alerts`)
+- [gov/analytics](portals/gov/analytics.md) - Gov / Operations Analytics & Reports (`/gov/analytics`)
 - [gov/emergency](portals/gov/emergency.md) - Gov / Emergency operations (`/gov/emergency`)
 - [gov/fleet-deliveries](portals/gov/fleet-deliveries.md) - Gov / Deliveries (`/gov/fleet/deliveries`)
 - [gov/fleet-trips-id](portals/gov/fleet-trips-id.md) - Gov / Trip detail (`/gov/fleet/trips/[id]`)
 - [gov/fleet-trips](portals/gov/fleet-trips.md) - Gov / Trips (`/gov/fleet/trips`)
 - [gov/fleet-vehicles-id](portals/gov/fleet-vehicles-id.md) - Gov / Vehicle detail (`/gov/fleet/vehicles/[id]`)
-- [gov/fleet](portals/gov/fleet.md) - Gov / Vehicles (fleet map) (`/gov/fleet`)
+- [gov/fleet](portals/gov/fleet.md) - Gov / Fleet Monitoring & Delivery Operations (`/gov/fleet`)
 - [gov/home](portals/gov/home.md) - Gov / Command overview (`/gov`)
-- [gov/impact](portals/gov/impact.md) - Gov / Impact of disruptions (`/gov/impact`)
+- [gov/impact](portals/gov/impact.md) - Gov / Disruption Impact & Route Intelligence Command Center (`/gov/impact`)
 - [gov/incidents-id](portals/gov/incidents-id.md) - Gov / Incident detail (`/gov/incidents/[id]`)
 - [gov/incidents](portals/gov/incidents.md) - Gov / Incident Management & Triage Center (`/gov/incidents`)
 - [gov/map](portals/gov/map.md) - Gov / Regional map (`/gov/map`)
@@ -38,26 +38,46 @@ Portal-wise, page-wise notes. Rules: `.agent/rules/memory-update.md`. Global log
 - [gov/reports](portals/gov/reports.md) - Gov / Field Reports & Ground Intelligence Dossier (`/gov/reports`)
 - [gov/routes](portals/gov/routes.md) - Gov / Route intelligence (`/gov/routes`)
 
+## inspector
+- [inspector/home](portals/inspector/home.md) - Inspector / Command Dashboard (`/inspector`)
+- [inspector/inspections](portals/inspector/inspections.md) - Inspector / Assigned & Active Inspections (`/inspector/inspections`)
+- [inspector/inspections-id](portals/inspector/inspections-id.md) - Inspector / Technical Inspection Dossier (`/inspector/inspections/[id]`)
+- [inspector/nearby](portals/inspector/nearby.md) - Inspector / Proximity & Tactical Map (`/inspector/nearby`)
+- [inspector/profile](portals/inspector/profile.md) - Inspector / Official Profile & Scope (`/inspector/profile`)
+- [inspector/queue](portals/inspector/queue.md) - Inspector / Field Sync Queue (`/inspector/queue`)
+- [inspector/reports](portals/inspector/reports.md) - Inspector / Ground Reports Feed (`/inspector/reports`)
+- [inspector/road-assessment](portals/inspector/road-assessment.md) - Inspector / Road Network Health & Edge Assessments (`/inspector/road-assessment`)
+
 ## logistics
+- [logistics/activity](portals/logistics/activity.md) - Logistics / Operational Activity & Audit Log (`/logistics/activity`)
 - [logistics/alerts](portals/logistics/alerts.md) - Logistics / Alerts (`/logistics/alerts`)
-- [logistics/deliveries](portals/logistics/deliveries.md) - Logistics / Deliveries (`/logistics/deliveries`)
-- [logistics/fleet](portals/logistics/fleet.md) - Logistics / Live fleet map (`/logistics/fleet`)
-- [logistics/history](portals/logistics/history.md) - Logistics / History and performance (`/logistics/history`)
-- [logistics/home](portals/logistics/home.md) - Logistics / Overview (`/logistics`)
-- [logistics/manage](portals/logistics/manage.md) - Logistics / Fleet management (`/logistics/manage`)
+- [logistics/assignments](portals/logistics/assignments.md) - Logistics / Fleet Assignments & Dispatch Desk (`/logistics/assignments`)
+- [logistics/deliveries](portals/logistics/deliveries.md) - Logistics / Deliveries & Consignments Desk (`/logistics/deliveries`)
+- [logistics/deliveries-id](portals/logistics/deliveries-id.md) - Logistics / Delivery Consignment Dossier (`/logistics/deliveries/[id]`)
+- [logistics/disruptions](portals/logistics/disruptions.md) - Logistics / Disruption Intelligence & Coordination (`/logistics/disruptions`)
+- [logistics/drivers-id](portals/logistics/drivers-id.md) - Logistics / Driver Dossier (`/logistics/drivers/[id]`)
+- [logistics/drivers](portals/logistics/drivers.md) - Logistics / Drivers Roster (`/logistics/drivers`)
+- [logistics/fleet](portals/logistics/fleet.md) - Logistics / Live Fleet Map (`/logistics/fleet`)
+- [logistics/history](portals/logistics/history.md) - Logistics / History and Performance (`/logistics/history`)
+- [logistics/home](portals/logistics/home.md) - Logistics / Fleet Operations Command (`/logistics`)
+- [logistics/manage](portals/logistics/manage.md) - Logistics / Fleet Management (Retired / Redirected) (`/logistics/manage`)
 - [logistics/operator](portals/logistics/operator.md) - Logistics / Driver & Operator Cockpit (`/logistics/operator`)
-- [logistics/routes](portals/logistics/routes.md) - Logistics / Route alternatives (`/logistics/routes`)
-- [logistics/trips-id](portals/logistics/trips-id.md) - Logistics / Trip detail (`/logistics/trips/[id]`)
+- [logistics/profile](portals/logistics/profile.md) - Logistics / Fleet Operations Profile (`/logistics/profile`)
+- [logistics/routes](portals/logistics/routes.md) - Logistics / Route Alternatives (`/logistics/routes`)
+- [logistics/trips-id](portals/logistics/trips-id.md) - Logistics / Trip Detail (`/logistics/trips/[id]`)
 - [logistics/trips](portals/logistics/trips.md) - Logistics / Trips (`/logistics/trips`)
-- [logistics/vehicles-id](portals/logistics/vehicles-id.md) - Logistics / Vehicle detail (`/logistics/vehicles/[id]`)
+- [logistics/vehicles-id](portals/logistics/vehicles-id.md) - Logistics / Vehicle Detail (`/logistics/vehicles/[id]`)
+- [logistics/vehicles](portals/logistics/vehicles.md) - Logistics / Vehicles Directory (`/logistics/vehicles`)
 
 ## shared
-- [shared/account](portals/shared/account.md) - Shared / Account and scope (`/account`)
+- [shared/account](portals/shared/account.md) - Shared / Account & Access Scope (`/account`)
 - [shared/api-client](portals/shared/api-client.md) - Shared / API client and types
+- [shared/backend-ai](portals/shared/backend-ai.md) - Shared / Backend: ai (AI/ML models, data provenance, status)
 - [shared/backend-coordination](portals/shared/backend-coordination.md) - Shared / Backend: coordination (new 2026-09-24)
 - [shared/backend-hazard](portals/shared/backend-hazard.md) - Shared / Backend: hazard
 - [shared/backend-identity](portals/shared/backend-identity.md) - Shared / Backend: identity
 - [shared/backend-impact](portals/shared/backend-impact.md) - Shared / Backend: impact
+- [shared/backend-inspection](portals/shared/backend-inspection.md) - Shared / Backend: inspection (new 2026-09-27)
 - [shared/backend-logistics](portals/shared/backend-logistics.md) - Shared / Backend: logistics
 - [shared/backend-network](portals/shared/backend-network.md) - Shared / Backend: network
 - [shared/backend-public](portals/shared/backend-public.md) - Shared / Backend: public (no login)

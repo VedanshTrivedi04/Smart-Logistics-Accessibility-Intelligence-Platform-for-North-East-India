@@ -30,7 +30,10 @@ from app.modules.incidents.domain.entities import Incident
 from app.modules.incidents.domain.enums import IncidentLifecycle
 from app.modules.incidents.domain.exceptions import IncidentNotFoundError
 from app.modules.incidents.infrastructure.repository import SqlAlchemyIncidentRepository
-from app.modules.network.application.declare_edge_status import DeclareEdgeStatusUseCase
+from app.modules.network.application.declare_edge_status import (
+    DeclareEdgeStatusUseCase,
+    make_edge_status_outbox_notifier,
+)
 from app.modules.network.infrastructure.repository import SqlAlchemyNetworkRepository
 from app.modules.reporting.api.router import _to_response_dto
 from app.modules.reporting.api.schemas import ReportResponse
@@ -74,6 +77,8 @@ async def triage_report(
     reporting_repo = SqlAlchemyReportingRepository(db)
     use_case = TriageReportUseCase(reporting_repo)
     report = await use_case.execute(principal=principal, report_id=report_id)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_response_dto(report)
 
 
@@ -92,7 +97,9 @@ async def review_report(
     reporting_repo = SqlAlchemyReportingRepository(db)
     incident_repo = SqlAlchemyIncidentRepository(db)
     network_repo = SqlAlchemyNetworkRepository(db)
-    declare_use_case = DeclareEdgeStatusUseCase(network_repo, network_repo)
+    declare_use_case = DeclareEdgeStatusUseCase(
+        network_repo, network_repo, on_status_changed=make_edge_status_outbox_notifier(incident_repo)
+    )
 
     verify_use_case = VerifyReportUseCase(
         reporting_repo=reporting_repo,
@@ -123,6 +130,8 @@ async def review_report(
         incident_title=req.incident_title,
         if_match_version=if_match_ver,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
 
     return ReviewDecisionResponse(
         report_id=UUID(result["report_id"]),
@@ -183,7 +192,9 @@ async def resolve_incident(
 ) -> IncidentResponse:
     incident_repo = SqlAlchemyIncidentRepository(db)
     network_repo = SqlAlchemyNetworkRepository(db)
-    declare_use_case = DeclareEdgeStatusUseCase(network_repo, network_repo)
+    declare_use_case = DeclareEdgeStatusUseCase(
+        network_repo, network_repo, on_status_changed=make_edge_status_outbox_notifier(incident_repo)
+    )
 
     use_case = ResolveIncidentUseCase(
         incident_repo=incident_repo,
@@ -197,6 +208,8 @@ async def resolve_incident(
         notes=req.notes,
         affected_edge_ids=req.affected_edge_ids,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_incident_dto(resolved)
 
 
@@ -220,4 +233,6 @@ async def merge_incidents(
         target_incident_id=req.target_incident_id,
         notes=req.notes,
     )
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await db.commit()
     return _to_incident_dto(target)

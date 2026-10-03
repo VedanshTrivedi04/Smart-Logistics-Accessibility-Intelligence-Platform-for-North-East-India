@@ -18,7 +18,10 @@ from app.modules.incidents.application.resolve_incident import ResolveIncidentUs
 from app.modules.incidents.domain.entities import Incident
 from app.modules.incidents.domain.enums import IncidentLifecycle, ResolutionReason
 from app.modules.incidents.infrastructure.repository import SqlAlchemyIncidentRepository
-from app.modules.network.application.declare_edge_status import DeclareEdgeStatusUseCase
+from app.modules.network.application.declare_edge_status import (
+    DeclareEdgeStatusUseCase,
+    make_edge_status_outbox_notifier,
+)
 from app.modules.network.domain.enums import AccessibilityStatus
 from app.modules.network.infrastructure.repository import SqlAlchemyNetworkRepository
 from app.modules.reporting.domain.enums import ReportSeverity
@@ -78,7 +81,11 @@ class TestIncidentResolutionRecalc:
         async with AsyncSessionLocal() as session:
             incident_repo = SqlAlchemyIncidentRepository(session)
             network_repo = SqlAlchemyNetworkRepository(session)
-            declare_status_use_case = DeclareEdgeStatusUseCase(network_repo, network_repo)
+            declare_status_use_case = DeclareEdgeStatusUseCase(
+                network_repo,
+                network_repo,
+                on_status_changed=make_edge_status_outbox_notifier(incident_repo),
+            )
 
             resolve_use_case = ResolveIncidentUseCase(
                 incident_repo=incident_repo,
@@ -154,3 +161,14 @@ class TestIncidentResolutionRecalc:
             status_after_b = await network_repo.get_current_status(sample_edge_id)
             assert status_after_b is not None
             assert status_after_b.status == AccessibilityStatus.OPEN
+
+            # 5. Verify that edge_status.updated outbox event was emitted
+            outbox_res = await session.execute(
+                text("SELECT count(*) FROM outbox_events WHERE event_type = 'edge_status.updated'")
+            )
+            assert outbox_res.scalar_one() > 0
+
+            # Clean up test incidents
+            await session.execute(text("DELETE FROM incident_edges WHERE incident_id IN (:ia, :ib)"), {"ia": inc_a.id, "ib": inc_b.id})
+            await session.execute(text("DELETE FROM incidents WHERE id IN (:ia, :ib)"), {"ia": inc_a.id, "ib": inc_b.id})
+            await session.commit()

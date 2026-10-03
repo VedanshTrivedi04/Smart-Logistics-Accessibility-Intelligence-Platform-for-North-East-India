@@ -65,7 +65,7 @@ class SqlAlchemyRoutingRepository(RoutingRepositoryPort):
         self,
         lon: float,
         lat: float,
-        max_distance_m: float = 25000.0,
+        max_distance_m: float = 100000.0,
     ) -> tuple[UUID, int, float] | None:
         point_geom = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
         dist_expr = func.ST_Distance(

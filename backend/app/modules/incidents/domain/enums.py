@@ -19,6 +19,7 @@ class ReviewDecisionKind(str, Enum):
     CONFIRM_INCIDENT = "CONFIRM_INCIDENT"
     REJECT_REPORT = "REJECT_REPORT"
     REQUEST_MORE_INFO = "REQUEST_MORE_INFO"
+    REQUEST_REINSPECTION = "REQUEST_REINSPECTION"
 
 
 class ResolutionReason(str, Enum):

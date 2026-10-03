@@ -1,0 +1,11 @@
+{
+  "_note": "Published TYPICAL car travel times used ONLY to calibrate/sanity-check the synthetic NE ETA generator. They come from travel websites (not measurements), include normal traffic and short stops, and vary by source; treat as +-25 % indications. Collected 2026-09-25. Imphal-Kohima was excluded because its sources contradict each other (1h39 vs 2h36).",
+  "Guwahati-Shillong": {"km": 99, "typical_hours": 3.0, "range_hours": [2.5, 3.5],
+    "sources": ["https://www.veenaworld.com/blog/guwahati-to-shillong", "https://www.stayvista.com/blog/guwahati-shillong-cherrapunji-road-trip-distance-time-best-stays/", "https://www.savaari.com/blog/guwahati/guwahati-to-shillong/"]},
+  "Siliguri-Gangtok": {"km": 112, "typical_hours": 4.2, "range_hours": [3.5, 5.0],
+    "sources": ["https://www.yatra.com/distance-between/distance-from-siliguri-to-gangtok.html", "https://www.savaari.com/blog/siliguri/siliguri-to-gangtok/"]},
+  "Dimapur-Kohima": {"km": 74, "typical_hours": 2.75, "range_hours": [2.5, 3.0],
+    "sources": ["https://www.yatra.com/distance-between/distance-from-dimapur-to-kohima.html", "https://en.wikipedia.org/wiki/Dimapur%E2%80%93Kohima_Highway"]},
+  "Guwahati-Dimapur": {"km": 281, "typical_hours": 5.8, "range_hours": [5.3, 6.3],
+    "sources": ["https://www.rome2rio.com/s/Guwahati/Dim%C4%81pur", "https://www.yatra.com/distance-between/distance-from-dimapur-to-guwahati.html"]}
+}

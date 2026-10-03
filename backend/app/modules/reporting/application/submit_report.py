@@ -16,9 +16,12 @@ if TYPE_CHECKING:
     from app.modules.incidents.application.ports import IncidentRepositoryPort
 from app.modules.reporting.domain.entities import FieldReport, LocationPoint
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
+    PassableVehicleClass,
     ReportSeverity,
     ReportType,
     ReviewState,
+    RoadSide,
     ScanStatus,
 )
 from app.modules.reporting.domain.exceptions import (
@@ -53,6 +56,10 @@ class SubmitFieldReportUseCase:
         media_ids: list[UUID] | None = None,
         candidate_edge_id: UUID | None = None,
         candidate_bridge_id: UUID | None = None,
+        lane_status: LaneStatus | None = None,
+        passable_classes: list[PassableVehicleClass] | None = None,
+        life_safety_risk: bool = False,
+        road_side: RoadSide | None = None,
     ) -> FieldReport:
         # 1. Location and timestamp validation
         location.validate()
@@ -102,9 +109,10 @@ class SubmitFieldReportUseCase:
         if media_ids:
             for mid in media_ids:
                 media_obj = await self.reporting_repo.get_media_by_id(mid)
-                if not media_obj:
+                # A report may only carry photos its own author uploaded.
+                if not media_obj or media_obj.uploader_id != principal.user_id:
                     raise MediaNotFoundError(f"Media object {mid} not found.")
-                if media_obj.scan_status not in {ScanStatus.CLEAN, ScanStatus.PENDING_SCAN}:
+                if media_obj.scan_status is not ScanStatus.CLEAN:
                     raise MediaScanNotCleanError(
                         f"Media {mid} scan status is {media_obj.scan_status.value}."
                     )
@@ -115,7 +123,7 @@ class SubmitFieldReportUseCase:
             id=uuid.uuid4(),
             reporter_id=principal.user_id,
             organization_id=getattr(principal, "org_id", getattr(principal, "organization_id", None)),
-            jurisdiction_id=next(iter(principal.jurisdiction_ids)) if principal.jurisdiction_ids else None,
+            jurisdiction_id=principal.home_jurisdiction_id or (sorted(principal.jurisdiction_ids, key=str)[0] if principal.jurisdiction_ids else None),
             client_operation_id=client_operation_id,
             device_id=device_id,
             app_instance_id=app_instance_id,
@@ -130,6 +138,10 @@ class SubmitFieldReportUseCase:
             created_at=received_at,
             media_ids=validated_media_ids,
             review_state=ReviewState.SUBMITTED,
+            lane_status=lane_status,
+            passable_classes=list(dict.fromkeys(passable_classes or [])),
+            life_safety_risk=life_safety_risk,
+            road_side=road_side,
         )
         report.validate_timestamps()
 

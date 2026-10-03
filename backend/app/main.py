@@ -39,7 +39,8 @@ async def _check_redis_connectivity() -> dict[str, str]:
     """Ping Redis and return status dict."""
     settings = get_settings()
     try:
-        client = aioredis.from_url(settings.REDIS_URL, socket_timeout=3.0)
+        redis_url = settings.REDIS_URL.replace("localhost", "127.0.0.1")
+        client = aioredis.from_url(redis_url, socket_timeout=3.0)
         pong = await client.ping()
         await client.aclose()
         return {"status": "ok", "ping": str(pong)}
@@ -95,6 +96,17 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         if redis_status["status"] != "ok":
             logger.error("redis_connectivity_failed", detail=redis_status.get("detail"))
             raise RuntimeError(f"Redis not reachable at startup: {redis_status.get('detail')}")
+
+    # Verify and seed regional network geometry & road curvatures
+    try:
+        from app.core.db import AsyncSessionLocal
+        from app.modules.network.application.seed_regional_network import seed_regional_network
+        async with AsyncSessionLocal() as session:
+            await seed_regional_network(session)
+            await session.commit()
+            logger.info("regional_network_geometry_verified_and_seeded")
+    except Exception as exc:
+        logger.warning("regional_network_seed_skipped", error=str(exc))
 
     logger.info("application_ready")
 
@@ -189,6 +201,10 @@ def _register_routers(app: FastAPI) -> None:
     # Phase 4: incident adjudication & road traversability router
     from app.modules.incidents.api import router as incidents_router
     app.include_router(incidents_router, prefix="/api/v1")
+
+    # Road inspection intelligence router
+    from app.modules.inspection.api.router import router as inspection_router
+    app.include_router(inspection_router, prefix="/api/v1/inspections")
 
     # Phase 5: fleet logistics & dispatch router
     from app.modules.logistics.api import router as logistics_router

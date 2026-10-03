@@ -296,7 +296,7 @@ export function LoginView() {
           <div className="row" style={{ justifyContent: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
             <span style={{ fontSize: "1.8rem" }}>⛰️</span>
             <span style={{ fontWeight: 800, fontSize: "1.4rem", letterSpacing: "0.06em", color: "var(--color-primary-dark, #0284c7)" }}>
-              PARVA
+              PRAVAHA
             </span>
             <span className="badge" style={{ backgroundColor: "#0284c7", color: "white", fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "999px" }}>
               SIH 2026

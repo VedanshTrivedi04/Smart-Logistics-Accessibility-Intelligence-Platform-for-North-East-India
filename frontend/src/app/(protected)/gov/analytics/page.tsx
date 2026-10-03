@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { AnalyticsView } from "@/features/analytics";
+import { AnalyticsCommandCenter } from "@/features/analytics";
 
-export const metadata: Metadata = { title: "Analytics and reports" };
+export const metadata: Metadata = { title: "Operations Analytics & Reports" };
 
 export default function GovAnalyticsPage() {
-  return <AnalyticsView />;
+  return <AnalyticsCommandCenter />;
 }

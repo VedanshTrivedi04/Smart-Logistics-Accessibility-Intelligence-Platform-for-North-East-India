@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PublicRouteCheck } from "@/features/routing";
 
 export const metadata: Metadata = {
-  title: "Public Route & Corridor Checker | PARVA NER",
+  title: "Public Route & Corridor Checker | PRAVAHA NER",
   description: "Check real-time passability, elevation profiles, and travel advisories across North Eastern Region national highways and mountain corridors.",
 };
 
@@ -72,7 +72,7 @@ export default function PublicPage() {
                   color: "#0f172a",
                 }}
               >
-                PARVA
+                PRAVAHA
               </h1>
               <span
                 style={{
@@ -147,7 +147,7 @@ export default function PublicPage() {
         }}
       >
         <p style={{ fontWeight: 600, color: "#334155", marginBottom: "0.35rem" }}>
-          PARVA — Autonomous Logistics Accessibility & Disaster Response Infrastructure for North East India
+          PRAVAHA — Autonomous Logistics Accessibility & Disaster Response Infrastructure for North East India
         </p>
         <p style={{ margin: "0 auto 0.75rem", maxWidth: "780px", lineHeight: 1.5 }}>
           Integrated with Ministry of Development of North Eastern Region (MDoNER), National Highways Authority of India (NHAI), and State Disaster Management Authorities (Assam, Meghalaya, Mizoram, Nagaland, Tripura, Arunachal Pradesh, Manipur, Sikkim).

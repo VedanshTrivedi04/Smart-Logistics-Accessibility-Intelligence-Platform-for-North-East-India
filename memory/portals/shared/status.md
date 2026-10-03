@@ -4,22 +4,25 @@
 - **Source:** frontend/src/app/(protected)/status/page.tsx
 - **Roles / capabilities:** Any signed-in user.
 - **Status:** done
-- **Last updated:** 2026-09-24
+- **Last updated:** 2026-09-25
 
 ## Purpose
 API liveness and dependency readiness, polled every 20 s.
 
 ## Key components / features
-- `ServiceStatusView`.
+- `ServiceStatusView` in `features/session/AccountView.tsx`.
 
 ## Data & API
 - GET /health/live, /health/ready
 
 ## Behaviour notes
-None beyond the above.
+- In development/demo mode (`APP_ENV != "production" or DEMO_MODE`), Redis is optional and reports `standby (dev mode)` rather than failing the readiness probe with 503.
+- In production, both PostgreSQL and Redis are strictly required for 200 readiness status.
+- Redis URL is normalized to IPv4 `127.0.0.1` across backend to avoid Windows `localhost` -> `::1` IPv6 connection timeouts.
+- `ServiceStatusView` resiliently parses dependency check bodies even if 503 is returned, rendering granular diagnostics for database and Redis.
 
 ## Tests
-No page-specific test.
+- `backend/tests/integration/test_health.py` (`TestReadinessEndpoint`).
 
 ## Known issues / TODO
 - None recorded.

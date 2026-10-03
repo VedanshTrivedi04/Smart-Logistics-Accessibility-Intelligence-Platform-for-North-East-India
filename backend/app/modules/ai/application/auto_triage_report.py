@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from app.core.exceptions import NotFoundError
 from app.core.storage import ObjectStoragePort
 from app.modules.ai.application.ports import HazardVerifierPort
 from app.modules.ai.domain.entities import HazardVerification
-from app.modules.ai.domain.exceptions import InvalidFeatureVectorError
+from app.modules.ai.domain.enums import HazardClass
+from app.modules.ai.domain.exceptions import MediaObjectUnavailableError
 from app.modules.reporting.public import ReportingModulePort
 
 
@@ -36,16 +38,31 @@ class AutoTriageFieldReportUseCase:
     async def execute(self, report_id: UUID) -> HazardVerification:
         report = await self.reporting.get_report(report_id)
         if report is None:
-            raise InvalidFeatureVectorError(f"Report {report_id} not found")
+            raise NotFoundError(f"Report {report_id} not found", code="REPORT_NOT_FOUND")
 
         media = await self.reporting.get_verifiable_media(report_id)
         if media is None:
-            raise InvalidFeatureVectorError(
+            raise MediaObjectUnavailableError(
                 f"Report {report_id} has no scan-clean media available for CV verification"
             )
 
-        image_bytes = await self.object_storage.get_object(media.bucket, media.object_key)
+        try:
+            image_bytes = await self.object_storage.get_object(media.bucket, media.object_key)
+        except Exception as exc:  # backends raise different errors (S3 ClientError, OSError)
+            raise MediaObjectUnavailableError(
+                f"Media for report {report_id} could not be fetched from object storage"
+            ) from exc
         verification = await self.hazard_verifier.verify(image_bytes)
+
+        # A model that cannot recognise CLEAR_ROAD saying "nothing found" is not evidence about the
+        # road; do not record it on the report as a CV verdict.
+        covers_clear_road = HazardClass.CLEAR_ROAD.value in verification.detectable_classes
+        if (
+            not verification.hazard_detected
+            and verification.detectable_classes
+            and not covers_clear_road
+        ):
+            return verification
 
         await self.reporting.apply_cv_verification(
             report_id=report_id,

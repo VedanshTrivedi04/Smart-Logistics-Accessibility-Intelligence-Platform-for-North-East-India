@@ -1,4 +1,4 @@
-import { AlertTriangle, Landmark, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Navigation, Network, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
+import { AlertTriangle, Landmark, BarChart3, Bell, Camera, ClipboardCheck, ClipboardList, History, LayoutDashboard, LocateFixed, Map, Navigation, Network, Package, PackageCheck, Radar, Route, Send, ShieldAlert, Truck, User, Wrench } from "lucide-react";
 import type { Surface } from "@/shared/auth";
 import type { NavItem } from "@/shared/ui";
 
@@ -27,14 +27,25 @@ export const NAV: Record<Surface, NavItem[]> = {
     { href: "/field/profile", label: "Profile", icon: User },
   ],
   logistics: [
-    { href: "/logistics", label: "Overview", icon: LayoutDashboard, exact: true },
-    { href: "/logistics/operator", label: "Driver cockpit", icon: Navigation, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/fleet", label: "Live fleet map", icon: LocateFixed, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/trips", label: "Trips", icon: Truck, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/deliveries", label: "Deliveries", icon: PackageCheck, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/routes", label: "Route alternatives", icon: Route, requires: ["COMPUTE_ROUTE"] },
+    { href: "/logistics", label: "Home", icon: LayoutDashboard, exact: true },
+    { href: "/logistics/deliveries", label: "Deliveries", icon: Package, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/trips", label: "Trips", icon: Route, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/assignments", label: "Assignments", icon: PackageCheck, requires: ["DISPATCH_ROUTE"] },
+    { href: "/logistics/vehicles", label: "Vehicles", icon: Truck, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/drivers", label: "Drivers", icon: User, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/fleet", label: "Live Fleet", icon: LocateFixed, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/disruptions", label: "Disruptions", icon: AlertTriangle, requires: ["VIEW_IMPACT"] },
     { href: "/logistics/alerts", label: "Alerts", icon: Bell, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/history", label: "History and performance", icon: History, requires: ["VIEW_FLEET"] },
-    { href: "/logistics/manage", label: "Fleet management", icon: Wrench, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/activity", label: "Activity", icon: History, requires: ["VIEW_FLEET"] },
+    { href: "/logistics/profile", label: "Profile", icon: User },
+  ],
+  inspector: [
+    { href: "/inspector", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { href: "/inspector/inspections", label: "My Inspections", icon: ClipboardCheck },
+    { href: "/inspector/reports", label: "Field Reports", icon: ClipboardList, requires: ["VIEW_REPORT_SUMMARY"] },
+    { href: "/inspector/road-assessment", label: "Road Assessment", icon: Wrench, requires: ["VIEW_ROAD_STATUS"] },
+    { href: "/inspector/queue", label: "Sync Queue", icon: Send },
+    { href: "/inspector/nearby", label: "Nearby Hazards", icon: Radar },
+    { href: "/inspector/profile", label: "Inspector Scope", icon: User },
   ],
 };

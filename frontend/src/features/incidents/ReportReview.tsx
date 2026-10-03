@@ -10,7 +10,9 @@ import { MapLegend, MapView } from "@/shared/map";
 import { Banner, Button, Card, ErrorNotice, Field, QueryState, StatusBadge, useAnnounce } from "@/shared/ui";
 import { edgeLabel, edgeLines, sortBySeverity, useEdges } from "@/features/network";
 import { ReportEvidence } from "./evidence";
+import { AiVisualTriageDossier } from "./AiVisualTriageDossier";
 import { useIncidents, useReport, useReview, useTriage, type ReviewInput } from "./queries";
+import { AssignInspectionModal } from "@/features/inspection";
 
 type Decision = ReviewInput["decision"];
 
@@ -144,6 +146,7 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
   const query = useReport(reportId);
   const triage = useTriage();
   const announce = useAnnounce();
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
   const bbox = useMemo(() => (query.data ? bboxAround(query.data.location.latitude, query.data.location.longitude, 600) : null), [query.data]);
   const nearby = useEdges(bbox, 15, Boolean(bbox));
 
@@ -156,6 +159,7 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
         <div className="split">
           <div className="stack">
             <ReportEvidence report={r} />
+            <AiVisualTriageDossier report={r} />
             <Card title="Location">
               <MapView
                 ariaLabel="Report location"
@@ -177,14 +181,47 @@ export function ReportReview({ reportId, incidentsBase = "/gov/incidents" }: { r
             ) : (
               <Card title="Review">
                 <div className="stack">
-                  {r.review_state === "SUBMITTED" || r.review_state === "PROVISIONAL_CAUTION" ? (
-                    <div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    {r.review_state === "SUBMITTED" || r.review_state === "PROVISIONAL_CAUTION" ? (
                       <Button onClick={() => triage.mutate(reportId, { onSuccess: () => announce("Report claimed for review") })} busy={triage.isPending}>Claim for review</Button>
-                      {triage.isError ? <ErrorNotice error={triage.error} subject="this claim" /> : null}
-                      <p className="small muted">Claiming marks the report Under review so others do not duplicate the work.</p>
-                    </div>
-                  ) : null}
+                    ) : null}
+
+                    {can("ASSIGN_INSPECTION") || can("COORDINATE_RESPONSE") ? (
+                      <button
+                        type="button"
+                        onClick={() => setAssignModalOpen(true)}
+                        className="btn small"
+                        style={{
+                          background: "#4a044e",
+                          color: "#ffffff",
+                          border: "1px solid #d946ef",
+                          fontWeight: 700,
+                          padding: "0.45rem 0.85rem",
+                          borderRadius: "6px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        🔬 Dispatch Road Inspector
+                      </button>
+                    ) : null}
+                  </div>
+                  {triage.isError ? <ErrorNotice error={triage.error} subject="this claim" /> : null}
+                  <p className="small muted">Claiming marks the report Under review, or dispatch an inspector for on-ground verification.</p>
+
                   <ReviewForm reportId={r.id} version={r.version} latitude={r.location.latitude} longitude={r.location.longitude} reporterId={r.reporter_id} />
+
+                  <AssignInspectionModal
+                    reportId={r.id}
+                    candidateEdgeId={r.candidate_edge_id}
+                    jurisdictionId={r.jurisdiction_id}
+                    defaultInstructions={`Inspect ground observation: ${r.description}`}
+                    isOpen={assignModalOpen}
+                    onClose={() => setAssignModalOpen(false)}
+                    onSuccess={() => announce("Inspector task successfully dispatched.")}
+                  />
                 </div>
               </Card>
             )}

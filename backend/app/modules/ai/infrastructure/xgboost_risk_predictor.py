@@ -32,7 +32,36 @@ from app.modules.ai.domain.feature_math import RISK_FEATURE_COLUMNS
 
 logger = get_logger(__name__)
 
-MODEL_PATH = Path(__file__).resolve().parent / "models" / "risk_model_xgboost.pkl"
+_MODELS_DIR = Path(__file__).resolve().parent / "models"
+# Trained on real NASA GLC + COOLR events with Open-Meteo features.
+REAL_MODEL_PATH = _MODELS_DIR / "risk_model_xgboost_real.pkl"
+SYNTHETIC_MODEL_PATH = _MODELS_DIR / "risk_model_xgboost.pkl"
+MODEL_PATH = REAL_MODEL_PATH if REAL_MODEL_PATH.exists() else SYNTHETIC_MODEL_PATH
+CALIBRATION_PATH = _MODELS_DIR / "risk_calibration.json"
+
+
+def _load_calibration(model_path: Path) -> dict[str, float] | None:
+    """Calibration params apply only to the real-data model (fitted on its scores)."""
+    if model_path != REAL_MODEL_PATH or not CALIBRATION_PATH.exists():
+        return None
+    import json
+
+    cal: dict[str, float] = json.loads(CALIBRATION_PATH.read_text(encoding="utf-8"))
+    return cal
+
+
+def calibrate_probability(raw: float, cal: dict[str, float] | None) -> float:
+    """Platt scaling on the raw score, then prior-shift to the assumed real-world prevalence."""
+    if cal is None:
+        return raw
+    import math
+
+    p = min(max(raw, 1e-6), 1 - 1e-6)
+    z = cal["platt_a"] * math.log(p / (1 - p)) + cal["platt_b"]
+    platt = 1 / (1 + math.exp(-z))
+    s, t = cal["sample_prevalence"], cal["assumed_prevalence"]
+    odds = platt / (1 - platt) * (t / (1 - t)) / (s / (1 - s))
+    return odds / (1 + odds)
 
 # Placeholder probability used by the stub adapter.
 _STUB_PROBABILITY = 0.1
@@ -72,6 +101,13 @@ class XgboostRiskPredictor(RiskPredictorPort):
 
         self.model = joblib.load(model_path)
         self.explainer = shap.TreeExplainer(self.model)
+        self.calibration = _load_calibration(model_path)
+        # A model may be trained on a subset of RISK_FEATURE_COLUMNS (e.g. the real-data
+        # model has no stream-distance/susceptibility); it dictates what it needs.
+        names = getattr(self.model, "feature_names_in_", None)
+        self.feature_columns: list[str] = (
+            list(names) if names is not None else list(RISK_FEATURE_COLUMNS)
+        )
 
     async def predict(
         self,
@@ -79,18 +115,19 @@ class XgboostRiskPredictor(RiskPredictorPort):
         horizon: RiskHorizon,
         features: dict[str, float],
     ) -> RiskAssessment:
-        missing = [c for c in RISK_FEATURE_COLUMNS if c not in features]
+        missing = [c for c in self.feature_columns if c not in features]
         if missing:
             raise InvalidFeatureVectorError(f"Missing required risk features: {missing}")
 
         import pandas as pd
 
-        row = pd.DataFrame([{c: features[c] for c in RISK_FEATURE_COLUMNS}])
-        probability = float(self.model.predict_proba(row)[0, 1])
+        row = pd.DataFrame([{c: features[c] for c in self.feature_columns}])
+        raw_score = float(self.model.predict_proba(row)[0, 1])
+        probability = calibrate_probability(raw_score, self.calibration)
 
         shap_values = self.explainer.shap_values(row)[0]
         ranked = sorted(
-            zip(RISK_FEATURE_COLUMNS, shap_values, strict=True),
+            zip(self.feature_columns, shap_values, strict=True),
             key=lambda pair: abs(pair[1]),
             reverse=True,
         )
@@ -108,6 +145,7 @@ class XgboostRiskPredictor(RiskPredictorPort):
             model_status=ModelStatus.LOADED,
             top_contributions=top_contributions,
             predicted_at=datetime.now(UTC),
+            raw_score=raw_score if self.calibration is not None else None,
         )
 
 

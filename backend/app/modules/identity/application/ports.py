@@ -22,6 +22,7 @@ from app.modules.identity.domain.entities import (
     User,
 )
 from app.modules.identity.domain.enums import MembershipStatus, ResourceKind
+from app.modules.identity.domain.principal import JurisdictionScope
 
 
 class IdentityRepositoryPort(ABC):
@@ -92,6 +93,11 @@ class IdentityRepositoryPort(ABC):
     async def get_effective_grants_for_principal(
         self, user_id: UUID, org_id: UUID
     ) -> list[Grant]: ...
+
+    async def resolve_jurisdiction_scope(self, granted_ids: set[UUID]) -> JurisdictionScope:
+        """Expand directly granted jurisdictions to their descendants. Default: no hierarchy knowledge."""
+        home = sorted(granted_ids, key=str)[0] if granted_ids else None
+        return JurisdictionScope(all_ids=frozenset(granted_ids), home_id=home, region_wide=False)
 
     @abstractmethod
     async def get_grant_by_id(self, grant_id: UUID) -> Grant | None: ...

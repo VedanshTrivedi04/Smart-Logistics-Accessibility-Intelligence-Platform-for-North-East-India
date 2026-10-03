@@ -10,7 +10,8 @@ import { formatDateTime, formatDuration } from "@/shared/lib/time";
 import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
 import { Bars, Banner, Button, Card, ErrorNotice, KeyValue, QueryState, Stat, StatusBadge, Tabs, useAnnounce } from "@/shared/ui";
 import { useFacilities } from "@/features/network";
-import { RouteEvaluator, type VehicleOption } from "@/features/routing";
+import { RouteEvaluator, useRoutePlan, type VehicleOption } from "@/features/routing";
+import { lineStrings } from "@/features/routing/geometry";
 import { useCommitments, useTrip, useTripImpacts, useTripTransition, useTrips, useVehicles } from "./queries";
 
 const TRANSITIONS: Record<TripStatus, readonly TripStatus[]> = {
@@ -71,6 +72,56 @@ export function TripList({ tripBase }: { tripBase: string }) {
   );
 }
 
+const GS_ROAD_WAYPOINTS: Array<[number, number]> = [
+  [91.7350, 26.1450], [91.7550, 26.1360], [91.7850, 26.1150], [91.8150, 26.1090],
+  [91.8470, 26.0950], [91.8650, 26.0850], [91.8685, 26.0750], [91.8715, 26.0630],
+  [91.8735, 26.0530], [91.8750, 26.0450], [91.8770, 26.0350], [91.8790, 26.0210],
+  [91.8805, 26.0080], [91.8815, 25.9920], [91.8820, 25.9780], [91.8820, 25.9650],
+  [91.8828, 25.9610], [91.8835, 25.9570], [91.8840, 25.9550], [91.8835, 25.9460],
+  [91.8821, 25.9360], [91.8805, 25.9260], [91.8798, 25.9180], [91.8812, 25.9100],
+  [91.8810, 25.9050], [91.8825, 25.8850], [91.8840, 25.8650], [91.8850, 25.8400],
+  [91.8845, 25.8200], [91.8875, 25.8000], [91.8940, 25.7800], [91.9030, 25.7650],
+  [91.9120, 25.7550], [91.9110, 25.7380], [91.9095, 25.7200], [91.9065, 25.7020],
+  [91.9035, 25.6850], [91.9080, 25.6650], [91.9065, 25.6600], [91.9050, 25.6550],
+  [91.9010, 25.6400], [91.8975, 25.6250], [91.8950, 25.6100], [91.8935, 25.5980],
+  [91.8950, 25.5950], [91.8905, 25.5890], [91.8870, 25.5830], [91.8840, 25.5780],
+];
+
+function buildRoadFollowingStopLine(stops: readonly TripStop[]): Array<[number, number]> {
+  if (stops.length < 2) return [];
+  const coords: Array<[number, number]> = [];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const s1 = stops[i];
+    const s2 = stops[i + 1];
+    if (!s1 || !s2) continue;
+
+    let minIdx1 = 0;
+    let minD1 = Infinity;
+    let minIdx2 = 0;
+    let minD2 = Infinity;
+
+    for (let j = 0; j < GS_ROAD_WAYPOINTS.length; j++) {
+      const wp = GS_ROAD_WAYPOINTS[j]!;
+      const d1 = Math.hypot(wp[0] - s1.lon, wp[1] - s1.lat);
+      const d2 = Math.hypot(wp[0] - s2.lon, wp[1] - s2.lat);
+      if (d1 < minD1) { minD1 = d1; minIdx1 = j; }
+      if (d2 < minD2) { minD2 = d2; minIdx2 = j; }
+    }
+
+    if (minD1 < 0.2 && minD2 < 0.2 && minIdx1 !== minIdx2) {
+      const seg = minIdx1 < minIdx2
+        ? GS_ROAD_WAYPOINTS.slice(minIdx1, minIdx2 + 1)
+        : GS_ROAD_WAYPOINTS.slice(minIdx2, minIdx1 + 1).reverse();
+      if (coords.length > 0) coords.pop();
+      coords.push([s1.lon, s1.lat], ...seg, [s2.lon, s2.lat]);
+    } else {
+      if (coords.length === 0) coords.push([s1.lon, s1.lat]);
+      coords.push([s2.lon, s2.lat]);
+    }
+  }
+  return coords;
+}
+
 export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBase: string }) {
   const { can } = useSession();
   const announce = useAnnounce();
@@ -84,6 +135,7 @@ export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBas
   const vehicle = vehicles.data?.find((v) => v.id === trip.data?.vehicle_id);
   const linked = (commitments.data ?? []).filter((c) => trip.data?.commitment_ids.includes(c.id));
   const vehicleOptions: VehicleOption[] = vehicle ? [{ id: vehicle.id, label: vehicle.registration_number, maxWeightKg: vehicle.max_weight_kg, heightM: vehicle.height_m, hazmatCapable: vehicle.is_hazmat_capable }] : [];
+  const routePlan = useRoutePlan(trip.data?.current_route_snapshot_id ?? null);
 
   return (
     <QueryState query={trip} subject="trip">
@@ -92,14 +144,27 @@ export function TripDetail({ tripId, vehicleBase }: { tripId: string; vehicleBas
         const last = t.stops[t.stops.length - 1];
         const priorityTier = linked.some((c) => c.priority_tier === "TIER_1_LIFE_SAVING") ? "TIER_1_LIFE_SAVING" : linked.some((c) => c.priority_tier === "TIER_2_ESSENTIAL") ? "TIER_2_ESSENTIAL" : "TIER_3_STANDARD";
         const stopPoints: MapPoint[] = t.stops.map((s, i) => ({ id: s.id, kind: "stop", lon: s.lon, lat: s.lat, label: `Stop ${i + 1}: ${humanize(s.stop_type)} · ${humanize(s.status)}`, tone: STOP_TONE[s.status], glyph: String(i + 1) }));
-        const stopLine: MapLine[] = t.stops.length > 1 ? [{ id: "planned", cls: "route_primary", coordinates: t.stops.map((s) => [s.lon, s.lat]) }] : [];
-        const stopBounds = t.stops.length ? bboxOfCoordinates(t.stops.map((s) => [s.lon, s.lat])) : null;
+        const planCoords = routePlan.data?.primary_geometry ? lineStrings(routePlan.data.primary_geometry).flat() : [];
+        const stopLineCoords = planCoords.length > 1 ? planCoords : buildRoadFollowingStopLine(t.stops);
+        const stopLines: MapLine[] = [];
+        if (planCoords.length > 1) {
+          stopLines.push({ id: "planned", cls: "route_primary", coordinates: planCoords });
+          routePlan.data?.alternatives?.forEach((alt) => {
+            const altCoords = lineStrings(alt.geometry).flat();
+            if (altCoords.length > 1) {
+              stopLines.push({ id: `alt-${alt.rank}`, cls: "route_alt", coordinates: altCoords });
+            }
+          });
+        } else if (stopLineCoords.length > 1) {
+          stopLines.push({ id: "planned", cls: "route_primary", coordinates: stopLineCoords });
+        }
+        const stopBounds = stopLineCoords.length ? bboxOfCoordinates(stopLineCoords) : null;
         return (
           <div className="stack">
             {t.stops.length ? (
               <Card title="Trip route">
-                <MapView ariaLabel="Trip stops in planned order" height={300} points={stopPoints} lines={stopLine} fitBounds={stopBounds} fitKey={t.id} />
-                <MapLegend points={stopPoints} lines={stopLine} />
+                <MapView ariaLabel="Trip stops in planned order" height={300} points={stopPoints} lines={stopLines} fitBounds={stopBounds} fitKey={t.id} />
+                <MapLegend points={stopPoints} lines={stopLines} />
               </Card>
             ) : null}
             <div className="split">
@@ -203,7 +268,7 @@ export function CommitmentTable({ rows }: { rows: readonly Commitment[] }) {
         <tbody>
           {rows.map((c) => (
             <tr key={c.id}>
-              <td>{c.consignment_reference}<div className="small muted">{humanize(c.cargo_category)} · {c.delivered_quantity_units}/{c.consigned_quantity_units} units</div></td>
+              <td><Link href={`/logistics/deliveries/${c.id}`} style={{ fontWeight: 600, color: "#38bdf8" }}>{c.consignment_reference}</Link><div className="small muted">{humanize(c.cargo_category)} · {c.delivered_quantity_units}/{c.consigned_quantity_units} units</div></td>
               <td><StatusBadge kind="priority" value={c.priority_tier} /></td>
               <td>{name(c.origin_facility_id)} → {name(c.destination_facility_id)}</td>
               <td><div className="stack" style={{ gap: "0.25rem" }}><StatusBadge kind="delivery" value={c.status} /><StatusBadge kind="sla" value={c.sla_status} />{c.shortage_reason ? <span className="small">Shortage: {c.shortage_reason}</span> : null}</div></td>
@@ -255,18 +320,20 @@ export function CommitmentList() {
 }
 
 /** Delivery history and performance, derived from real completed trips. Nothing is estimated. */
-export function DeliveryHistory({ tripBase }: { tripBase: string }) {
+export function DeliveryHistory({ tripBase, vehicleId, driverId }: { tripBase: string; vehicleId?: string; driverId?: string }) {
   const trips = useTrips();
   const rows = useMemo(() => {
     return (trips.data ?? [])
       .filter((t) => ["COMPLETED", "ABORTED", "CANCELLED"].includes(t.status))
+      .filter((t) => (vehicleId ? t.vehicle_id === vehicleId : true))
+      .filter((t) => (driverId ? t.driver_id === driverId : true))
       .map((t) => {
         const lastStop = t.stops[t.stops.length - 1];
         const duration = t.actual_departure && t.actual_arrival ? (new Date(t.actual_arrival).getTime() - new Date(t.actual_departure).getTime()) / 1000 : null;
         const delay = t.actual_arrival && lastStop ? (new Date(t.actual_arrival).getTime() - new Date(lastStop.planned_arrival).getTime()) / 1000 : null;
         return { trip: t, duration, delay };
       });
-  }, [trips.data]);
+  }, [trips.data, vehicleId, driverId]);
   const completed = rows.filter((r) => r.trip.status === "COMPLETED");
   const delays = completed.map((r) => r.delay).filter((d): d is number => d !== null);
   const late = delays.filter((d) => d > 0);

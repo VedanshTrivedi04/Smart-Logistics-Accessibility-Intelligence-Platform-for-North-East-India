@@ -65,7 +65,7 @@ export function fakeServer() {
       if (e) throw e;
       const mediaId = crypto.randomUUID();
       uploads.push(mediaId);
-      return { mediaId, uploadUrl: `https://storage.invalid/${mediaId}` };
+      return { mediaId, uploadUrl: `https://storage.invalid/${mediaId}`, method: "PUT", headers: {}, fields: {} };
     },
     async putObject() {
       calls.put++;

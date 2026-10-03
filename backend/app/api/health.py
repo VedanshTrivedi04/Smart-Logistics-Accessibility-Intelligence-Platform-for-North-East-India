@@ -65,20 +65,30 @@ async def readiness() -> ORJSONResponse:
     # Check Redis
     redis_ok = False
     try:
-        client = aioredis.from_url(settings.REDIS_URL, socket_timeout=2.0)
+        redis_url = settings.REDIS_URL.replace("localhost", "127.0.0.1")
+        client = aioredis.from_url(redis_url, socket_timeout=2.0)
         await client.ping()
         await client.aclose()
         redis_ok = True
     except Exception:
         pass
 
-    all_ok = db_status["status"] == "ok" and redis_ok
+    is_dev = settings.APP_ENV != "production" or settings.DEMO_MODE
+
+    # In development / demo mode, Redis is optional (it fails open in rate limiting and startup).
+    # In production, both PostgreSQL and Redis are strictly required.
+    if is_dev:
+        all_ok = db_status["status"] == "ok"
+        redis_check = "ok" if redis_ok else "standby (dev mode)"
+    else:
+        all_ok = db_status["status"] == "ok" and redis_ok
+        redis_check = "ok" if redis_ok else "error"
 
     response_body: dict[str, object] = {
         "status": "ok" if all_ok else "degraded",
         "checks": {
             "database": db_status["status"],
-            "redis": "ok" if redis_ok else "error",
+            "redis": redis_check,
         },
     }
 

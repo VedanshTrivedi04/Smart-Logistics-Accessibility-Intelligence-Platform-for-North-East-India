@@ -11,9 +11,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.modules.reporting.domain.enums import (
+    LaneStatus,
     LocationProvider,
+    PassableVehicleClass,
     ReportSeverity,
     ReportType,
+    RoadSide,
 )
 
 
@@ -42,6 +45,10 @@ class ReportCreateRequest(BaseModel):
     media_ids: list[UUID] = Field(default_factory=list, description="Attached pre-uploaded media IDs (max 5)")
     candidate_edge_id: UUID | None = Field(None, description="Explicitly snapped edge ID")
     candidate_bridge_id: UUID | None = Field(None, description="Explicitly snapped bridge ID")
+    lane_status: LaneStatus | None = Field(None, description="Observed lane availability")
+    passable_classes: list[PassableVehicleClass] = Field(default_factory=list, max_length=4, description="Vehicle classes observed passing")
+    life_safety_risk: bool = Field(False, description="Reporter flags an acute risk to life")
+    road_side: RoadSide | None = Field(None, description="Mountain slope side: HILLSIDE, VALLEY_SIDE, BOTH, or UNKNOWN")
 
 
 class ReportResponse(BaseModel):
@@ -62,6 +69,10 @@ class ReportResponse(BaseModel):
     rejection_reason: str | None = None
     rejection_notes: str | None = None
     amendment_of_report_id: UUID | None = None
+    lane_status: LaneStatus | None = None
+    passable_classes: list[PassableVehicleClass] = Field(default_factory=list)
+    life_safety_risk: bool = False
+    road_side: RoadSide | None = None
     observed_at: datetime
     received_at: datetime
     created_at: datetime
@@ -80,6 +91,10 @@ class ReportAmendmentRequest(BaseModel):
     media_ids: list[UUID] = Field(default_factory=list)
     candidate_edge_id: UUID | None = None
     candidate_bridge_id: UUID | None = None
+    road_side: RoadSide | None = None
+    lane_status: LaneStatus | None = None
+    passable_classes: list[PassableVehicleClass] = Field(default_factory=list, max_length=4)
+    life_safety_risk: bool = False
 
 
 class BatchSyncRequest(BaseModel):
@@ -107,9 +122,12 @@ class UploadTicketRequest(BaseModel):
 
 
 class UploadTicketResponse(BaseModel):
-    """Pre-signed PUT upload ticket."""
+    """Direct-upload ticket: a presigned PUT, or a signed multipart POST (Cloudinary)."""
     media_id: UUID
     upload_url: str
+    upload_method: str = "PUT"
+    upload_headers: dict[str, str] = Field(default_factory=dict)
+    upload_fields: dict[str, str] = Field(default_factory=dict)
     object_key: str
     expires_in_seconds: int
 

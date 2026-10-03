@@ -9,6 +9,8 @@ export interface MapPoint {
   /** True for a last-known position that is not a recent observed fix. Rendered hollow with a dashed border. */
   stale?: boolean;
   glyph?: string;
+  /** True to render high-visibility animated radar/sonar pulse rings. */
+  pulse?: boolean;
 }
 
 export interface Cluster {

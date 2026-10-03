@@ -6,7 +6,7 @@ import { formatCoords, humanize } from "@/shared/lib/format";
 import { bboxOfCoordinates, formatDistance, NER_BBOX, type BBox } from "@/shared/lib/geo";
 import { formatDuration } from "@/shared/lib/time";
 import { MapLegend, MapView, type MapLine, type MapPoint } from "@/shared/map";
-import { Banner, Button, Card, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
+import { Banner, ErrorNotice, Field, StatusBadge } from "@/shared/ui";
 import { routeCrossesHighRisk } from "@/features/hazard";
 import { edgeLines } from "@/features/network";
 import { AddressSearch, type GeocodeResult } from "./AddressSearch";
@@ -23,7 +23,6 @@ import {
   Navigation,
   Clock,
   ShieldCheck,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 
@@ -95,7 +94,14 @@ export function PublicRouteCheck() {
   const hazard = usePublicHazardZones(routeBounds, Boolean(routeBounds));
   const incidents = usePublicIncidents();
 
-  const roadLines = useMemo(() => edgeLines(edges.data?.features ?? []), [edges.data]);
+  // Only display disrupted or caution segments as road overlays on the route preview,
+  // so open roads are cleanly displayed by the map tiles without drawing coarse synthetic lines across rivers.
+  const roadLines = useMemo(() => {
+    const disrupted = (edges.data?.features ?? []).filter(
+      (f) => f.props.accessibility_status !== "OPEN"
+    );
+    return edgeLines(disrupted);
+  }, [edges.data]);
   const mapLines = useMemo(() => [...roadLines, ...routeLines], [roadLines, routeLines]);
   const crossedZones = useMemo(() => routeCrossesHighRisk(primaryCoords, hazard.data?.zones ?? []), [primaryCoords, hazard.data]);
   const directions = useMemo<DirectionStep[]>(() => (evaluate.data ? buildDirections(evaluate.data) : []), [evaluate.data]);

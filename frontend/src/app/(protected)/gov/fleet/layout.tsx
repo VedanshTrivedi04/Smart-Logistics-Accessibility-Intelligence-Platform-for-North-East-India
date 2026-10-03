@@ -8,7 +8,7 @@ export default function GovFleetLayout({ children }: { children: ReactNode }) {
       <SubNav
         label="Vehicles and deliveries"
         items={[
-          { href: "/gov/fleet", label: "Vehicles", exact: true },
+          { href: "/gov/fleet", label: "Fleet & Deliveries", exact: true },
           { href: "/gov/fleet/trips", label: "Trips" },
           { href: "/gov/fleet/deliveries", label: "Deliveries" },
         ]}

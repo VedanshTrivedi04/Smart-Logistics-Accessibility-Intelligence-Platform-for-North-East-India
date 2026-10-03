@@ -28,8 +28,15 @@ class CreateCommitmentUseCase:
         destination_facility_id: UUID,
         required_before: datetime,
         consigned_volume_m3: float | None = None,
+        is_hazmat: bool = False,
+        requires_cold_chain: bool = False,
     ) -> DeliveryCommitment:
         now = datetime.now(timezone.utc)
+
+        # Auto-infer hazmat/cold chain if category inherently dictates it
+        final_hazmat = is_hazmat or (cargo_category == CargoCategory.OXYGEN_CYLINDERS)
+        final_cold_chain = requires_cold_chain or (cargo_category == CargoCategory.COLD_CHAIN_VACCINES)
+
         commitment = DeliveryCommitment(
             id=uuid4(),
             organization_id=organization_id,
@@ -45,6 +52,8 @@ class CreateCommitmentUseCase:
             required_before=required_before,
             status=DeliveryStatus.PENDING,
             shortage_reason=None,
+            is_hazmat=final_hazmat,
+            requires_cold_chain=final_cold_chain,
             created_at=now,
             updated_at=now,
         )

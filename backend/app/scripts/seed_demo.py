@@ -79,7 +79,7 @@ DEMO_USERS = [
     (UUID("d0000003-0000-4000-8000-000000000003"), "Chitralekha Devi", "chitra@kamrup-verifier.in", Role.DISTRICT_VERIFIER, ORG_GOV_ID),
     (UUID("d0000004-0000-4000-8000-000000000004"), "Debraj Kalita", "debraj@emergency-ner.in", Role.EMERGENCY_COORDINATOR, ORG_GOV_ID),
     (UUID("d0000005-0000-4000-8000-000000000005"), "Elangbam Meitei", "elangbam@field-assam.in", Role.FIELD_OFFICER, ORG_FIELD_ID),
-    (UUID("d0000006-0000-4000-8000-000000000006"), "Falguni Boro", "falguni@village-assam.in", Role.LOCAL_AUTHORITY, ORG_FIELD_ID),
+    (UUID("d0000006-0000-4000-8000-000000000006"), "Falguni Boro", "falguni@village-assam.in", Role.FIELD_OFFICER, ORG_FIELD_ID),
     (UUID("d0000007-0000-4000-8000-000000000007"), "Girish Nongmeikapam", "girish@roads-assam.in", Role.ROAD_INSPECTION, ORG_FIELD_ID),
     (UUID("d0000008-0000-4000-8000-000000000008"), "Hema Goswami", "hema@ner-logistics.com", Role.FLEET_MANAGER, ORG_LOGISTICS_ID),
     (UUID("d0000009-0000-4000-8000-000000000009"), "Indraneil Datta", "indraneil@ner-logistics.com", Role.DELIVERY_COORDINATOR, ORG_LOGISTICS_ID),

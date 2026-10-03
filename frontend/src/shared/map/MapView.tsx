@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { NER_BBOX, NER_STATES, type BBox } from "@/shared/lib/geo";
 import { clusterPoints, isCluster, type MapPoint } from "./cluster";
 
-export type LineClass = "open" | "restricted" | "blocked" | "caution" | "unknown" | "route_primary" | "route_alt" | "trail";
+export type LineClass = "open" | "restricted" | "blocked" | "caution" | "unknown" | "route_primary" | "route_alt" | "trail" | "route_feasible_a" | "route_feasible_b";
 
 export interface MapLine {
   id: string;
@@ -71,6 +71,8 @@ const LINE_PAINT: Record<LineClass, { color: string; width: number; dash?: numbe
   route_primary: { color: "#0b5cad", width: 6, casing: true },
   route_alt: { color: "#6a3fb5", width: 4, dash: [4, 2] },
   trail: { color: "#0e7490", width: 3, dash: [1, 1] },
+  route_feasible_a: { color: "#16a34a", width: 6, casing: true },
+  route_feasible_b: { color: "#eab308", width: 5, dash: [4, 2], casing: true },
 };
 
 const RISK_COLOR: Record<RiskLevel, string> = {
@@ -234,6 +236,7 @@ export default function MapView({
   // Create the map once.
   useEffect(() => {
     if (!container.current) return;
+    let isDisposed = false;
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
@@ -244,10 +247,10 @@ export default function MapView({
         bounds: NER_BBOX,
         fitBoundsOptions: { padding: 24 },
         maxBounds: [
-          [86.5, 20.5], // Southwest boundary (locks camera to North-East India)
-          [98.5, 30.5], // Northeast boundary
+          [84.0, 19.5], // Southwest boundary (covers West Bengal transit & North-East India)
+          [98.5, 31.0], // Northeast boundary
         ],
-        minZoom: 6.0, // Prevents zooming out to whole world
+        minZoom: 4.5, // Allows fitting inter-state vector approach routes
         maxZoom: 20,
         attributionControl: { compact: true },
         maxPitch: 75,
@@ -262,6 +265,7 @@ export default function MapView({
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
 
     const emit = () => {
+      if (isDisposed) return;
       const b = map.getBounds();
       cb.current.onViewportChange?.({ bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], zoom: map.getZoom() });
     };
@@ -272,6 +276,7 @@ export default function MapView({
     };
 
     map.on("error", (e) => {
+      if (isDisposed) return;
       const message = e.error?.message ?? "Map error";
       if (message.includes("Worker failed to load")) {
         console.warn("MapLibre worker note:", message);
@@ -281,6 +286,7 @@ export default function MapView({
     });
 
     map.on("load", () => {
+      if (isDisposed) return;
       if (!fitBounds) {
         map.fitBounds(NER_BBOX, { padding: 24, duration: 0 });
       }
@@ -306,7 +312,7 @@ export default function MapView({
         id: "route-arrows",
         type: "symbol",
         source: "lines",
-        filter: ["in", ["get", "cls"], ["literal", ["route_primary", "route_alt"]]],
+        filter: ["in", ["get", "cls"], ["literal", ["route_primary", "route_alt", "route_feasible_a", "route_feasible_b"]]],
         layout: {
           "symbol-placement": "line",
           "symbol-spacing": 70,
@@ -318,10 +324,23 @@ export default function MapView({
           "text-ignore-placement": true,
         },
         paint: {
-          "text-color": ["match", ["get", "cls"], "route_alt", "#f3edff", "#ffffff"],
-          "text-halo-color": ["match", ["get", "cls"], "route_alt", "#6a3fb5", "#0b5cad"],
+          "text-color": [
+            "match",
+            ["get", "cls"],
+            "route_alt", "#f3edff",
+            "route_feasible_b", "#713f12",
+            "#ffffff"
+          ],
+          "text-halo-color": [
+            "match",
+            ["get", "cls"],
+            "route_alt", "#6a3fb5",
+            "route_feasible_a", "#15803d",
+            "route_feasible_b", "#ca8a04",
+            "#0b5cad"
+          ],
           "text-halo-width": 1.4,
-          "text-opacity": ["match", ["get", "cls"], "route_alt", 0.75, 1],
+          "text-opacity": 1,
         },
       });
 
@@ -561,8 +580,10 @@ export default function MapView({
           el.addEventListener("click", () => map.easeTo({ center: [item.lon, item.lat], zoom: Math.min(map.getZoom() + 2, 15) }));
         } else {
           el.dataset["shape"] = SHAPES[item.kind];
+          el.dataset["kind"] = item.kind;
           el.dataset["tone"] = item.tone ?? "info";
           if (item.stale) el.dataset["stale"] = "true";
+          if (item.pulse) el.dataset["pulse"] = "true";
           if (selectedRef.current === item.id) el.dataset["selected"] = "true";
           const span = document.createElement("span");
           span.textContent = item.glyph ?? GLYPHS[item.kind];
@@ -581,12 +602,27 @@ export default function MapView({
     (map as unknown as { __renderMarkers: () => void }).__renderMarkers = renderMarkers;
 
     return () => {
+      isDisposed = true;
       clearTimeout(timer);
-      markers.current.forEach((m) => m.remove());
+      markers.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          // ignore
+        }
+      });
       markers.current = [];
-      popup.current?.remove();
+      try {
+        popup.current?.remove();
+      } catch {
+        // ignore
+      }
       popup.current = null;
-      map.remove();
+      try {
+        map.remove();
+      } catch (err) {
+        console.warn("Map teardown notice:", err);
+      }
       mapRef.current = null;
       setReady(false);
     };
@@ -615,14 +651,14 @@ export default function MapView({
     map.__renderMarkers?.();
   }, [points, selectedId, ready]);
 
-  // Fit to requested bounds.
+  // Fit to requested bounds with smooth transition.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !fitBounds) return;
-    map.fitBounds(fitBounds, { padding: 40, maxZoom: 18, duration: 0 });
-    // fitKey intentionally gates refits; fitBounds identity changes every render.
+    map.fitBounds(fitBounds, { padding: 48, maxZoom: 17, duration: 1200 });
+    // fitKey or bounds coordinates gate refits to avoid render loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, ready]);
+  }, [fitKey ?? (fitBounds ? fitBounds.join(",") : null), ready]);
 
   // Push hazard zone data.
   useEffect(() => {

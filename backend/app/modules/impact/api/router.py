@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.core.db import DbSession, get_db_session
 from app.core.security import PrincipalContext, require_authenticated, require_capability
-from app.modules.identity.domain.enums import Capability
+from app.modules.identity.domain.enums import Capability, Role
 from app.modules.impact.api.schemas import (
     EvaluateImpactRequest,
     EvaluateImpactSummaryResponse,
@@ -77,6 +77,27 @@ async def get_trip_impacts(
 
 
 @router.get(
+    "/edges/{edge_id}/impacts",
+    response_model=list[TripImpactResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List active trip impacts for an edge",
+)
+async def get_edge_trip_impacts(
+    edge_id: UUID,
+    active_only: bool = True,
+    principal: PrincipalContext = Depends(require_capability(Capability.VIEW_IMPACT)),
+    session: DbSession = Depends(get_db_session),
+) -> list[TripImpactResponse]:
+    """Lists disruption impacts assessed on trips traversing a specific road edge."""
+    repo = SqlAlchemyImpactRepository(session)
+    org_id = None
+    if principal.role not in (Role.REGIONAL_AUTHORITY, Role.EMERGENCY_COORDINATOR, Role.PLATFORM_ADMINISTRATOR):
+        org_id = principal.org_id
+    impacts = await repo.list_trip_impacts_by_edge(edge_id=edge_id, organization_id=org_id, active_only=active_only)
+    return [_to_trip_impact_response(i) for i in impacts]
+
+
+@router.get(
     "/facilities/{facility_id}/impacts",
     response_model=list[FacilityImpactResponse],
     status_code=status.HTTP_200_OK,
@@ -99,7 +120,8 @@ async def get_facility_impacts(
 )
 async def evaluate_disruption_impact(
     payload: EvaluateImpactRequest,
-    principal: PrincipalContext = Depends(require_authenticated),
+    # Writes impact records, so it needs more than a login (a field officer or driver must not trigger it).
+    principal: PrincipalContext = Depends(require_capability(Capability.COORDINATE_RESPONSE)),
     session: DbSession = Depends(get_db_session),
 ) -> EvaluateImpactSummaryResponse:
     """
@@ -119,6 +141,8 @@ async def evaluate_disruption_impact(
         delay_estimated_seconds=payload.delay_estimated_seconds,
     )
 
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return EvaluateImpactSummaryResponse(
         edge_id=result["edge_id"],
         trips_evaluated=result["trips_evaluated"],

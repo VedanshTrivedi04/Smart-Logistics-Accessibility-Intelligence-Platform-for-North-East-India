@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { LogisticsOverview } from "@/features/overview";
+import { FleetHome } from "@/features/fleet";
 
-export const metadata: Metadata = { title: "Logistics overview" };
+export const metadata: Metadata = { title: "Fleet Operations Command" };
 
 export default function LogisticsHomePage() {
-  return <LogisticsOverview />;
+  return <FleetHome />;
 }

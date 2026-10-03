@@ -90,3 +90,13 @@ class ImpactRepositoryPort(ABC):
     ) -> list[FacilityImpact]:
         """Evaluates facilities affected by the closure/disruption of the given edge."""
         ...
+
+    @abstractmethod
+    async def list_trip_impacts_by_edge(
+        self,
+        edge_id: UUID,
+        organization_id: UUID | None = None,
+        active_only: bool = True,
+    ) -> list[TripImpact]:
+        """Lists impact assessments for trips traversing a specific edge."""
+        ...

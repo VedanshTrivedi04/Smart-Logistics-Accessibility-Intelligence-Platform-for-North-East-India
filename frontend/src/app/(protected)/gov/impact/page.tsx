@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
-import { ImpactBoard } from "@/features/impact";
-import { PageHeader } from "@/shared/ui";
+import { ImpactCommandCenter } from "@/features/impact";
 
-export const metadata: Metadata = { title: "Impact" };
+export const metadata: Metadata = { title: "Disruption Impact & Route Intelligence | Gov Portal" };
 
 export default function GovImpactPage() {
-  return (
-    <>
-      <PageHeader title="Impact of disruptions" subtitle="Which facilities, trips and consignments a disruption affects, from recorded assessments." />
-      <ImpactBoard tripBase="/gov/fleet/trips" />
-    </>
-  );
+  return <ImpactCommandCenter tripBase="/gov/fleet/trips" />;
 }
+

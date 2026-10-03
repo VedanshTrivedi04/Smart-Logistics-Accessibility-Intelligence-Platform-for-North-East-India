@@ -203,6 +203,18 @@ class VerifyReportUseCase:
             )
             await self.incident_repo.create_review_decision(review_dec)
 
+        elif decision == ReviewDecisionKind.REQUEST_REINSPECTION:
+            report.review_state = ReviewState.REINSPECTION_REQUIRED
+            review_dec = ReviewDecision(
+                id=uuid.uuid4(),
+                report_id=report.id,
+                reviewer_id=principal.user_id,
+                decision=decision,
+                notes=notes,
+                created_at=now,
+            )
+            await self.incident_repo.create_review_decision(review_dec)
+
         # Update report in repository
         updated_report = await self.reporting_repo.update_report(report)
 

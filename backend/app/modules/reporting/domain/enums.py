@@ -16,6 +16,10 @@ class ReportType(str, Enum):
     TREE_FALL = "TREE_FALL"
     WEATHER_HAZARD = "WEATHER_HAZARD"
     SECURITY_INCIDENT = "SECURITY_INCIDENT"
+    OBSTRUCTION = "OBSTRUCTION"
+    # Observed condition of a road segment (reopened, restricted, still blocked). An observation only:
+    # it never changes road status by itself and never triggers automatic caution.
+    ROAD_CONDITION_UPDATE = "ROAD_CONDITION_UPDATE"
     OTHER = "OTHER"
 
 
@@ -27,6 +31,22 @@ class ReportSeverity(str, Enum):
     CRITICAL = "CRITICAL"
 
 
+class LaneStatus(str, Enum):
+    """Observed lane availability on the affected road section."""
+    BOTH_BLOCKED = "BOTH_BLOCKED"
+    SINGLE_LANE_OPEN = "SINGLE_LANE_OPEN"
+    SHOULDER_ONLY = "SHOULDER_ONLY"
+    CLEAR = "CLEAR"
+
+
+class PassableVehicleClass(str, Enum):
+    """Vehicle classes the reporter observed getting through."""
+    HEAVY_TRUCK = "HEAVY_TRUCK"
+    LIGHT_4X4 = "LIGHT_4X4"
+    EMERGENCY_ONLY = "EMERGENCY_ONLY"
+    NONE = "NONE"
+
+
 class ReviewState(str, Enum):
     """Field observation review workflow state."""
     SUBMITTED = "SUBMITTED"
@@ -35,6 +55,7 @@ class ReviewState(str, Enum):
     MORE_INFO_NEEDED = "MORE_INFO_NEEDED"
     VERIFIED = "VERIFIED"
     REJECTED = "REJECTED"
+    REINSPECTION_REQUIRED = "REINSPECTION_REQUIRED"
 
 
 class ScanStatus(str, Enum):
@@ -60,3 +81,12 @@ class RejectionReason(str, Enum):
     UNVERIFIABLE = "UNVERIFIABLE"
     RESOLVED_PRIOR_TO_REVIEW = "RESOLVED_PRIOR_TO_REVIEW"
     OTHER = "OTHER"
+
+
+class RoadSide(str, Enum):
+    """Mountain carriageway side relative to slope topography."""
+    HILLSIDE = "HILLSIDE"       # Mountain cutting / slope side (landslide hazard)
+    VALLEY_SIDE = "VALLEY_SIDE" # Gorge / drop-off side (erosion / subsidence hazard)
+    BOTH = "BOTH"               # Both carriageway sides affected
+    UNKNOWN = "UNKNOWN"
+

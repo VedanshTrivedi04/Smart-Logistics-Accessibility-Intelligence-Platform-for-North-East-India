@@ -102,6 +102,19 @@ class CommitmentCreateRequest(BaseModel):
     destination_facility_id: UUID
     required_before: datetime
     consigned_volume_m3: float | None = None
+    is_hazmat: bool = False
+    requires_cold_chain: bool = False
+
+
+class CommitmentStatusUpdateRequest(BaseModel):
+    status: DeliveryStatus
+    delivered_quantity_units: int | None = Field(None, ge=0)
+    shortage_reason: str | None = Field(None, max_length=255)
+    recipient_name: str | None = Field(None, max_length=128)
+    recipient_organization: str | None = Field(None, max_length=128)
+    pod_timestamp: datetime | None = None
+    pod_signature_acknowledgement: str | None = Field(None, max_length=256)
+    delivery_condition: str | None = Field(None, max_length=64)
 
 
 class CommitmentResponse(BaseModel):
@@ -120,6 +133,17 @@ class CommitmentResponse(BaseModel):
     status: DeliveryStatus
     sla_status: SlaStatus
     shortage_reason: str | None
+    is_hazmat: bool
+    requires_cold_chain: bool
+    recipient_name: str | None
+    recipient_organization: str | None
+    pod_timestamp: datetime | None
+    pod_signature_acknowledgement: str | None
+    delivery_condition: str | None
+    previous_trip_code: str | None
+    previous_trip_status: str | None
+    cancellation_reason: str | None
+    released_at: datetime | None
     created_at: datetime
 
     @classmethod
@@ -141,6 +165,17 @@ class CommitmentResponse(BaseModel):
             status=comm.status,
             sla_status=sla,
             shortage_reason=comm.shortage_reason,
+            is_hazmat=getattr(comm, "is_hazmat", False),
+            requires_cold_chain=getattr(comm, "requires_cold_chain", False),
+            recipient_name=getattr(comm, "recipient_name", None),
+            recipient_organization=getattr(comm, "recipient_organization", None),
+            pod_timestamp=getattr(comm, "pod_timestamp", None),
+            pod_signature_acknowledgement=getattr(comm, "pod_signature_acknowledgement", None),
+            delivery_condition=getattr(comm, "delivery_condition", None),
+            previous_trip_code=getattr(comm, "previous_trip_code", None),
+            previous_trip_status=getattr(comm, "previous_trip_status", None),
+            cancellation_reason=getattr(comm, "cancellation_reason", None),
+            released_at=getattr(comm, "released_at", None),
             created_at=comm.created_at,
         )
 
@@ -148,6 +183,7 @@ class CommitmentResponse(BaseModel):
 class TripStopInput(BaseModel):
     stop_type: StopType
     facility_id: UUID | None = None
+    commitment_id: UUID | None = None
     lat: float = Field(..., ge=-90.0, le=90.0)
     lon: float = Field(..., ge=-180.0, le=180.0)
     planned_arrival: datetime
@@ -167,6 +203,7 @@ class DispatchTripRequest(BaseModel):
 class TripStopResponse(BaseModel):
     id: UUID
     trip_id: UUID
+    commitment_id: UUID | None
     sequence_order: int
     stop_type: StopType
     facility_id: UUID | None
@@ -197,3 +234,4 @@ class TripResponse(BaseModel):
 
 class TripTransitionRequest(BaseModel):
     target_status: TripStatus
+    cancellation_reason: str | None = Field(None, max_length=256)

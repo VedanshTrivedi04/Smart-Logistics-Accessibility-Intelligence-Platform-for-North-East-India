@@ -4,7 +4,7 @@
 - **Source:** frontend/src/app/(protected)/gov/reports/page.tsx
 - **Roles / capabilities:** Guard `VIEW_REPORT_SUMMARY`; `VIEW_REPORT_DETAIL`, `VIEW_REPORT_MEDIA` for forensic images; `VERIFY_REPORT` for District Verifier adjudication desk.
 - **Status:** done
-- **Last updated:** 2026-09-24
+- **Last updated:** 2026-09-25
 
 ## Purpose
 Unified command feed and ground intelligence dossier for field patrol observations across North-East India (damage assessment, landslides, bridge scours, flooding, weather obstructions). Provides forensic telemetry, sensor accuracy, photo evidence lightbox, and bidirectional linkage with operational incidents.
@@ -19,6 +19,7 @@ Unified command feed and ground intelligence dossier for field patrol observatio
   - Stepped progression pipeline (`SUBMITTED` → `UNDER REVIEW` → `VERIFIED` / `REJECTED` / `MORE_INFO_NEEDED`).
   - Cross-linkage to `/gov/incidents?selected={incident_id}` when an observation is verified into an active incident.
   - Strict RBAC: Regional Commander has read-only monitoring oversight; adjudication actions (`VERIFY_REPORT`) are gated to authorized District Verifiers.
+  - `useScopeFilter` for State Authority field intelligence desk and corridor scoping.
 
 ## Data & API
 - GET `/api/v1/reports` (via `useReports()`)
@@ -32,6 +33,8 @@ Unified command feed and ground intelligence dossier for field patrol observatio
 - 100% dynamic and connected to backend PostgreSQL/PostGIS database; no mock or hardcoded reports.
 - Handles `?selected={report_id}` query parameter to immediately focus on linked reports from the Incident Command Center.
 - No embedded maps per design directive to avoid clutter; relies on detailed corridor, milestone, and GNSS coordinate data.
+- **State Authority:** For State Authority users (e.g. Bhaskar Singh), displays an authoritative state intelligence banner, automatically maps reports to Assam highway corridors, scopes analytical KPI counters to the assigned state, and offers a quick toggle for full regional overview.
+- **District Officer:** For District Verifiers (e.g. Chitralekha Devi), serves as the primary verification cockpit. Displays an emerald District Verifier banner, filters the verification queue to ground reports within Kamrup Metropolitan sub-divisions, enables verification action modals (`VERIFY_REPORT`), and evaluates evidence within assigned administrative blocks.
 
 ## Tests
 - `tests/unit/components/reports.test.tsx` (generic report tests)

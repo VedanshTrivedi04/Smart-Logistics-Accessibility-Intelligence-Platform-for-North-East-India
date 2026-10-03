@@ -8,3 +8,6 @@ next-env.d.ts
 .env
 .env.*
 .env*.local
+
+# end-to-end test build output (NEXT_DIST_DIR=.next-e2e)
+/.next-e2e/

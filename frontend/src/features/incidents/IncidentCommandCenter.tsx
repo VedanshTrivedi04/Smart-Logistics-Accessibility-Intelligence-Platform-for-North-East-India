@@ -5,33 +5,28 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   ArrowRight,
   Building2,
   CheckCircle2,
   Clock,
   Compass,
   FileText,
-  Filter,
   Layers,
   MapPin,
   Mountain,
   Package,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
   Truck,
   X,
 } from "lucide-react";
 
-import { useSession } from "@/shared/auth";
+import { useSession, useScopeFilter } from "@/shared/auth";
 import { humanize, shortId } from "@/shared/lib/format";
-import { formatDateTime } from "@/shared/lib/time";
-import { Banner, Button, Card, ErrorNotice, QueryState, StatusBadge } from "@/shared/ui";
+import { Button, StatusBadge } from "@/shared/ui";
 import { useImpactData } from "@/features/impact";
-import { useEdges, useFacilities } from "@/features/network";
-import { useTrips } from "@/features/fleet";
+import { useEdges } from "@/features/network";
 import { useIncidents, useReport, useResolveIncident } from "./queries";
 import type { IncidentLifecycle, ResolutionReason } from "@/shared/api";
 
@@ -48,15 +43,45 @@ function inferLocation(title: string, desc?: string): {
 } {
   const text = `${title} ${desc ?? ""}`.toLowerCase();
 
+  if (
+    text.includes("kamrup") ||
+    text.includes("guwahati") ||
+    text.includes("nagaon") ||
+    text.includes("nh-27") ||
+    text.includes("silchar") ||
+    text.includes("cachar") ||
+    text.includes("jorhat") ||
+    text.includes("dibrugarh") ||
+    text.includes("tezpur") ||
+    text.includes("brahmaputra") ||
+    text.includes("assam")
+  ) {
+    return {
+      highway: "NH-27 / NH-6 Assam Transport Arterial",
+      state: "Assam",
+      district: text.includes("kamrup")
+        ? "Kamrup Metropolitan"
+        : text.includes("nagaon")
+          ? "Nagaon District"
+          : text.includes("silchar")
+            ? "Cachar District"
+            : "Kamrup / Nagaon Corridor",
+      coords: "26.1445° N, 91.7362° E",
+      terrain: "Alluvial Floodplain & Highway Embankment · Lowland Transit Corridor · 55m MSL",
+      landmark: "Guwahati-Nagaon Strategic Highway Link (KM 74.2)",
+      nearestFacility: "Gauhati Medical College & Hospital (14 km) · AIIMS Guwahati (22 km)",
+    };
+  }
+
   if (text.includes("sonapur") || text.includes("nh-6") || text.includes("byrnihat") || text.includes("nongpoh") || text.includes("khasi")) {
     return {
-      highway: "NH-6 National Lifeline Highway",
-      state: "Meghalaya",
-      district: "Ri-Bhoi District",
+      highway: "NH-6 National Lifeline Highway (Assam-Meghalaya Border)",
+      state: text.includes("sonapur") ? "Assam" : "Meghalaya",
+      district: text.includes("sonapur") ? "Kamrup Metropolitan (Assam)" : "Ri-Bhoi District",
       coords: "25.9550° N, 91.8840° E",
       terrain: "Steep Mountain Ridge · High Monsoon Defile · 620m MSL",
       landmark: "Milestone KM 48.2 (Between Jorabat Ingress & Byrnihat Base)",
-      nearestFacility: "Civil Hospital Nongpoh (12 km) · NEIGRIHMS Super Specialty (44 km)",
+      nearestFacility: "Civil Hospital Nongpoh (12 km) · Gauhati Medical College (28 km)",
     };
   }
   if (text.includes("umtrew") || text.includes("bridge")) {
@@ -185,6 +210,8 @@ function IncidentCommandCenterInner() {
   const searchParams = useSearchParams();
   const urlSelectedId = searchParams.get("selected");
   const { can } = useSession();
+  const { isStateAuthority, isDistrictOfficer, assignedState, assignedDistrict } = useScopeFilter();
+  const [scopeActive, setScopeActive] = useState<boolean>(isDistrictOfficer || isStateAuthority);
 
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("ALL");
   const [lifecycleTab, setLifecycleTab] = useState<"ACTIVE" | "MONITORING" | "RESOLVED" | "ALL">("ACTIVE");
@@ -201,11 +228,54 @@ function IncidentCommandCenterInner() {
   const incidentsQ = useIncidents(lifecycleTab === "ALL" ? undefined : (lifecycleTab as IncidentLifecycle));
   const impactData = useImpactData();
   const edgesQ = useEdges(null, null);
-  const facilitiesQ = useFacilities();
-  const tripsQ = useTrips(undefined, true);
   const resolveMutation = useResolveIncident();
 
   const allIncidents = useMemo(() => incidentsQ.data ?? [], [incidentsQ.data]);
+
+  // Scoped Incidents (filtered by District Officer or State Authority if active)
+  const scopedIncidents = useMemo(() => {
+    if (!scopeActive) return allIncidents;
+    if (isDistrictOfficer) {
+      return allIncidents.filter((inc) => {
+        const loc = inferLocation(inc.title, inc.description);
+        const t = `${inc.title} ${inc.description || ""}`.toLowerCase();
+        return (
+          loc.district.toLowerCase().includes("kamrup") ||
+          loc.district.toLowerCase().includes(assignedDistrict.toLowerCase()) ||
+          t.includes("kamrup") ||
+          t.includes("guwahati") ||
+          t.includes("jalukbari") ||
+          t.includes("dispur") ||
+          t.includes("azara") ||
+          t.includes("khanapara") ||
+          t.includes("sonapur") ||
+          t.includes("saraighat") ||
+          t.includes("borjhar") ||
+          t.includes("chandrapur") ||
+          loc.highway.includes("NH-27") ||
+          loc.highway.includes("NH-6")
+        );
+      });
+    }
+    if (isStateAuthority) {
+      return allIncidents.filter((inc) => {
+        const loc = inferLocation(inc.title, inc.description);
+        const isAssam =
+          loc.state.toLowerCase().includes(assignedState.toLowerCase()) ||
+          loc.district.toLowerCase().includes(assignedState.toLowerCase()) ||
+          inc.title.toLowerCase().includes(assignedState.toLowerCase()) ||
+          inc.title.toLowerCase().includes("kamrup") ||
+          inc.title.toLowerCase().includes("guwahati") ||
+          inc.title.toLowerCase().includes("nagaon") ||
+          inc.title.toLowerCase().includes("sonapur") ||
+          inc.title.toLowerCase().includes("silchar") ||
+          loc.highway.includes("NH-27") ||
+          loc.highway.includes("NH-6");
+        return isAssam;
+      });
+    }
+    return allIncidents;
+  }, [allIncidents, scopeActive, isDistrictOfficer, isStateAuthority, assignedDistrict, assignedState]);
 
   // Dynamic Triage Severity Counters
   const counters = useMemo(() => {
@@ -214,7 +284,7 @@ function IncidentCommandCenterInner() {
     let moderate = 0;
     let resolved = 0;
 
-    for (const inc of allIncidents) {
+    for (const inc of scopedIncidents) {
       if (inc.lifecycle === "RESOLVED") {
         resolved++;
       } else if (inc.severity === "CRITICAL") {
@@ -231,13 +301,13 @@ function IncidentCommandCenterInner() {
       moderate,
       resolved,
       totalActive: critical + high + moderate,
-      total: allIncidents.length,
+      total: scopedIncidents.length,
     };
-  }, [allIncidents]);
+  }, [scopedIncidents]);
 
   // Filtered List
   const filteredIncidents = useMemo(() => {
-    return allIncidents.filter((inc) => {
+    return scopedIncidents.filter((inc) => {
       // Severity Filter
       if (severityFilter === "CRITICAL" && inc.severity !== "CRITICAL") return false;
       if (severityFilter === "HIGH" && inc.severity !== "HIGH") return false;
@@ -259,7 +329,7 @@ function IncidentCommandCenterInner() {
 
       return true;
     });
-  }, [allIncidents, severityFilter, searchQuery]);
+  }, [scopedIncidents, severityFilter, searchQuery]);
 
   // Auto-select first incident if none selected
   const activeIncident = useMemo(() => {
@@ -287,8 +357,8 @@ function IncidentCommandCenterInner() {
     return (
       allEdges.find(
         (e) =>
-          e.properties.road_name?.toLowerCase().includes("nh-6") ||
-          (activeIncident.title.toLowerCase().includes("bridge") && e.properties.is_bridge),
+          e.props.road_name?.toLowerCase().includes("nh-6") ||
+          (activeIncident.title.toLowerCase().includes("bridge") && e.props.is_bridge),
       ) ?? allEdges[0]
     );
   }, [activeIncident, edgesQ.data]);
@@ -419,6 +489,100 @@ function IncidentCommandCenterInner() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", paddingBottom: "3rem" }}>
+      {/* District Officer Active Jurisdiction Banner */}
+      {isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #064e3b 0%, #065f46 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #10b981",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(16, 185, 129, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📋 District Incident Verifier Active · {assignedDistrict} Operations Desk</span>
+              <span style={{ background: "#10b981", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Kamrup Metro Circles
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: "0.2rem" }}>
+              Triage and clearance workflows are scoped to {assignedDistrict} (Guwahati, Dispur, Azara, Sonapur, North Guwahati, Chandrapur).
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#10b981" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedDistrict}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* State Authority Active Jurisdiction Banner */}
+      {isStateAuthority && !isDistrictOfficer && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #091e3a 0%, #1e3a5f 100%)",
+            color: "#ffffff",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "12px",
+            border: "1px solid #0284c7",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 15px rgba(2, 132, 199, 0.15)",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🏛️ State Authority Active · {assignedState} Incident Operations Desk</span>
+              <span style={{ background: "#0284c7", fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "10px", color: "#fff" }}>
+                Assam Corridors
+              </span>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+              Triage and clearance workflows are scoped to {assignedState} highways and connecting border corridors.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setScopeActive(!scopeActive)}
+              style={{
+                background: scopeActive ? "#0284c7" : "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#fff",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {scopeActive ? `✓ Focused on ${assignedState}` : "Show Full NER Region"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Command Bar & Live Triage Counters ── */}
       <div
         style={{
@@ -446,16 +610,24 @@ function IncidentCommandCenterInner() {
                 }}
               />
               <h2 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 800, color: "#0f172a" }}>
-                MDoNER Incident Management Center
+                {isDistrictOfficer
+                  ? `District Incident Command Center — ${assignedDistrict}`
+                  : isStateAuthority
+                  ? `State Incident Command Center — ${assignedState}`
+                  : "MDoNER Incident Management Center"}
               </h2>
             </div>
             <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
-              Real-time regional highway disruption triage, ground verification dossiers, and supply chain containment.
+              {isDistrictOfficer
+                ? `Kamrup Metropolitan District Administration · District Incident Verifier Scope. Real-time incident triage and road restoration within ${assignedDistrict}.`
+                : isStateAuthority
+                ? `Assam State Department of Transport · State Authority Scope. Real-time incident triage and road restoration within ${assignedState}.`
+                : "Real-time regional highway disruption triage, ground verification dossiers, and supply chain containment."}
             </p>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Button size="small" variant="ghost" onClick={() => void incidentsQ.refetch()}>
+            <Button size="small" onClick={() => void incidentsQ.refetch()}>
               <RefreshCw size={14} className={incidentsQ.isFetching ? "animate-spin" : ""} style={{ marginRight: "0.35rem" }} />
               Sync Incident Feed
             </Button>
@@ -803,7 +975,7 @@ function IncidentCommandCenterInner() {
 
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <StatusBadge kind="lifecycle" value={activeIncident.lifecycle} />
-                  {activeIncident.lifecycle !== "RESOLVED" && can("MANAGE_INCIDENTS") && (
+                  {activeIncident.lifecycle !== "RESOLVED" && can("VERIFY_REPORT") && (
                     <button
                       type="button"
                       onClick={() => setShowResolveModal(true)}

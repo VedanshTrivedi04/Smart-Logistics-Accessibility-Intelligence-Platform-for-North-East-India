@@ -31,6 +31,7 @@
     "tsBuildInfoFile": ".next/cache/tsconfig.tsbuildinfo"
   },
   "include": [
+    ".next/types/**/*.ts",
     "next-env.d.ts",
     "playwright.config.ts",
     "src/**/*.ts",
@@ -38,7 +39,7 @@
     "tests/**/*.ts",
     "tests/**/*.tsx",
     "vitest.config.ts",
-    ".next/types/**/*.ts"
+    ".next-e2e/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

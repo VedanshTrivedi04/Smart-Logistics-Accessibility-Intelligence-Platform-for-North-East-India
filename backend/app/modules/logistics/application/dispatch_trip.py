@@ -20,6 +20,7 @@ from app.modules.logistics.domain.exceptions import (
     DriverNotFoundError,
     ResourceAlreadyDispatchedError,
     VehicleCapacityExceededError,
+    VehicleColdChainIncapableError,
     VehicleHazmatIncapableError,
     VehicleNotFoundError,
 )
@@ -66,9 +67,9 @@ class DispatchTripUseCase:
             if comm is None:
                 raise CommitmentNotFoundError(f"Commitment '{cid}' not found")
             total_weight += comm.consigned_weight_kg
-            if comm.cargo_category == CargoCategory.OXYGEN_CYLINDERS:
+            if getattr(comm, "is_hazmat", False) or comm.cargo_category == CargoCategory.OXYGEN_CYLINDERS:
                 has_hazmat = True
-            elif comm.cargo_category == CargoCategory.COLD_CHAIN_VACCINES:
+            if getattr(comm, "requires_cold_chain", False) or comm.cargo_category == CargoCategory.COLD_CHAIN_VACCINES:
                 has_cold_chain = True
 
         if total_weight > vehicle.max_weight_kg:
@@ -80,7 +81,7 @@ class DispatchTripUseCase:
             raise VehicleHazmatIncapableError("Consignment includes hazmat cargo, but vehicle is not hazmat-certified")
 
         if has_cold_chain and not vehicle.is_refrigerated:
-            raise VehicleHazmatIncapableError("Consignment includes cold-chain cargo, but vehicle is not refrigerated")
+            raise VehicleColdChainIncapableError("Consignment includes cold-chain cargo, but vehicle is not refrigerated")
 
         # 5. Build Trip and Stops
         now = datetime.now(timezone.utc)
@@ -102,6 +103,7 @@ class DispatchTripUseCase:
                     actual_arrival=None,
                     actual_departure=None,
                     status=StopStatus.PENDING,
+                    commitment_id=s.get("commitment_id"),
                 )
             )
 

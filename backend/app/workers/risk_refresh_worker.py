@@ -52,6 +52,7 @@ WEATHER_FRESHNESS_WINDOW_HOURS = 48
 
 # Two-tier risk -> accessibility status mapping. Deliberately one-directional:
 # only escalation is auto-declared; de-escalation always requires human review.
+# Thresholds apply to the raw decision score (see RiskAssessment.decision_score).
 BLOCKED_THRESHOLD = 0.75
 RESTRICTED_THRESHOLD = 0.40
 
@@ -108,7 +109,7 @@ async def refresh_edge_risks(session: DbSession, horizon: RiskHorizon = REFRESH_
             logger.exception("risk_refresh_prediction_failed edge_id=%s", edge_id)
             continue
 
-        new_status = status_for_probability(assessment.probability)
+        new_status = status_for_probability(assessment.decision_score)
         if new_status is None:
             continue
 

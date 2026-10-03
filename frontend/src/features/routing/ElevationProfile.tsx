@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Mountain, ShieldCheck, AlertTriangle, TrendingUp, Gauge, Compass, Activity, ArrowRight } from "lucide-react";
-import { formatDistance } from "@/shared/lib/geo";
-import { formatDuration } from "@/shared/lib/time";
+import { Mountain, ShieldCheck, TrendingUp, Gauge, Activity } from "lucide-react";
 
 interface ElevationProfileProps {
   originName: string;
@@ -29,7 +27,6 @@ export function ElevationProfile({
   destName,
   destAlt = 120,
   distanceMeters,
-  durationSeconds,
   hazardCount,
   hasPilotSensors = false,
 }: ElevationProfileProps) {
@@ -38,7 +35,7 @@ export function ElevationProfile({
   const totalKm = Math.max(1, Math.round(distanceMeters / 1000));
 
   // Synthesize realistic terrain profile along the known North-East mountain corridor
-  const { points, peakAlt, minAlt, totalClimb, totalDescent, maxGradient, terrainType } = useMemo(() => {
+  const { points, peakAlt, minAlt, totalClimb, maxGradient, terrainType } = useMemo(() => {
     const oAlt = originAlt;
     const dAlt = destAlt;
 
@@ -70,7 +67,6 @@ export function ElevationProfile({
       } else if (oAlt > dAlt) {
         // Net descent (e.g. Shillong 1525m -> Silchar 25m)
         // High hill spine before descent into valley
-        const spineFactor = Math.sin(Math.min(1, progress * 1.5) * Math.PI * 0.5);
         const base = oAlt - (oAlt - dAlt) * Math.pow(progress, 1.2);
         const crestBump = progress < 0.4 ? Math.sin(progress * 2.5 * Math.PI) * 110 : 0;
         alt = Math.round(base + crestBump);

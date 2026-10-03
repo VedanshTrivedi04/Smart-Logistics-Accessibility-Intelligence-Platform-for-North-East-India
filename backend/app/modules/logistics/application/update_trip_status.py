@@ -19,7 +19,12 @@ class UpdateTripStatusUseCase:
     def __init__(self, repository: LogisticsRepositoryPort):
         self.repository = repository
 
-    async def execute(self, trip_id: UUID, target_status: TripStatus) -> Trip:
+    async def execute(
+        self,
+        trip_id: UUID,
+        target_status: TripStatus,
+        cancellation_reason: str | None = None,
+    ) -> Trip:
         trip = await self.repository.get_trip_by_id(trip_id, for_update=True)
         if trip is None:
             raise TripNotFoundError(f"Trip '{trip_id}' not found")
@@ -29,4 +34,8 @@ class UpdateTripStatusUseCase:
                 f"Cannot transition trip from '{trip.status.value}' to '{target_status.value}'"
             )
 
-        return await self.repository.update_trip_status(trip_id, target_status)
+        return await self.repository.update_trip_status(
+            trip_id=trip_id,
+            status=target_status,
+            cancellation_reason=cancellation_reason,
+        )

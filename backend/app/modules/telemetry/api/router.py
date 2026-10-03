@@ -68,6 +68,8 @@ async def register_device(
         revoked_at=None,
     )
     saved = await repo.save_device(device)
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return DeviceResponse(
         id=saved.id,
         organization_id=saved.organization_id,
@@ -120,6 +122,8 @@ async def ingest_telemetry(
         is_simulated=False,
     )
 
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return BatchIngestResponse(
         device_id=result.device_id,
         vehicle_id=result.vehicle_id,
@@ -237,6 +241,8 @@ async def replay_synthetic_corridor(
         step_interval_seconds=payload.step_interval_seconds,
     )
 
+    # Handlers own the transaction: get_db() does not commit, so without this the write is rolled back.
+    await session.commit()
     return BatchIngestResponse(
         device_id=result.device_id,
         vehicle_id=result.vehicle_id,

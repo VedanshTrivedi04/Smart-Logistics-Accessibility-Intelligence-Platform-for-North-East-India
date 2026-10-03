@@ -19,9 +19,11 @@ from app.modules.logistics.domain.entities import (
     Trip,
     TripStop,
     Vehicle,
+    validate_delivery_state_transition,
 )
 from app.modules.logistics.domain.enums import (
     CargoCategory,
+    DeliveryCondition,
     DeliveryStatus,
     PriorityTier,
     StopStatus,
@@ -29,6 +31,7 @@ from app.modules.logistics.domain.enums import (
     TripStatus,
     VehicleType,
 )
+from app.modules.logistics.domain.exceptions import InvalidDeliveryStateTransitionError
 from app.modules.logistics.infrastructure.models import (
     DeliveryCommitmentModel,
     DriverModel,
@@ -134,6 +137,12 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
         result = await self.session.execute(stmt)
         return [self._to_driver_entity(m) for m in result.scalars()]
 
+    async def get_driver_by_user_id(self, user_id: UUID) -> Driver | None:
+        stmt = sa.select(DriverModel).where(DriverModel.user_id == user_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_driver_entity(model) if model else None
+
     # ──────────────────────────────────────────────────────────
     # Delivery Commitments
     # ──────────────────────────────────────────────────────────
@@ -160,6 +169,17 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
             required_before=commitment.required_before,
             status=commitment.status.value,
             shortage_reason=commitment.shortage_reason,
+            is_hazmat=commitment.is_hazmat,
+            requires_cold_chain=commitment.requires_cold_chain,
+            recipient_name=commitment.recipient_name,
+            recipient_organization=commitment.recipient_organization,
+            pod_timestamp=commitment.pod_timestamp,
+            pod_signature_acknowledgement=commitment.pod_signature_acknowledgement,
+            delivery_condition=commitment.delivery_condition,
+            previous_trip_code=commitment.previous_trip_code,
+            previous_trip_status=commitment.previous_trip_status,
+            cancellation_reason=commitment.cancellation_reason,
+            released_at=commitment.released_at,
             created_at=commitment.created_at,
             updated_at=commitment.updated_at,
         )
@@ -174,6 +194,60 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
         stmt = stmt.order_by(DeliveryCommitmentModel.required_before)
         result = await self.session.execute(stmt)
         return [self._to_commitment_entity(m) for m in result.scalars()]
+
+    async def update_commitment_status(
+        self,
+        commitment_id: UUID,
+        status: DeliveryStatus,
+        delivered_units: int | None = None,
+        shortage_reason: str | None = None,
+        recipient_name: str | None = None,
+        recipient_organization: str | None = None,
+        pod_timestamp: datetime | None = None,
+        pod_signature_acknowledgement: str | None = None,
+        delivery_condition: str | None = None,
+    ) -> DeliveryCommitment | None:
+        curr = await self.get_commitment_by_id(commitment_id)
+        if curr is None:
+            return None
+
+        # Enforce formal state transition matrix
+        if not validate_delivery_state_transition(curr.status, status):
+            raise InvalidDeliveryStateTransitionError(
+                f"Cannot transition delivery commitment from '{curr.status.value}' to '{status.value}'"
+            )
+
+        values: dict[str, Any] = {
+            "status": status.value,
+            "updated_at": sa.func.now(),
+        }
+        if delivered_units is not None:
+            values["delivered_quantity_units"] = delivered_units
+        if shortage_reason is not None:
+            values["shortage_reason"] = shortage_reason
+        if recipient_name is not None:
+            values["recipient_name"] = recipient_name
+        if recipient_organization is not None:
+            values["recipient_organization"] = recipient_organization
+        if pod_timestamp is not None:
+            values["pod_timestamp"] = pod_timestamp
+        elif status == DeliveryStatus.DELIVERED and curr.pod_timestamp is None:
+            values["pod_timestamp"] = sa.func.now()
+        if pod_signature_acknowledgement is not None:
+            values["pod_signature_acknowledgement"] = pod_signature_acknowledgement
+        if delivery_condition is not None:
+            values["delivery_condition"] = getattr(delivery_condition, "value", delivery_condition)
+
+        stmt = (
+            sa.update(DeliveryCommitmentModel)
+            .where(DeliveryCommitmentModel.id == commitment_id)
+            .values(**values)
+        )
+        res = await self.session.execute(stmt)
+        if res.rowcount == 0:
+            return None
+        await self.session.flush()
+        return await self.get_commitment_by_id(commitment_id)
 
     # ──────────────────────────────────────────────────────────
     # Trips & Conflict Checks
@@ -229,6 +303,7 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
             stop_model = TripStopModel(
                 id=s.id,
                 trip_id=trip.id,
+                commitment_id=s.commitment_id,
                 sequence_order=s.sequence_order,
                 stop_type=s.stop_type.value,
                 facility_id=s.facility_id,
@@ -254,23 +329,68 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
         await self.session.flush()
         return await self.get_trip_by_id(trip.id)  # type: ignore
 
-    async def update_trip_status(self, trip_id: UUID, status: TripStatus) -> Trip:
-        stmt = sa.update(TripModel).where(TripModel.id == trip_id).values(
-            status=status.value,
-            updated_at=sa.func.now(),
-        )
+    async def update_trip_status(
+        self,
+        trip_id: UUID,
+        status: TripStatus,
+        cancellation_reason: str | None = None,
+    ) -> Trip:
+        trip_curr = await self.get_trip_by_id(trip_id)
+        values: dict[str, Any] = {
+            "status": status.value,
+            "updated_at": sa.func.now(),
+        }
+        if status == TripStatus.IN_TRANSIT:
+            values["actual_departure"] = sa.func.now()
+        elif status == TripStatus.COMPLETED:
+            values["actual_arrival"] = sa.func.now()
+
+        stmt = sa.update(TripModel).where(TripModel.id == trip_id).values(**values)
         await self.session.execute(stmt)
 
-        # If cancelled or aborted, release linked commitments back to PENDING
-        if status in (TripStatus.CANCELLED, TripStatus.ABORTED):
-            c_stmt = sa.select(TripCommitmentModel.commitment_id).where(TripCommitmentModel.trip_id == trip_id)
-            c_res = await self.session.execute(c_stmt)
-            comm_ids = list(c_res.scalars().all())
-            if comm_ids:
-                upd_comm = sa.update(DeliveryCommitmentModel).where(
-                    DeliveryCommitmentModel.id.in_(comm_ids)
-                ).values(status=DeliveryStatus.PENDING.value)
+        # Synchronize linked commitments with business context preservation
+        c_stmt = sa.select(TripCommitmentModel.commitment_id).where(TripCommitmentModel.trip_id == trip_id)
+        c_res = await self.session.execute(c_stmt)
+        comm_ids = list(c_res.scalars().all())
+
+        if comm_ids:
+            trip_code = trip_curr.trip_code if trip_curr else str(trip_id)[:8]
+            if status in (TripStatus.CANCELLED, TripStatus.ABORTED):
+                # Only reset commitments that have NOT been delivered yet; preserve audit cancellation trail
+                upd_comm = (
+                    sa.update(DeliveryCommitmentModel)
+                    .where(
+                        DeliveryCommitmentModel.id.in_(comm_ids),
+                        DeliveryCommitmentModel.status != DeliveryStatus.DELIVERED.value,
+                    )
+                    .values(
+                        status=DeliveryStatus.PENDING.value,
+                        previous_trip_code=trip_code,
+                        previous_trip_status=status.value,
+                        cancellation_reason=cancellation_reason or f"Trip {trip_code} {status.value}",
+                        released_at=sa.func.now(),
+                        updated_at=sa.func.now(),
+                    )
+                )
                 await self.session.execute(upd_comm)
+            elif status == TripStatus.IN_TRANSIT:
+                # Mark dispatched commitments as in-transit
+                upd_comm = (
+                    sa.update(DeliveryCommitmentModel)
+                    .where(
+                        DeliveryCommitmentModel.id.in_(comm_ids),
+                        DeliveryCommitmentModel.status == DeliveryStatus.DISPATCHED.value,
+                    )
+                    .values(status=DeliveryStatus.IN_TRANSIT.value, updated_at=sa.func.now())
+                )
+                await self.session.execute(upd_comm)
+            elif status == TripStatus.COMPLETED:
+                # IMPORTANT ARCHITECTURAL RULE:
+                # Trip completion does NOT unilaterally overwrite deliveries as DELIVERED!
+                # Authoritative delivery completion requires individual POD/handover.
+                # Commitments that are already DELIVERED, PARTIALLY_DELIVERED, or FAILED remain intact.
+                # Commitments still in transit await explicit POD confirmation or review.
+                pass
 
         await self.session.flush()
         return await self.get_trip_by_id(trip_id)  # type: ignore
@@ -289,6 +409,23 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
             trip = await self._to_trip_entity(m)
             trips.append(trip)
         return trips
+
+    async def get_active_trip_for_driver(self, driver_id: UUID) -> Trip | None:
+        stmt = (
+            sa.select(TripModel)
+            .where(
+                TripModel.driver_id == driver_id,
+                TripModel.status.in_(["PLANNED", "DISPATCHED", "IN_TRANSIT", "HELD_FOR_INSPECTION", "DIVERTED"]),
+            )
+            .options(
+                selectinload(TripModel.stops),
+                selectinload(TripModel.commitments),
+            )
+            .order_by(TripModel.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalars().first()
+        return await self._to_trip_entity(model) if model else None
 
     # ──────────────────────────────────────────────────────────
     # Entity Mappers
@@ -344,6 +481,17 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
             required_before=m.required_before,
             status=DeliveryStatus(m.status),
             shortage_reason=m.shortage_reason,
+            is_hazmat=m.is_hazmat,
+            requires_cold_chain=m.requires_cold_chain,
+            recipient_name=m.recipient_name,
+            recipient_organization=m.recipient_organization,
+            pod_timestamp=m.pod_timestamp,
+            pod_signature_acknowledgement=m.pod_signature_acknowledgement,
+            delivery_condition=m.delivery_condition,
+            previous_trip_code=m.previous_trip_code,
+            previous_trip_status=m.previous_trip_status,
+            cancellation_reason=m.cancellation_reason,
+            released_at=m.released_at,
             created_at=m.created_at,
             updated_at=m.updated_at,
         )
@@ -369,6 +517,7 @@ class SqlAlchemyLogisticsRepository(LogisticsRepositoryPort):
                     actual_arrival=s.actual_arrival,
                     actual_departure=s.actual_departure,
                     status=StopStatus(s.status),
+                    commitment_id=s.commitment_id,
                 )
             )
 

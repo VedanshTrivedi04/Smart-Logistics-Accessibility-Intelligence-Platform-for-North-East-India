@@ -250,6 +250,26 @@ class SqlAlchemyImpactRepository(ImpactRepositoryPort):
         models = result.scalars().all()
         return [self._to_trip_impact_entity(m) for m in models]
 
+    async def list_trip_impacts_by_edge(
+        self,
+        edge_id: uuid.UUID,
+        organization_id: uuid.UUID | None = None,
+        active_only: bool = True,
+    ) -> list[TripImpact]:
+        query = sa.select(TripImpactModel).where(TripImpactModel.edge_id == edge_id)
+        if organization_id is not None:
+            from app.modules.logistics.infrastructure.models import TripModel
+
+            query = query.join(TripModel, TripImpactModel.trip_id == TripModel.id).where(
+                TripModel.organization_id == organization_id
+            )
+        if active_only:
+            query = query.where(TripImpactModel.is_active.is_(True))
+        query = query.order_by(TripImpactModel.assessed_at.desc())
+        result = await self.session.execute(query)
+        models = result.scalars().all()
+        return [self._to_trip_impact_entity(m) for m in models]
+
     async def list_facility_impacts(self, facility_id: uuid.UUID) -> list[FacilityImpact]:
         query = (
             sa.select(FacilityReachabilityImpactModel)

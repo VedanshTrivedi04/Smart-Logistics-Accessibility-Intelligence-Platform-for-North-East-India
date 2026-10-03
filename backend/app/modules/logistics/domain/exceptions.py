@@ -56,7 +56,14 @@ class VehicleCapacityExceededError(UnprocessableError):
 class VehicleHazmatIncapableError(UnprocessableError):
     code = "VEHICLE_HAZMAT_INCAPABLE"
 
-    def __init__(self, message: str = "Consignment requires hazmat/refrigerated capable vehicle"):
+    def __init__(self, message: str = "Consignment requires hazmat capable vehicle"):
+        super().__init__(message=message, code=self.code)
+
+
+class VehicleColdChainIncapableError(UnprocessableError):
+    code = "VEHICLE_COLD_CHAIN_INCAPABLE"
+
+    def __init__(self, message: str = "Consignment requires refrigerated capable vehicle"):
         super().__init__(message=message, code=self.code)
 
 
@@ -72,3 +79,11 @@ class DuplicateRegistrationError(ConflictError):
 
     def __init__(self, message: str = "Vehicle registration number already exists in organization"):
         super().__init__(message=message, code=self.code)
+
+
+class InvalidDeliveryStateTransitionError(ConflictError):
+    code = "INVALID_DELIVERY_STATE_TRANSITION"
+
+    def __init__(self, message: str = "Illegal delivery state transition"):
+        super().__init__(message=message, code=self.code)
+

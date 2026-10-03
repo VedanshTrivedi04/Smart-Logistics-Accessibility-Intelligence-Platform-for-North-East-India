@@ -37,8 +37,30 @@ export type Media = S["MediaResponse"];
 export type UploadTicket = S["UploadTicketResponse"];
 export type BatchSyncResponse = S["BatchSyncResponse"];
 
+// AI/ML Inference types
+export type VerifyPhotoResponse = S["VerifyPhotoResponse"];
+export type AutoTriageReportRequest = S["AutoTriageReportRequest"];
+export type PredictRiskRequest = S["PredictRiskRequest"];
+export type PredictRiskResponse = S["PredictRiskResponse"];
+export type FeatureContribution = S["FeatureContributionResponse"];
+export type EstimateEtaRequest = S["EstimateEtaRequest"];
+export type EstimateEtaResponse = S["EstimateEtaResponse"];
+export type OptimizeDispatchRequest = S["OptimizeDispatchRequest"];
+export type OptimizeDispatchResponse = S["OptimizeDispatchResponse"];
+export type DispatchRoute = S["DispatchRouteResponse"];
+export type TranscribeVoiceResponse = S["TranscribeVoiceResponse"];
+export type VoiceReportResponse = S["VoiceReportResponse"];
+export type TranslateTextRequest = S["TranslateTextRequest"];
+export type TranslateTextResponse = S["TranslateTextResponse"];
+export type TextReportRequest = S["TextReportRequest"];
+
 export type AccessibilityStatus = S["AccessibilityStatus"];
 export type ReportType = S["ReportType"];
+export type LaneStatus = S["LaneStatus"];
+export type PassableVehicleClass = S["PassableVehicleClass"];
+export type RoadSide = "HILLSIDE" | "VALLEY_SIDE" | "BOTH" | "UNKNOWN";
+export const ROAD_SIDES: readonly RoadSide[] = ["HILLSIDE", "VALLEY_SIDE", "BOTH", "UNKNOWN"];
+
 export type ReportSeverity = S["ReportSeverity"];
 export type ReviewState = S["ReviewState"];
 export type IncidentLifecycle = S["IncidentLifecycle"];
@@ -85,6 +107,8 @@ export const CAPABILITIES = [
   "EXPORT_DATA",
   "RESPOND_EMERGENCY",
   "COORDINATE_RESPONSE",
+  "CONDUCT_INSPECTION",
+  "ASSIGN_INSPECTION",
   "MANAGE_IDENTITY",
   "MANAGE_GRANTS",
 ] as const;
@@ -97,10 +121,17 @@ export const REPORT_TYPES: readonly ReportType[] = [
   "ROAD_DAMAGE",
   "BRIDGE_COLLAPSE",
   "TREE_FALL",
+  "OBSTRUCTION",
   "WEATHER_HAZARD",
   "SECURITY_INCIDENT",
   "OTHER",
+  "ROAD_CONDITION_UPDATE",
 ];
+/** Report types an officer can file as a new incident. A road-condition update has its own form. */
+export type IncidentReportType = Exclude<ReportType, "ROAD_CONDITION_UPDATE">;
+export const INCIDENT_REPORT_TYPES: readonly IncidentReportType[] = REPORT_TYPES.filter(
+  (t): t is IncidentReportType => t !== "ROAD_CONDITION_UPDATE",
+);
 export const REPORT_SEVERITIES: readonly ReportSeverity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 export const VEHICLE_TYPES: readonly VehicleType[] = [
   "TRUCK_HEAVY",

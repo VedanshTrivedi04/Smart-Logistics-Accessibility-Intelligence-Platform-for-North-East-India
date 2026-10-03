@@ -140,7 +140,9 @@ class ReportModel(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     geom = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     accuracy_m: Mapped[float] = mapped_column(Float, nullable=False)
+    altitude_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     location_provider: Mapped[str] = mapped_column(String(32), nullable=False, default="GPS_HARDWARE")
+    road_side: Mapped[str | None] = mapped_column(String(24), nullable=True)
     candidate_edge_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("road_edges.id", ondelete="SET NULL"),
@@ -172,6 +174,9 @@ class ReportModel(Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     cv_hazard_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lane_status: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    passable_classes: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    life_safety_risk: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     cv_severity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     cv_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     cv_is_roadway_blocked: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

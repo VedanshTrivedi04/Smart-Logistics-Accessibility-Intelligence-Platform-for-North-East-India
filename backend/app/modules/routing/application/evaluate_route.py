@@ -327,7 +327,11 @@ class EvaluateRouteUseCase:
         primary_edges = with_geometry(primary_edges)
         alternatives = [replace(alt, edges=with_geometry(alt.edges)) for alt in alternatives]
 
-        def build_linestring(segments: list[tuple[UUID, bool]]) -> dict[str, Any]:
+        def build_linestring(
+            segments: list[tuple[UUID, bool]],
+            origin_pt: tuple[float, float] | None = None,
+            dest_pt: tuple[float, float] | None = None,
+        ) -> dict[str, Any]:
             all_coords: list[list[float]] = []
             for eid, is_rev in segments:
                 geom = edge_geoms.get(eid)
@@ -357,14 +361,25 @@ class EvaluateRouteUseCase:
                         all_coords.extend(coords)
                 else:
                     all_coords.extend(coords)
+
+            if origin_pt and all_coords:
+                first = all_coords[0]
+                if abs(first[0] - origin_pt[0]) > 0.0001 or abs(first[1] - origin_pt[1]) > 0.0001:
+                    all_coords.insert(0, [origin_pt[0], origin_pt[1]])
+
+            if dest_pt and all_coords:
+                last = all_coords[-1]
+                if abs(last[0] - dest_pt[0]) > 0.0001 or abs(last[1] - dest_pt[1]) > 0.0001:
+                    all_coords.append([dest_pt[0], dest_pt[1]])
+
             return {"type": "LineString", "coordinates": all_coords}
 
-        primary_geom = build_linestring(primary_edge_segments)
+        primary_geom = build_linestring(primary_edge_segments, origin_coords, destination_coords)
 
         alt_geometries = []
         populated_alts = []
         for alt in alternatives:
-            alt_geom = build_linestring(alt_segments_map.get(alt.rank, []))
+            alt_geom = build_linestring(alt_segments_map.get(alt.rank, []), origin_coords, destination_coords)
             alt_geometries.append(alt_geom)
             populated_alts.append(
                 AlternativeRoute(
